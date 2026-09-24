@@ -1,10 +1,15 @@
 // Stroke-to-speech pairing (PRD P0-11): a demonstrative pairs with an Annotation inside the pairing window,
-// 2s with word-level timestamps and 4s with approximate ones. The prompt builder precomputes the pairs as
-// hints ("near #3"); the model makes the final call.
+// 2s with word-level timestamps, 2.5s with approximate ones moved onto the VAD's speech spans (./align.ts), and 4s
+// with approximate ones still stamped on arrival. The prompt builder precomputes the pairs as hints ("near #3"); the
+// model makes the final call.
 import type { EventOf, TimestampQuality } from '../timeline.ts';
-import { demonstrativesInText, isDemonstrative } from './locale/en.ts';
+import { isVadAligned, type VadAlignment } from './align.ts';
+import { demonstrativesInText, isDemonstrative, refersBack } from './locale/en.ts';
 
-export const PAIRING_WINDOW_MS: Record<TimestampQuality, number> = { word: 2000, approximate: 4000 };
+/** How precise speech times are when pairing: the recorded quality, or `vad` for a VAD-aligned segment. */
+export type PairingQuality = TimestampQuality | 'vad';
+
+export const PAIRING_WINDOW_MS: Record<PairingQuality, number> = { word: 2000, vad: 2500, approximate: 4000 };
 
 export interface Span {
   t: number;
@@ -14,11 +19,19 @@ export interface Span {
 /** Distance between two spans in ms; 0 when they overlap. */
 export const gapMs = (a: Span, b: Span): number => Math.max(0, b.t - a.t_end, a.t - b.t_end);
 
-/** The Session's timestamp quality: approximate if any segment is. No speech: word (the window is moot). */
-export function sessionTimestampQuality(
-  segments: readonly Pick<EventOf<'transcript_segment'>, 'timestamp_quality'>[],
-): TimestampQuality {
-  return segments.some((s) => s.timestamp_quality === 'approximate') ? 'approximate' : 'word';
+type QualitySource = Pick<EventOf<'transcript_segment'>, 'timestamp_quality'> & { vad?: VadAlignment };
+
+/** One segment's pairing quality. */
+export const segmentQuality = (seg: QualitySource): PairingQuality =>
+  isVadAligned(seg) ? 'vad' : seg.timestamp_quality;
+
+/**
+ * The Session's pairing quality, the loosest of its segments': approximate if any segment is still stamped on arrival,
+ * else vad if any was VAD-aligned. No speech: word (the window is moot).
+ */
+export function sessionTimestampQuality(segments: readonly QualitySource[]): PairingQuality {
+  const qs = new Set(segments.map(segmentQuality));
+  return qs.has('approximate') ? 'approximate' : qs.has('vad') ? 'vad' : 'word';
 }
 
 export interface SpeechAnchor extends Span {
@@ -54,7 +67,7 @@ export interface AnchorPairing {
 export function pairSegment(
   segment: Pick<EventOf<'transcript_segment'>, 't' | 't_end' | 'text' | 'words'>,
   annotations: readonly Pick<EventOf<'annotation'>, 'index' | 't' | 't_end'>[],
-  quality: TimestampQuality,
+  quality: PairingQuality,
 ): AnchorPairing[] {
   const window = PAIRING_WINDOW_MS[quality];
   return speechAnchors(segment).map((anchor) => ({
@@ -65,4 +78,16 @@ export function pairSegment(
       .sort((x, y) => x.gap - y.gap || x.index - y.index)
       .map((x) => x.index),
   }));
+}
+
+/** Every Annotation a segment's anchors are near, nearest first, each once. */
+export const nearAny = (pairs: readonly AnchorPairing[]): number[] => [...new Set(pairs.flatMap((p) => p.annotations))];
+
+/**
+ * The Annotations a pointing word with no mark near refers back to ("that", "it"): what the latest speech before it
+ * that was near any Annotation pointed at. Null when the word does not refer back, has a mark near, or nothing came
+ * before.
+ */
+export function referredBack(pair: AnchorPairing, previous: readonly number[]): number[] | null {
+  return refersBack(pair.anchor.word) && pair.annotations.length === 0 && previous.length > 0 ? [...previous] : null;
 }

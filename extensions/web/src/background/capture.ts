@@ -295,8 +295,23 @@ export async function recordSegment({ target = null, ...segment }: SegmentInput)
   await appendEvent(s.id, { type: 'transcript_segment', ...segment, run_id: null, target: null });
   void draftSignals.segment();
   if (!s.stopping)
-    void signalContent(s, { reason: 'speech_boundary', t: offsetOf(s), if_opened_before: speechBoundaryAt(segment) });
+    void signalContent(s, {
+      reason: 'speech_boundary',
+      t: offsetOf(s),
+      if_opened_before: speechBoundaryAt(segment, speechStartsOf(s.id)),
+    });
 }
+
+/** Recent VAD speech starts of the recording Session: where a late (approximate) segment's sentence began. */
+let speechStarts: { session_id: string; t: number[] } = { session_id: '', t: [] };
+const KEPT_SPEECH_STARTS = 32;
+
+function noteSpeechStart(sessionId: string, t: number): void {
+  if (speechStarts.session_id !== sessionId) speechStarts = { session_id: sessionId, t: [] };
+  if (!speechStarts.t.includes(t)) speechStarts.t = [...speechStarts.t, t].slice(-KEPT_SPEECH_STARTS);
+}
+
+const speechStartsOf = (sessionId: string) => (speechStarts.session_id === sessionId ? speechStarts.t : []);
 
 /** An interim caption of a comment box's dictation (E11), for the page's box to show. */
 export async function relayBoxInterim(input: { target: DictationTarget; text: string }): Promise<void> {
@@ -308,14 +323,19 @@ export async function relayBoxInterim(input: { target: DictationTarget; text: st
 export async function recordSpeechActivity(span: { t: number; t_end: number }): Promise<void> {
   const s = await getActive();
   if (!s || s.paused || s.stopping) return;
+  noteSpeechStart(s.id, span.t);
   await appendEvent(s.id, { type: 'speech_activity', t: span.t, t_end: Math.max(span.t, span.t_end) });
   void draftSignals.speechEnded();
 }
 
-/** The VAD heard speech begin: no Draft Item pass starts while the reviewer is talking. */
-export async function recordSpeechStart(): Promise<void> {
+/**
+ * The VAD heard speech begin: no Draft Item pass starts while the reviewer is talking, and the next approximate
+ * segment's Speech Boundary is here rather than when its first interim arrived.
+ */
+export async function recordSpeechStart({ t }: { t: number }): Promise<void> {
   const s = await getActive();
   if (!s || s.paused || s.stopping) return;
+  noteSpeechStart(s.id, t);
   void draftSignals.speechStarted();
 }
 

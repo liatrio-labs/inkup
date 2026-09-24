@@ -7,8 +7,8 @@
 //   retry as Process (src/adapters/llm/anthropic.ts).
 import { z } from 'zod';
 import { draftLocationSummary, draftViews } from '../drafts.ts';
-import { applyTranscriptEdits } from '../review-edits.ts';
 import { Category, DraftLocationSchema, type EventOf, type TimelineEvent } from '../timeline.ts';
+import { processEvents } from './align.ts';
 import { renderEvents, scriptHeader, scriptQuality, stamp } from './script.ts';
 
 export const RECENT_DRAFTS = 2;
@@ -53,7 +53,7 @@ export interface DraftPromptInput {
 type Ev<T extends TimelineEvent['type']> = EventOf<T>;
 
 export function buildDraftPrompt({ events: raw, fresh, start_url }: DraftPromptInput): DraftPrompt {
-  const events = applyTranscriptEdits(raw);
+  const events = processEvents(raw);
   const quality = scriptQuality(events, undefined);
   // Drafts, actions and commands are context, not new content: the recent drafts section covers them.
   const content = (e: TimelineEvent) =>
@@ -74,7 +74,7 @@ export function buildDraftPrompt({ events: raw, fresh, start_url }: DraftPromptI
   });
 
   const script = [
-    ...scriptHeader(quality),
+    ...scriptHeader(quality, events),
     `LIVE PASS: events since ${Number.isFinite(since) ? stamp(since) : 'the start'}; earlier events were covered by earlier passes.`,
     '',
     'RECENT DRAFT ITEMS (already shown to the reviewer; do not repeat them):',

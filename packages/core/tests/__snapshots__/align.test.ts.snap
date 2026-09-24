@@ -1,0 +1,59 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`real Sessions (fixtures/vad-alignment: Web Speech with Silero VAD spans) > review-page.json: before/after pairing table 1`] = `
+"| # | speech | stamped (s) | VAD-aligned (s) | pairs before | pairs after |
+|---|---|---|---|---|---|
+| 1 | word | 3.6–4.7 | 3.2–4.3 | – | – |
+| 2 | word word word here word word | 5.0–6.8 | 4.6–6.2 | "here" – | "here" – |
+| 3 | word word word here word | 7.7–9.9 | 6.4–9.2 | "here" – | "here" – |
+| 4 | word word word | 10.5–11.6 | 9.9–11.0 | – | – |
+| 5 | word that word word word word word | 12.5–15.8 | 11.6–15.2 | "that" – | "that" – |
+| 6 | word word word word word there word word word w… | 16.5–29.4 | 15.7–28.6 | "there" –; "it" – | "there" –; "it" – |
+| 7 | word word word there word word word word word w… | 29.8–36.7 | 29.1–36.5 | "there" –; "that" – | "there" –; "that" – |
+| 8 | word word word word word word word word word wo… | 37.3–43.8 | 36.7–43.0 | – | – |
+| 9 | word word word word word word word word word wo… | 45.1–48.3 | 44.8–47.5 | #1 | – ◀ |
+| 10 | word word that word word word | 49.0–51.2 | 48.1–50.5 | "that" #1 #2 | "that" #1 ◀ |
+| 11 | word word word word there word word word word w… | 51.8–56.4 | 51.1–55.7 | "there" #1 #2 | "there" #1 #2 |
+| 12 | word that word word word word word word word wo… | 57.1–60.0 | 56.4–59.3 | "that" #2 | "that" #2 |
+| 13 | word word word word word | 60.5–62.8 | 59.9–62.0 | #2 | – ◀ |
+| 14 | word | 63.5–64.0 | 62.8–63.4 | – | – |
+| 15 | word word word word word word here | 65.7–70.1 | 64.9–69.4 | "here" #3 | "here" #3 |
+| 16 | word word word word word here | 70.7–73.6 | 70.3–72.9 | "here" #3 | "here" #3 |
+| 17 | word word word word word word word word word wo… | 74.5–83.7 | 73.7–81.7 | "this" #4 #5 #3; "these" #4 #5 #3; "here" #4 #5 #3 | "this" #4 #3 #5; "these" #4 #3 #5; "here" #4 #3 #5 ◀ |
+| 18 | these word word word word word word word word w… | 84.4–92.0 | 82.2–91.1 | "these" #5 #6 #4 | "these" #5 #6 #4 |
+| 19 | word word word word word word word | 92.9–95.5 | unchanged | #6 | #6 |
+| 20 | word word | 96.2–96.9 | unchanged | #7 | #7 |
+| 21 | word word word word word word that word word wo… | 97.3–101.8 | 97.2–101.1 | "that" #7 | "that" #7 |
+| 22 | word word word word word word word word word wo… | 102.5–107.5 | 101.8–106.8 | "that" #7 | "that" #7 |
+| 23 | word | 108.8–109.4 | 108.1–108.3 | #7 | – ◀ |
+| 24 | word word | 110.8–111.7 | 110.1–110.9 | – | – |
+| 25 | word word word word word word word | 113.0–115.8 | 112.4–115.3 | – | – |
+| 26 | word word | 118.9–120.7 | 117.6–120.5 | – | – |
+| 27 | word | 121.3–122.0 | 120.7–121.4 | – | – |"
+`;
+
+exports[`real Sessions (fixtures/vad-alignment: Web Speech with Silero VAD spans) > session-header.json: before/after pairing table 1`] = `
+"| # | speech | stamped (s) | VAD-aligned (s) | pairs before | pairs after |
+|---|---|---|---|---|---|
+| 1 | word word word word this word word word word wo… | 1.6–8.5 | 1.2–8.3 | "this" #1 | "this" #1 |
+| 2 | word these word word word word word word word w… | 10.8–15.1 | 9.9–14.7 | "these" #1; "here" #1 | "these" #1; "here" #1 |
+| 3 | word word word word word word word word word | 15.5–19.2 | 14.9–18.1 | #2 #1 | #2 #1 |
+| 4 | this word word word word word that word word wo… | 20.8–29.1 | unchanged | "this" #3 #2; "that" #3 #2 | "this" #3 #2; "that" #3 #2 |
+| 5 | word word word that word word word word word th… | 29.6–38.7 | 29.1–35.8 | "that" #3; "that" #3; "that" #3 | "that" – (refers back: #3 #2); "that" – (refers back: #3 #2); "that" – (refers back: #3 #2) ◀ |
+| 6 | word it word word word | 39.5–41.4 | 39.1–41.4 | "it" – (refers back: #3) | "it" – (refers back: #3 #2) ◀ |
+| 7 | word word word word word word word word word | 42.2–44.9 | unchanged | – | – |
+| 8 | word word word word word word it word that word… | 46.1–53.9 | 45.9–52.9 | "it" – (refers back: #3); "that" – (refers back: #3); "it" – (refers back: #3); "it" – (refers back: #3) | "it" – (refers back: #3 #2); "that" – (refers back: #3 #2); "it" – (refers back: #3 #2); "it" – (refers back: #3 #2) ◀ |
+| 9 | word word word word those word word | 54.5–57.6 | 53.1–56.9 | "those" – | "those" – |
+| 10 | word word word | 58.4–59.8 | unchanged | #4 | #4 |
+| 11 | word word word word word word this word word wo… | 61.8–69.7 | 59.8–66.7 | "this" #4 #5 | "this" #4 #5 |
+| 12 | word that word word word word word word these w… | 70.2–78.8 | unchanged | "that" #6 #5; "these" #6 #5 | "that" #6 #5; "these" #6 #5 |
+| 13 | word that word word word word word word word wo… | 79.7–83.5 | 78.8–81.5 | "that" – (refers back: #6 #5) | "that" – (refers back: #6 #5) |
+| 14 | word word word word word word word word word wo… | 83.9–87.8 | 82.1–85.0 | #7 | – ◀ |
+| 15 | word these word word word word word word word w… | 88.3–102.7 | unchanged | "these" #7 #8; "it" #7 #8; "there" #7 #8 | "these" #7 #8; "it" #7 #8; "there" #7 #8 |
+| 16 | word word word word word word word word word wo… | 103.2–113.5 | 102.7–112.0 | "this" #9 #10; "this" #9 #10 | "this" #9; "this" #9 ◀ |
+| 17 | word | 114.9–114.9 | 112.6–114.9 | #10 #9 | #10 #9 |
+| 18 | word word word word word word word word word wo… | 115.3–125.1 | 115.1–122.2 | "here" #10 #11 #9 | "here" #10 #11 ◀ |
+| 19 | word word | 127.3–128.4 | 126.3–128.4 | – | – |
+| 20 | that word word word word word word | 129.3–132.3 | 128.4–129.4 | "that" – (refers back: #10 #11 #9) | "that" – (refers back: #10 #11) ◀ |
+| 21 | word word word word word word word those word w… | 135.8–140.9 | 133.4–138.0 | "those" – | "those" – |"
+`;

@@ -141,9 +141,6 @@ async function startMic(r: Running, transcription: AdapterConfig): Promise<Trans
     adapterPaused: false,
   };
 
-  recorder.onstart = () => {
-    m.startedAt = Date.now();
-  };
   recorder.ondataavailable = (e) => {
     if (e.data.size === 0) return;
     const seq = m.chunkSeq++;
@@ -160,6 +157,9 @@ async function startMic(r: Running, transcription: AdapterConfig): Promise<Trans
       }),
     );
   };
+  // The file's time 0 is when start() is called, as for the tab video (media/tab-video.ts), not when the start event
+  // fires: on a loaded machine that comes seconds later, and the audio then plays early against the timeline.
+  m.startedAt = Date.now();
   recorder.start(config.chunk_ms);
   // A Session paused before its voice came on records nothing until it resumes.
   if (r.paused) recorder.pause();
@@ -167,16 +167,18 @@ async function startMic(r: Running, transcription: AdapterConfig): Promise<Trans
   m.transcribing = (async () => {
     try {
       for await (const seg of adapter.start(stream)) {
+        // Web Speech stamps a segment when its results arrive, late: judge it by when the VAD heard it said.
+        const said = seg.timestamp_quality === 'approximate' && !seg.words?.length ? (voice.spoken(seg) ?? seg) : seg;
         // Dictated into the open comment box (E11): that comment's text, tagged with it, never the Session
         // transcript or a Voice Command. Speech that began before the box opened is the Session's.
         const box = r.box;
-        if (box && (seg.t + seg.t_end) / 2 >= r.boxSince) {
+        if (box && (said.t + said.t_end) / 2 >= r.boxSince) {
           await sendMessage('transcriptSegment', { segment_id: crypto.randomUUID(), ...seg, target: box });
           continue;
         }
         // Nothing said while muted exists (E10): not logged, not heard as a Voice Command. A final that arrives after
         // the mute but was spoken before it is kept.
-        if (inMute(r, seg)) continue;
+        if (inMute(r, said)) continue;
         // While paused nothing is logged; the Voice Command watcher still hears `resume` (segment_id null).
         const segment_id = r.paused ? null : crypto.randomUUID();
         voice.segment({ ...seg, segment_id });

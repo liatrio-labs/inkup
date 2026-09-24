@@ -130,14 +130,18 @@ export interface MediaWord {
   end_ms: number;
 }
 
-/** Joins word tokens into text: punctuation tokens attach to the word before them. */
+/**
+ * Joins word tokens into text: punctuation tokens attach to the word before them. Whitespace is collapsed first, so
+ * the punctuation patterns match one space and stay linear however many a token holds.
+ */
 export function joinWords(words: readonly string[]): string {
   return words
     .map((w) => w.trim())
     .filter(Boolean)
     .join(' ')
-    .replace(/\s+([,.!?;:%)\]])/g, '$1')
-    .replace(/([([])\s+/g, '$1');
+    .replace(/\s+/g, ' ')
+    .replace(/ ([,.!?;:%)\]])/g, '$1')
+    .replace(/([([]) /g, '$1');
 }
 
 /** A new sentence starts after a word ending in . ! or ?; a pause this long also splits. */

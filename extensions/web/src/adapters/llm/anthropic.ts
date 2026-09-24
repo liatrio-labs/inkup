@@ -13,6 +13,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { partialParse } from '@anthropic-ai/sdk/_vendor/partial-json-parser/parser';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { processEvents } from '@inkup/core/process/align';
 import {
   type ChangeItem,
   ChangeItemSchema,
@@ -62,7 +63,6 @@ import {
   type WindowPrompt,
   type WindowResult,
 } from '@inkup/core/process/windows';
-import { applyTranscriptEdits } from '@inkup/core/review-edits';
 import type { SessionDocument } from '@inkup/core/session-document';
 import pLimit from 'p-limit';
 import type { z } from 'zod';
@@ -152,7 +152,7 @@ function toProcessError(e: unknown): ProcessError {
  * any Session without a key (E11): its items are built in code and no call is made.
  */
 export function processWithoutModel(doc: SessionDocument, model: string): ProcessResult {
-  const events = applyTranscriptEdits(doc.events);
+  const events = processEvents(doc.events);
   const pins = processInCode(events, doc.session.start_url);
   // As after a model run: recorded style changes, viewport sizes and what the Session recorded go onto every item.
   const styled = attachStyleChanges(pins.items, events, doc.session.start_url).items;
@@ -335,7 +335,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
   });
 
   const planFor = (doc: SessionDocument, model: string) => {
-    const events = applyTranscriptEdits(doc.events);
+    const events = processEvents(doc.events);
     const length = sessionLength(doc);
     return { events, length, windows: planChunks(events, length, { outputCap: outputCapFor(model) }) };
   };
@@ -352,7 +352,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
       let input = 0;
       let output = 0;
       // Only explicit Text Comments: converted in code, no call to pay for.
-      if (!needsModel(applyTranscriptEdits(doc.events))) return { ...estimateCost(model, 0, 0), chunks: 0 };
+      if (!needsModel(processEvents(doc.events))) return { ...estimateCost(model, 0, 0), chunks: 0 };
       const { windows } = planFor(doc, model);
       for (const window of windows) {
         const { system, script, owned } = buildWindowPrompt(doc, window);
@@ -373,7 +373,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
     },
 
     async process({ doc, model, loadScreenshot, onProgress }): Promise<ProcessResult> {
-      if (!needsModel(applyTranscriptEdits(doc.events))) return processWithoutModel(doc, model);
+      if (!needsModel(processEvents(doc.events))) return processWithoutModel(doc, model);
       const { events: planned, length, windows: initial } = planFor(doc, model);
       const calls: CallRecord[] = [];
       const report = (p: ChunkProgress) => {
@@ -463,7 +463,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
         dropped: done.get(c.id)!.dropped,
       }));
       const windowed = results.length > 1;
-      const events = applyTranscriptEdits(doc.events);
+      const events = processEvents(doc.events);
       const merged = windowed
         ? mergeWindowResults(results, events)
         : {
