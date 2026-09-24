@@ -15,7 +15,9 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
+axoupdater.workspace = true
 clap.workspace = true
+directories.workspace = true
 gethostname.workspace = true
 reqwest.workspace = true
 tempfile.workspace = true

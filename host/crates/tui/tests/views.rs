@@ -262,6 +262,14 @@ fn empty_views_say_what_to_do() {
 }
 
 #[test]
+fn a_newer_release_shows_quietly_in_the_key_line() {
+    let mut app = App::new("127.0.0.1:47823");
+    app.update(HostState::default(), NOW);
+    app.update = Some("inkup 0.2.0 is out: inkup update".into());
+    check("update-notice", &app);
+}
+
+#[test]
 fn keys_drive_the_focused_clients_session() {
     let mut app = app();
     // The Chrome client is connected and recording: s refuses, p pauses, d turns draw mode on then off, x stops.
