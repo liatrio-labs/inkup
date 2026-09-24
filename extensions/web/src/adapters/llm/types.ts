@@ -1,4 +1,5 @@
-// LLM adapter interface (docs/PLAN.md: Anthropic only in v1, behind an adapter; P1-3 adds OpenAI-compatible).
+// LLM adapter interface (docs/PLAN.md: Anthropic behind an adapter; P1-3 adds OpenAI-compatible). The Vercel AI
+// Gateway serves the same Messages API, so the Anthropic adapter covers it with another base URL and key.
 // Adapters are plain TypeScript: the service worker runs them for the extension and `pnpm eval` runs the same
 // code in Node.
 import type { ChangeItem } from '@inkup/core/process/change-item';
@@ -13,9 +14,16 @@ export interface ScreenshotImage {
   data: string;
 }
 
+/**
+ * The Messages API's `output_config.effort` (platform.claude.com/docs/en/build-with-claude/effort). Absent: not
+ * sent, so the model runs at its own default. A model without effort support answers 400, shown as any API error.
+ */
+export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 export interface ProcessInput {
   doc: SessionDocument;
   model: string;
+  effort?: Effort;
   /** Screenshot bytes by stored id, for the low-confidence second pass. Absent or null: text-only. */
   loadScreenshot?: (screenshotId: string) => Promise<ScreenshotImage | null>;
   /** Called as chunks are planned, stream items, finish or split (the review page's in-progress cards). */
@@ -75,6 +83,7 @@ export interface ProcessResult {
 
 export interface DraftInput extends DraftPromptInput {
   model: string;
+  effort?: Effort;
 }
 
 export interface DraftResult {
@@ -90,6 +99,7 @@ export interface CombineInput {
   into: ChangeItem;
   from: ChangeItem;
   model: string;
+  effort?: Effort;
 }
 
 export interface CombineResult {
@@ -124,5 +134,5 @@ export interface LlmAdapter {
   /** Two merged Change Items rewritten as one request (E12): text only, small model, one repair retry. */
   combine(input: CombineInput): Promise<CombineResult>;
   /** A cheap real call per model: proves the key and the model IDs work. */
-  test(models: { process: string; draft: string }): Promise<ConnectionTest>;
+  test(models: readonly string[]): Promise<ConnectionTest>;
 }

@@ -11,11 +11,11 @@ import { defineExtensionMessaging } from '@webext-core/messaging';
 import type { FoundHost } from '@/adapters/host';
 import type { ConnectionTest } from '@/adapters/llm/types';
 import type { AdapterConfig, Fallback, TranscriptionInfo } from '@/adapters/transcription';
-import type { CombineItemsResult, EstimateResult, ProcessStartResult } from '@/background/process';
+import type { CombineItemsResult, EstimateResult, ListModelsResult, ProcessStartResult } from '@/background/process';
 import type { SampleInput } from '@/background/screenshots';
 import type { PageApiRequest, PageApiResult } from '@/content/page-api';
 import type { AudioMedia } from '@/db';
-import type { ActiveSession, BoxDictation, LiveVideo, SelectMode } from '@/settings';
+import type { ActiveSession, BoxDictation, LiveVideo, LlmProvider, SelectMode } from '@/settings';
 
 export type StartResult =
   | { ok: true; session: ActiveSession }
@@ -253,8 +253,10 @@ export interface ProtocolMap {
   combineItems(input: { run_id: string; into: ChangeItem; from: ChangeItem }): CombineItemsResult;
   /** Side panel: discard or pin a Draft Item card (P0-10). */
   draftAction(input: { draft_id: string; action: 'discard' | 'pin' }): { ok: boolean };
-  /** Options page: a cheap real call with the saved key and models. */
-  testAnthropic(): ConnectionTest;
+  /** Options page: a cheap real call with a provider's saved key and the models the roles on it use. */
+  testProvider(provider: LlmProvider): ConnectionTest;
+  /** Options page: a provider's model list with its saved key; cached in `modelLists` on success. */
+  listModels(provider: LlmProvider): ListModelsResult;
   /**
    * Options page: ask the Host at `url` to pair; answers once its user approved or refused. A Host on another machine
    * (ADR 0006) wants the 6-digit code it shows: without one (or with a wrong one) the answer has `needsCode`.

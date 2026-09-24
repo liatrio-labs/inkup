@@ -18,11 +18,12 @@ import { platform } from '@/platform';
 import { activeSession, panelNotice } from '@/session-state';
 import {
   type ActiveSession,
-  anthropicKey,
   captureSettings,
   clampFade,
   devOverrides,
   micGranted,
+  providerKey,
+  readProcessingSettings,
   type SelectMode,
 } from '@/settings';
 import { salvageAudio } from './audio';
@@ -146,7 +147,11 @@ export async function startSession(
 
   const t0 = Date.now();
   const id = crypto.randomUUID();
-  const drafts = { enabled: !!(await anthropicKey.getValue()).trim(), running: false, note: null };
+  const drafts = {
+    enabled: !!(await providerKey((await readProcessingSettings()).draft.provider)),
+    running: false,
+    note: null,
+  };
   await db.sessions.add({
     id,
     tab_id: tab.id,

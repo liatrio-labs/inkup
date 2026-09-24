@@ -101,11 +101,17 @@ async function runPass(s: ActiveSession, l: Live, reason: DraftPassReason): Prom
     const cursor = Math.max(l.cursor, ...rows.map((r) => r.seq ?? 0));
     const fresh = new Set(rows.filter((r) => (r.seq ?? 0) > l.cursor).map((r) => r.id));
     const events = sortTimeline(rows) as TimelineEvent[];
-    const a = await llm();
+    const a = await llm('draft');
     if (!a) return;
     await setState(true);
     const start = events.find((e): e is EventOf<'session_start'> => e.type === 'session_start');
-    const result = await a.adapter.draft({ events, fresh, start_url: start?.url ?? s.tab_url, model: a.draftModel });
+    const result = await a.adapter.draft({
+      events,
+      fresh,
+      start_url: start?.url ?? s.tab_url,
+      model: a.model,
+      effort: a.effort,
+    });
     l.cursor = cursor;
     const now = await getActive();
     // Stopped (or a new Session) meanwhile: the result is dropped.
@@ -123,7 +129,7 @@ async function runPass(s: ActiveSession, l: Live, reason: DraftPassReason): Prom
         t,
         draft_id: nextDraftId(written),
         pass_id,
-        model: a.draftModel,
+        model: a.model,
         ...item,
       });
       written.push(e);

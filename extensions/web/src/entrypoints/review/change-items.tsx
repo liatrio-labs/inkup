@@ -33,10 +33,9 @@ import { db, type ProcessProgressRow, type ProcessRunRow, type ResolutionRow } f
 import { latestResolutions } from '@/db/resolutions';
 import { appendReviewEvent } from '@/db/review';
 import { timeAgo, useNow } from '@/lib/time-ago';
-import { useStorageItem } from '@/lib/use-storage-item';
+import { useRoleHasKey } from '@/lib/use-role-key';
 import { cn } from '@/lib/utils';
 import { sendMessage } from '@/messaging';
-import { anthropicKey } from '@/settings';
 
 type Phase =
   | { kind: 'idle' }
@@ -58,10 +57,9 @@ export function ProcessSection({
   done: ProcessRunRow | undefined;
   count: number | null;
 }) {
-  const key = useStorageItem(anthropicKey);
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const running = phase.kind === 'running' || latest?.status === 'running';
-  const hasKey = !!key?.trim();
+  const hasKey = !!useRoleHasKey('process');
 
   async function estimate() {
     setPhase({ kind: 'estimating' });
@@ -110,7 +108,7 @@ export function ProcessSection({
               data-testid="open-options"
               rel="noopener"
             >
-              Add an Anthropic key for model-written items
+              Add a key for model-written items
             </a>
             <Button
               onClick={() => run(null)}
@@ -300,7 +298,7 @@ export function ChangeItemList({
 }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const hasKey = !!useStorageItem(anthropicKey)?.trim();
+  const hasKey = !!useRoleHasKey('merge');
   // Items the merge model is rewriting now, and why the last try for an item failed.
   const [combining, setCombining] = useState<ReadonlySet<string>>(new Set());
   const [combineError, setCombineError] = useState<ReadonlyMap<string, string>>(new Map());

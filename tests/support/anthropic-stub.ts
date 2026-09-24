@@ -4,6 +4,10 @@
 // dev-only `anthropicBaseUrl` override). A live Draft Item pass is told apart from Process by its system prompt
 // (isDraftRequest), whatever model it names, and a review-page Combine by its own (isCombineRequest).
 //
+// Model lists: GET /v1/models answers as Anthropic's `models.list` when the request carries `anthropic-version` (the
+// SDK sends it), else as the Vercel AI Gateway's list (the same stub stands in for the Gateway through the dev-only
+// `gatewayBaseUrl` override). `models` sets both lists; `failModels` makes it answer 500.
+//
 // Streaming: a request with `stream: true` gets the same answer as server-sent events (message_start, text deltas,
 // message_delta, message_stop), `deltaChars` characters per delta, `streamDelayMs` apart.
 // Truncation: an answer longer than the request's `max_tokens` (or the stub's own `maxOutputTokens`, a stand-in for
@@ -76,6 +80,92 @@ export interface StubOptions {
   maxOutputTokens?: number;
   deltaChars?: number;
   streamDelayMs?: number;
+  /** The model lists GET /v1/models serves. Default: DEFAULT_STUB_MODELS. */
+  models?: StubModels;
+  /** GET /v1/models answers 500. */
+  failModels?: boolean;
+}
+
+/** What GET /v1/models lists: Anthropic ids, and Gateway ids with per-token prices (strings, as the Gateway sends). */
+export interface StubModels {
+  anthropic: { id: string; display_name: string; max_input_tokens?: number; max_tokens?: number }[];
+  gateway: {
+    id: string;
+    name: string;
+    type?: string;
+    context_window?: number;
+    max_tokens?: number;
+    tags?: string[];
+    pricing?: { input: string; output: string };
+  }[];
+}
+
+export const DEFAULT_STUB_MODELS: StubModels = {
+  anthropic: [
+    { id: 'claude-sonnet-5', display_name: 'Claude Sonnet 5', max_input_tokens: 1_000_000, max_tokens: 128_000 },
+    { id: 'claude-opus-5-5', display_name: 'Claude Opus 5.5', max_input_tokens: 1_000_000, max_tokens: 128_000 },
+    {
+      id: 'claude-haiku-4-5-20251001',
+      display_name: 'Claude Haiku 4.5',
+      max_input_tokens: 200_000,
+      max_tokens: 64_000,
+    },
+  ],
+  gateway: [
+    {
+      id: 'anthropic/claude-sonnet-5',
+      name: 'Claude Sonnet 5',
+      type: 'language',
+      context_window: 1_000_000,
+      max_tokens: 128_000,
+      tags: ['file-input', 'tool-use', 'reasoning', 'vision'],
+      pricing: { input: '0.000002', output: '0.00001' },
+    },
+    {
+      id: 'anthropic/claude-haiku-4.5',
+      name: 'Claude Haiku 4.5',
+      type: 'language',
+      context_window: 200_000,
+      max_tokens: 64_000,
+      tags: ['tool-use', 'vision'],
+      pricing: { input: '0.000001', output: '0.000005' },
+    },
+    {
+      id: 'google/gemini-3.1-pro-preview',
+      name: 'Gemini 3.1 Pro Preview',
+      type: 'language',
+      context_window: 1_000_000,
+      max_tokens: 64_000,
+      tags: ['file-input', 'tool-use', 'reasoning', 'vision'],
+      pricing: { input: '0.000002', output: '0.000012' },
+    },
+    { id: 'openai/text-embedding-4', name: 'Text Embedding 4', type: 'embedding' },
+  ],
+};
+
+function modelsReply(req: StubRequest, models: StubModels): StubReply {
+  if (req.headers['anthropic-version']) {
+    const data = models.anthropic.map((m) => ({
+      type: 'model',
+      created_at: '2026-01-01T00:00:00Z',
+      capabilities: null,
+      max_input_tokens: null,
+      max_tokens: null,
+      ...m,
+    }));
+    return { body: { data, has_more: false, first_id: data[0]?.id ?? null, last_id: data.at(-1)?.id ?? null } };
+  }
+  return {
+    body: {
+      object: 'list',
+      data: models.gateway.map((m) => ({
+        object: 'model',
+        created: 1_755_815_280,
+        owned_by: m.id.split('/')[0],
+        ...m,
+      })),
+    },
+  };
 }
 
 /** Cuts a message reply at the output limit: the text stops mid-way and stop_reason becomes max_tokens. */
@@ -130,7 +220,7 @@ export async function startAnthropicStub(opts: StubOptions): Promise<AnthropicSt
     const cors = {
       'access-control-allow-origin': '*',
       'access-control-allow-headers': '*',
-      'access-control-allow-methods': 'POST, OPTIONS',
+      'access-control-allow-methods': 'GET, POST, OPTIONS',
     };
     if (req.method === 'OPTIONS') {
       res.writeHead(204, cors).end();
@@ -151,6 +241,10 @@ export async function startAnthropicStub(opts: StubOptions): Promise<AnthropicSt
       let reply: StubReply;
       if (req.method === 'POST' && path === '/v1/messages/count_tokens') {
         reply = { body: { input_tokens: opts.inputTokens?.(r) ?? 4321 } };
+      } else if (req.method === 'GET' && path === '/v1/models') {
+        reply = opts.failModels
+          ? errorReply(500, 'api_error', 'stub: model list unavailable')
+          : modelsReply(r, opts.models ?? DEFAULT_STUB_MODELS);
       } else if (req.method === 'POST' && path === '/v1/messages') {
         peak = Math.max(peak, ++open);
         res.on('close', () => open--);
