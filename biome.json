@@ -2,7 +2,7 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
-    "includes": ["**", "!**/vendor", "!host", "!**/safari-xcode", "!docs/schema", "!packages/protocol/protocol.schema.json", "!packages/protocol/fixtures", "!fixtures/sessions", "!**/*.css"]
+    "includes": ["**", "!**/vendor", "!host", "!**/safari-xcode", "!contract", "!fixtures/sessions", "!**/*.css"]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
   "javascript": {

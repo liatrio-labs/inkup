@@ -1,17 +1,17 @@
-//! src/generated.rs is typify's output for packages/protocol/protocol.schema.json, committed. This fails when it is
+//! src/generated.rs is typify's output for contract/protocol.schema.json, committed. This fails when it is
 //! stale. Regenerate: `UPDATE_PROTOCOL=1 cargo test -p inkup-protocol --test generated`.
 use std::path::Path;
 
 use typify::{TypeSpace, TypeSpaceSettings};
 
-const HEADER: &str = "// @generated from packages/protocol/protocol.schema.json by crates/protocol/tests/generated.rs.\n\
+const HEADER: &str = "// @generated from contract/protocol.schema.json by crates/protocol/tests/generated.rs.\n\
 // Do not edit: change the Zod schemas, run `pnpm schema`, then\n\
 // `UPDATE_PROTOCOL=1 cargo test -p inkup-protocol --test generated`.\n\n";
 
 fn render() -> String {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let text = std::fs::read_to_string(root.join("../../../packages/protocol/protocol.schema.json"))
-        .expect("read packages/protocol/protocol.schema.json");
+    let text = std::fs::read_to_string(root.join("../../../contract/protocol.schema.json"))
+        .expect("read contract/protocol.schema.json");
     let schema: schemars::schema::RootSchema =
         serde_json::from_str(&text).expect("protocol.schema.json is JSON Schema");
     let mut types = TypeSpace::new(TypeSpaceSettings::default().with_struct_builder(false));

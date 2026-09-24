@@ -1,4 +1,4 @@
-//! The shared fixture corpus (packages/protocol/fixtures), also decoded by the Vitest contract test. A fixture
+//! The shared fixture corpus (contract/fixtures), also decoded by the Vitest contract test. A fixture
 //! named `<type>.<case>.json` must decode as that message type and serialize back to the same JSON; every file
 //! under invalid/ must be refused.
 use std::path::{Path, PathBuf};
@@ -7,7 +7,7 @@ use inkup_protocol::{Envelope, Health};
 use serde_json::Value;
 
 fn fixtures() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../packages/protocol/fixtures")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../contract/fixtures")
 }
 
 fn json_files(dir: &Path) -> Vec<PathBuf> {

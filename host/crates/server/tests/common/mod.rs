@@ -17,7 +17,7 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 pub type Socket = WebSocketStream<MaybeTlsStream<TokioTcpStream>>;
 
 pub fn fixture(name: &str) -> Value {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/protocol/fixtures").join(name);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../contract/fixtures").join(name);
     serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap()
 }
 

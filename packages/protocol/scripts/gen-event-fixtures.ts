@@ -1,5 +1,5 @@
 // `pnpm fixtures:events`: writes one `event` message fixture for every timeline event type (packages/core
-// timeline.ts), and a variant per shape the Host reads differently, into fixtures/ as `event.<type>[.<variant>].json`;
+// timeline.ts), and a variant per shape the Host reads differently, into contract/fixtures/ as `event.<type>[.<variant>].json`;
 // and the `items.json` Change Item push. Together they are one Session as the extension would stream it: every
 // optional field filled, so the Host's contract test (host/crates/server/src/contract.rs) sees every field it could
 // read. test/event-fixtures.test.ts fails when the files are stale, when a type has no fixture, or when a field of
@@ -11,7 +11,7 @@ import type { ChangeItem } from '@inkup/core/process/change-item';
 import type { EventOf, EventType } from '@inkup/core/timeline';
 import type { EventMessage, ItemsMessage } from '../src/index.ts';
 
-export const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
+export const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'contract', 'fixtures');
 
 export const SESSION_ID = '3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90';
 const URL = 'http://localhost:4401/pricing.html';

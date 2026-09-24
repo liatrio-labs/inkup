@@ -180,7 +180,7 @@ mod tests {
 
     use super::*;
 
-    /// The generated fixture `event.<name>.json` (packages/protocol/fixtures), with `patch`'s fields set over it.
+    /// The generated fixture `event.<name>.json` (contract/fixtures), with `patch`'s fields set over it.
     fn fixture(json: &str, patch: Value) -> Value {
         let mut event = serde_json::from_str::<Value>(json).unwrap()["event"].take();
         for (key, value) in patch.as_object().unwrap() {
@@ -191,7 +191,7 @@ mod tests {
 
     macro_rules! event {
         ($name:literal, $patch:expr) => {
-            fixture(include_str!(concat!("../../../../packages/protocol/fixtures/event.", $name, ".json")), $patch)
+            fixture(include_str!(concat!("../../../../contract/fixtures/event.", $name, ".json")), $patch)
         };
     }
 

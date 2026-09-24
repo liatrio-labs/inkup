@@ -1,4 +1,4 @@
-// `pnpm schema`: writes protocol.schema.json from the Zod schemas in src/index.ts. host/crates/protocol generates
+// `pnpm schema`: writes contract/protocol.schema.json from the Zod schemas in src/index.ts. host/crates/protocol generates
 // its Rust types from that file. test/schema-sync.test.ts fails when the committed file is stale.
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -8,7 +8,14 @@ import { TimelineEventSchema } from '@inkup/core/timeline';
 import { z } from 'zod';
 import { DEFINITIONS, PROTOCOL_VERSION } from '../src/index.ts';
 
-export const SCHEMA_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'protocol.schema.json');
+export const SCHEMA_FILE = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+  'contract',
+  'protocol.schema.json',
+);
 
 // typify, the Rust generator, reads draft-07 `definitions` and enforces `enum` but not `const`: a literal becomes a
 // one-value enum (an integer one for `v`), so the Rust side rejects a wrong `type` or `v` as Zod does.

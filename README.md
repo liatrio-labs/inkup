@@ -65,7 +65,7 @@ its own, use `pnpm -C packages/core test` or `pnpm -C extensions/web test`.
 | `pnpm build:firefox`, `pnpm zip:firefox` | The same for Firefox (`firefox-mv3`). What each browser can do is in `docs/browsers.md` |
 | `pnpm typecheck` | `tsc --noEmit` in each package, then the repo-level scripts and tests |
 | `pnpm fixtures:serve` | The fixture site on `http://localhost:4401` and `http://127.0.0.1:4402` |
-| `pnpm schema` | Regenerates the `session.json` JSON Schema in `docs/schema/` |
+| `pnpm schema` | Regenerates the Session and wire protocol JSON Schemas in `contract/` |
 | `pnpm validate:session <file>` | Validates an exported `session.json` against the schema |
 | `pnpm metrics <dir>` | PRD §8 metrics over a folder of exported `session.json` files |
 | `pnpm fixtures:sessions` | Regenerates the Process fixtures in `fixtures/sessions/` |

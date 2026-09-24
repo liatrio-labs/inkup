@@ -9,7 +9,7 @@ minimum_pre_commit_version: "4.0.0"
 exclude: |
   (?x)^(
     fixtures/(audio|extension|sessions|site/vendor|strokes)/.*
-    | packages/protocol/fixtures/.*
+    | contract/fixtures/.*
     | host/crates/tui/tests/snapshots/.*
     | extensions/web/safari-xcode/.*
   )$

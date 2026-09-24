@@ -1,4 +1,4 @@
-// @generated from packages/protocol/protocol.schema.json by crates/protocol/tests/generated.rs.
+// @generated from contract/protocol.schema.json by crates/protocol/tests/generated.rs.
 // Do not edit: change the Zod schemas, run `pnpm schema`, then
 // `UPDATE_PROTOCOL=1 cargo test -p inkup-protocol --test generated`.
 
