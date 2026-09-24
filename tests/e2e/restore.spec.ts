@@ -10,6 +10,7 @@ import { SCHEMA_VERSION } from '../../packages/core/src/timeline.ts';
 import { messageReply, scriptOf, startAnthropicStub } from '../support/anthropic-stub';
 import { expect, grantMic, ROOT, test, useScriptedTranscript } from './fixtures';
 import { circle } from './helpers/draw';
+import { reviewTabs } from './helpers/review-tabs';
 
 test.use({ fakeAudio: 'review-two-notes.wav' });
 
@@ -144,7 +145,8 @@ test('an exported zip restores the Session with the same items, screenshots and 
     const restored = await openReviewFrom(list, list.getByTestId('restore-open-review'));
     expect(await reviewView(restored)).toEqual(before);
 
-    // Edit the restored item, then restore the zip again: the clash dialog opens the existing copy…
+    // Edit the restored item, then restore the zip again: the clash dialog opens the existing copy, whose review is
+    // open already, so that tab comes forward instead of a second one (decisions log #39)…
     const item = restored.getByTestId('change-item').first();
     await item.getByTestId('edit-item').click();
     await item.getByTestId('edit-title').fill('An edit the Replace throws away');
@@ -152,11 +154,10 @@ test('an exported zip restores the Session with the same items, screenshots and 
     await expect(restored.getByTestId('item-title')).toHaveText('An edit the Replace throws away');
     await list.getByTestId('restore-input').setInputFiles(zip);
     await expect(list.getByTestId('restore-clash')).toContainText('already stored');
-    const existing = await openReviewFrom(list, list.getByTestId('clash-open-existing'));
-    await expect(existing).toHaveURL(new RegExp(`session=${sessionId}`));
-    await expect(existing.getByTestId('item-title')).toHaveText('An edit the Replace throws away');
+    await list.getByTestId('clash-open-existing').click();
     await expect(list.getByTestId('restore-clash')).toHaveCount(0);
-    await existing.close();
+    await expect.poll(() => reviewTabs(serviceWorker, sessionId)).toEqual([{ id: expect.any(Number), active: true }]);
+    await expect(restored.getByTestId('item-title')).toHaveText('An edit the Replace throws away');
 
     // …or replaces it with the file.
     await list.getByTestId('restore-input').setInputFiles(zip);

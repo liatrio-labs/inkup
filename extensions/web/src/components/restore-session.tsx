@@ -4,6 +4,7 @@
 
 import { readSessionFile, type SessionFile, SessionFileError } from '@inkup/core/session-file';
 import { useRef, useState } from 'react';
+import { ReviewLink } from '@/components/review-link';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,8 +24,6 @@ type State =
   | { kind: 'clash'; file: SessionFile }
   | { kind: 'done'; id: string; title: string; media: boolean }
   | { kind: 'error'; message: string };
-
-const reviewUrl = (id: string) => `/review.html?session=${encodeURIComponent(id)}`;
 
 export function RestoreSession({ size = 'default' }: { size?: 'default' | 'sm' }) {
   const input = useRef<HTMLInputElement>(null);
@@ -91,15 +90,9 @@ export function RestoreSession({ size = 'default' }: { size?: 'default' | 'sm' }
         <p role="status" data-testid="restore-done" data-session={state.id}>
           Restored {state.title}
           {state.media ? '' : ' without screenshots or media: a session.json alone does not carry them'}.{' '}
-          <a
-            className="text-primary underline"
-            href={reviewUrl(state.id)}
-            target="_blank"
-            data-testid="restore-open-review"
-            rel="noopener"
-          >
+          <ReviewLink className="text-primary underline" sessionId={state.id} data-testid="restore-open-review">
             Open review
-          </a>
+          </ReviewLink>
         </p>
       )}
       {state.kind === 'error' && (
@@ -120,15 +113,13 @@ export function RestoreSession({ size = 'default' }: { size?: 'default' | 'sm' }
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" asChild>
-                <a
-                  href={reviewUrl(clash.doc.session.id)}
-                  target="_blank"
+                <ReviewLink
+                  sessionId={clash.doc.session.id}
                   onClick={() => setState({ kind: 'idle' })}
                   data-testid="clash-open-existing"
-                  rel="noopener"
                 >
                   Open existing
-                </a>
+                </ReviewLink>
               </Button>
               <Button variant="destructive" onClick={() => void restore(clash, true)} data-testid="clash-replace">
                 Replace
