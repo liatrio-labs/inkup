@@ -199,6 +199,11 @@ test('Change Items reach the host, an agent starts one (In work) and resolves it
       })
       .toBe('Put Get started in the header');
 
+    // The Sessions list, open from here on: nothing acted on yet, so the plain count.
+    const list = await openExtensionPage('sessions.html');
+    const counts = list.locator(`[data-session="${sessionId}"]`).getByTestId('session-items');
+    await expect(counts).toHaveText('1 Change Item');
+
     // E13: the agent says it started: the card shows In work, with the agent's MCP client name; it is no longer open.
     const shown = card.getByTestId('item-resolution');
     const started = await agent.json<{ status: string; agent: string }>('start_item', { id: item!.id });
@@ -207,6 +212,9 @@ test('Change Items reach the host, an agent starts one (In work) and resolves it
     await expect(shown.getByTestId('item-resolution-label')).toHaveText('In work');
     await expect(shown.getByTestId('item-resolution-by')).toHaveText('inkup-e2e · just now');
     await expect(shown.getByTestId('item-resolution-note')).toHaveCount(0);
+    // The list row follows live, without a reload.
+    await expect(counts).toHaveText('1 Change Item: 0 open · 1 in work · 0 done');
+    await expect(counts).toHaveAttribute('data-in-progress', '1');
     expect((await agent.json<{ items: unknown[] }>('read_items', { url: origin })).items).toEqual([]);
     expect(
       (await agent.json<{ items: { id: string }[] }>('read_items', { url: origin, status: 'in_progress' })).items.map(
@@ -220,6 +228,9 @@ test('Change Items reach the host, an agent starts one (In work) and resolves it
     await expect(shown.getByTestId('item-resolution-label')).toHaveText('Done');
     await expect(shown.getByTestId('item-resolution-note')).toHaveText(note);
     await expect(shown.getByTestId('item-resolution-by')).toHaveText('inkup-e2e · just now');
+    await expect(counts).toHaveText('1 Change Item: 0 open · 0 in work · 1 done');
+    await expect(counts).toHaveAttribute('data-done', '1');
+    await expect(counts).toHaveAttribute('data-in-progress', '0');
     // A done item cannot be started again.
     const reopened = await agent.call('start_item', { id: item!.id });
     expect(reopened.isError).toBe(true);
