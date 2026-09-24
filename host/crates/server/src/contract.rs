@@ -1,10 +1,10 @@
 //! The Host's contract with the timeline schema (#15). The Host stores events and Change Items verbatim and reads
 //! fields back by name (store `fields.rs`), so a misspelt or retyped field reads as nothing and nothing complains:
 //! `voice_command` was once read by `name`, not `command`. This feeds every generated event fixture
-//! (packages/protocol/fixtures/event.*.json, one or more per timeline event type, every optional field filled) and
+//! (contract/fixtures/event.*.json, one or more per timeline event type, every optional field filled) and
 //! the `items.json` push through every reader: the store (upsert, Signals, the timeline), the server's state (the
 //! TUI's timeline lines and items), the WebSocket's event check and the MCP item view. Each field they read must
-//! exist in docs/schema/session.schema.json (generated from the Zod schema) with the type the reader wants, and
+//! exist in contract/session.schema.json (generated from the Zod schema) with the type the reader wants, and
 //! must hold such a value in the fixtures.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -29,7 +29,7 @@ fn load(path: &Path) -> Value {
 
 /// Every `event.*.json` fixture: (file, session id, event).
 fn event_fixtures() -> Vec<(String, String, Value)> {
-    let dir = repo().join("packages/protocol/fixtures");
+    let dir = repo().join("contract/fixtures");
     let mut files: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
@@ -151,7 +151,7 @@ fn schema_problem(schema: &Value, path: &str, want: Want) -> Option<String> {
 /// Every problem with `reads`: a path the schema does not have or types otherwise, a value of the wrong type in a
 /// fixture, or a path no fixture fills.
 fn problems(reads: &[Read]) -> Vec<String> {
-    let schema = load(&repo().join("docs/schema/session.schema.json"));
+    let schema = load(&repo().join("contract/session.schema.json"));
     let mut by_path: BTreeMap<(&str, Want), Vec<Found>> = BTreeMap::new();
     for read in reads {
         by_path.entry((read.path.as_str(), read.want)).or_default().push(read.found);
@@ -175,7 +175,7 @@ fn problems(reads: &[Read]) -> Vec<String> {
 #[test]
 fn every_field_the_host_reads_is_in_the_timeline_schema_with_its_type() {
     let fixtures = event_fixtures();
-    let items = load(&repo().join("packages/protocol/fixtures/items.json"));
+    let items = load(&repo().join("contract/fixtures/items.json"));
     let session = &fixtures[0].1;
     assert!(fixtures.iter().all(|(_, s, _)| s == session), "the event fixtures are one Session");
 
@@ -228,7 +228,7 @@ fn every_event_the_timeline_can_show_comes_back_from_the_store() {
 
 #[test]
 fn a_renamed_field_is_caught() {
-    let schema = load(&repo().join("docs/schema/session.schema.json"));
+    let schema = load(&repo().join("contract/session.schema.json"));
     assert_eq!(schema_problem(&schema, "voice_command:command", Want::Str), None);
     assert!(schema_problem(&schema, "voice_command:name", Want::Str).is_some());
     assert!(schema_problem(&schema, "voice_command:t", Want::Str).is_some(), "a retyped field");

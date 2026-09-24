@@ -1,4 +1,4 @@
-//! The generated event fixtures (packages/protocol/fixtures/event.*.json, `pnpm -C packages/protocol
+//! The generated event fixtures (contract/fixtures/event.*.json, `pnpm -C packages/protocol
 //! fixtures:events`): real timeline events of every type, the shapes the extension sends.
 #![allow(dead_code, reason = "each test binary uses a different subset")]
 use std::path::PathBuf;
@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 pub fn fixture(name: &str) -> Value {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/protocol/fixtures").join(name);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../contract/fixtures").join(name);
     serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap()
 }
 

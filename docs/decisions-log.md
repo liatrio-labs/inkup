@@ -2,6 +2,28 @@
 
 Calls made during implementation that the PRD, PLAN and ADRs leave open. Newest slice first.
 
+## #35: one contract between the extension and the host (2026-09-24)
+
+The extension and the Host are about to release on their own tags, so an installed pair will be out of step. ADR 0007
+moves what they share into `contract/` and makes CI route on it.
+
+- **Moved.** `packages/protocol/protocol.schema.json`, `docs/schema/session.schema.json` and
+  `packages/protocol/fixtures/` (valid and `invalid/`) now live in `contract/`. The generators write there, and every
+  Host reader (`generated.rs`, the fixture tests, `contract.rs`, the store and server test helpers) reads only there.
+  `docs/schema/` keeps a README pointing to the new place, for older links.
+- **CI routing** is `scripts/ci-changes.ts`, unit-tested, instead of inline `grep`: `contract/` runs both sides,
+  `host/` the Host, the workspace the extension, docs lint only, an unknown path both. The outputs are `extension`,
+  `host` and `contract`. A wire change in `packages/core` is caught by the drift check, which fails until `contract/`
+  is regenerated in the same change, and that then runs the Host.
+- **The Chrome e2e runs for a host-only change too.** It builds the real Host and is the only test of both sides
+  together. The Firefox job stays extension-only: it does not build the Host.
+- **`contract-compat`** compares each schema with the base and fails a breaking change without a version bump. It is
+  symmetric, because either side may be the older one: new enum values, loosened limits and required→optional are
+  breaking as well as the usual removals. New enum values stay breaking because Zod's `z.enum` and serde's generated
+  enums both refuse unknown values. It runs only when `contract/` changed and feeds `ci-ok`. No new dependency: node
+  and git, with the already-pinned `setup-node`.
+- **The extension sends `PROTOCOL_VERSION`**, not a literal `1`, so a protocol bump is one constant per side.
+
 ## #34: a painted frame before every screenshot, and Firefox CI on a desktop-like Linux (2026-09-24)
 
 **The Text Comment screenshot sometimes showed the comment box** (about 1 run in 4 of the standalone e2e).

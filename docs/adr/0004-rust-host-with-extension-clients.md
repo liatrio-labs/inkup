@@ -14,7 +14,8 @@ Host is the system of record: SQLite plus blob files in the OS data dir, the Ses
 TUI. Browser extensions become Clients. They keep capturing (Strokes, voice, video, Object Select) and running Process
 in TypeScript, and they stream timeline events over a loopback WebSocket, where the Host upserts each one on its event
 id. The wire contract is `packages/protocol`: Zod schemas are the source of truth, `protocol.schema.json` is generated
-from them, and the Rust types are generated from that file. A shared fixture corpus must decode on both sides.
+from them, and the Rust types are generated from that file. A shared fixture corpus must decode on both sides. (The
+generated schema and the corpus now live in `contract/`; ADR 0007.)
 
 The host is optional (graceful simplification). An extension that has never been paired stays the whole product it is
 today: capture, Process with the user's own key, the review page, zip export and copied prompts. Pairing adds

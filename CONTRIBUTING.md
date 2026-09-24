@@ -32,7 +32,8 @@ runs every commit hook on every file.
 The rest of CI you run yourself. None of it needs API keys or makes calls outside your machine.
 
 ```sh
-pnpm schema && git diff --exit-code -- docs/schema packages/protocol/protocol.schema.json
+pnpm schema && git diff --exit-code -- contract
+node scripts/contract-compat.ts origin/main   # contract/ changes: breaking without a version bump fails (ADR 0007)
 pnpm test:e2e                                 # Chrome; pnpm test:e2e:firefox for Firefox
 cd host && cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked
 ```

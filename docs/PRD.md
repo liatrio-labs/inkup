@@ -271,7 +271,7 @@ both recorded (`MediaRecorder`, WebM/Opus) and transcribed live. Three configura
   `draft_item`, `draft_action`, `session_end`.
 - [ ] All events share the Session clock (`t0` recorded in the service worker at Start; every context stamps
   `Date.now() - t0`; recorder start offsets stored).
-- [ ] The JSON schema is versioned and documented in `docs/schema/`.
+- [ ] The JSON schema is versioned and documented in `contract/` (was `docs/schema/`; ADR 0007).
 
 **P0-10 Draft Items during the Session.** A cheap model pass runs live so the reviewer sees what was understood.
 

@@ -72,7 +72,7 @@ fixtures/
   audio/           # WAVs from macOS `say` + `afconvert` (generation script checked in), with silence gaps
   sessions/        # hand-authored session.json fixtures (a)–(d), each in word + approximate modes
 tests/unit/  tests/e2e/  tests/eval/
-docs/schema/  docs/spikes/
+contract/  docs/spikes/
 ```
 
 Rule: `src/core` never imports `chrome.*` or touches the DOM. The content script snapshots element data (rect, tag,

@@ -1,6 +1,6 @@
 [package]
 name = "inkup-protocol"
-description = "Wire types generated from packages/protocol/protocol.schema.json"
+description = "Wire types generated from contract/protocol.schema.json"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

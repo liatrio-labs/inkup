@@ -12,6 +12,7 @@ import {
   type EventMessage,
   type ForgetMessage,
   type ItemsMessage,
+  PROTOCOL_VERSION,
   type ResolutionMessage,
   type ScreenshotDiscardMessage,
   ServerMessage,
@@ -106,12 +107,18 @@ export function connectHost(baseUrl: string, hello: Hello, options: ConnectOptio
       closed,
       close: () => ws.close(),
       sendEvent(sessionId, event) {
-        const message: EventMessage = { v: 1, type: 'event', id: nextId(), session_id: sessionId, event };
+        const message: EventMessage = {
+          v: PROTOCOL_VERSION,
+          type: 'event',
+          id: nextId(),
+          session_id: sessionId,
+          event,
+        };
         return request(message);
       },
       sendItems(sessionId, runId, items) {
         const message: ItemsMessage = {
-          v: 1,
+          v: PROTOCOL_VERSION,
           type: 'items',
           id: nextId(),
           session_id: sessionId,
@@ -121,16 +128,21 @@ export function connectHost(baseUrl: string, hello: Hello, options: ConnectOptio
         return request(message);
       },
       sendDiscard(sessionId) {
-        const message: SessionDiscardMessage = { v: 1, type: 'session_discard', id: nextId(), session_id: sessionId };
+        const message: SessionDiscardMessage = {
+          v: PROTOCOL_VERSION,
+          type: 'session_discard',
+          id: nextId(),
+          session_id: sessionId,
+        };
         return request(message);
       },
       sendForget() {
-        const message: ForgetMessage = { v: 1, type: 'forget', id: nextId() };
+        const message: ForgetMessage = { v: PROTOCOL_VERSION, type: 'forget', id: nextId() };
         return request(message);
       },
       sendScreenshotDiscard(sessionId, screenshotId) {
         const message: ScreenshotDiscardMessage = {
-          v: 1,
+          v: PROTOCOL_VERSION,
           type: 'screenshot_discard',
           id: nextId(),
           session_id: sessionId,
@@ -149,7 +161,7 @@ export function connectHost(baseUrl: string, hello: Hello, options: ConnectOptio
       });
     }
 
-    ws.onopen = () => ws.send(JSON.stringify({ v: 1, type: 'hello', id: nextId(), ...hello }));
+    ws.onopen = () => ws.send(JSON.stringify({ v: PROTOCOL_VERSION, type: 'hello', id: nextId(), ...hello }));
     ws.onmessage = (e) => {
       const parsed = ServerMessage.safeParse(JSON.parse(String(e.data)));
       if (!parsed.success) return console.warn('host: unreadable message', parsed.error.message);
@@ -171,7 +183,13 @@ export function connectHost(baseUrl: string, hello: Hello, options: ConnectOptio
         case 'command': {
           const reply = (outcome: CommandOutcome) => {
             if (ws.readyState !== ws.OPEN) return;
-            const result: CommandResultMessage = { v: 1, type: 'command_result', id: nextId(), re: msg.id, ...outcome };
+            const result: CommandResultMessage = {
+              v: PROTOCOL_VERSION,
+              type: 'command_result',
+              id: nextId(),
+              re: msg.id,
+              ...outcome,
+            };
             ws.send(JSON.stringify(result));
           };
           const refused = (message: string) => reply({ ok: false, session_id: null, message });

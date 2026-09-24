@@ -20,21 +20,25 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # What the change touches. A docs-only change (Markdown, docs/ outside docs/schema) runs lint alone; the host
-  # matrix runs only when host/, packages/protocol/, docs/schema/ (the host reads session.schema.json) or this file
-  # changes. Anything else, or a push with no usable base, runs everything.
+  # Which side of the contract the change touches (scripts/ci-changes.ts, ADR 0007): contract/ runs both sides and
+  # the breaking-change guard, host/ the host, the rest of the workspace the extension, docs lint alone. A push with
+  # no usable base runs both sides.
   changes:
     name: changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      code: ${{ steps.diff.outputs.code }}
+      extension: ${{ steps.diff.outputs.extension }}
       host: ${{ steps.diff.outputs.host }}
+      contract: ${{ steps.diff.outputs.contract }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       - id: diff
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -42,17 +46,33 @@ jobs:
         run: |
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! files=$(git diff --name-only "$BASE...$HEAD"); then
-            echo "No base to diff against; running everything."
-            { echo code=true; echo host=true; } >> "$GITHUB_OUTPUT"
+            echo "No base to diff against; running both sides."
+            printf 'extension=true\nhost=true\ncontract=false\n' | tee -a "$GITHUB_OUTPUT"
             exit 0
           fi
           printf '%s\n' "$files"
-          code=false host=false
-          if printf '%s\n' "$files" | grep -Ev '\.md$|^LICENSE$' | grep -Ev '^docs/' | grep -q . \
-            || printf '%s\n' "$files" | grep -q '^docs/schema/'; then code=true; fi
-          if printf '%s\n' "$files" | grep -Eq '^(host/|packages/protocol/|docs/schema/|\.github/workflows/ci\.yml$)'; then host=true; fi
-          echo "code=$code host=$host"
-          { echo "code=$code"; echo "host=$host"; } >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$files" | node scripts/ci-changes.ts | tee -a "$GITHUB_OUTPUT"
+
+  # A contract change must not break an older peer unless it bumps the version (scripts/contract-compat.ts, ADR 0007):
+  # the extension and the host are released on their own, so an installed pair is often out of step.
+  contract-compat:
+    name: contract-compat
+    needs: changes
+    if: needs.changes.outputs.contract == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # The checkout is what would land (a pull request's merge commit), so this compares it with the base as is.
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/contract-compat.ts "$BASE"
 
   # The pre-commit hooks (Biome, markdownlint, zizmor, file hygiene) over every file, and gitleaks over the whole
   # history. host.yml runs the cargo hooks; gitleaks's hook only reads staged changes, so it runs as a step here.
@@ -84,7 +104,7 @@ jobs:
   core:
     name: core
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.extension == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -108,7 +128,7 @@ jobs:
   extension-chrome:
     name: extension-chrome
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.extension == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -126,7 +146,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - name: Session and protocol JSON schemas are in sync
-        run: pnpm schema && git diff --exit-code -- docs/schema packages/protocol/protocol.schema.json
+        run: pnpm schema && git diff --exit-code -- contract
       - run: pnpm zip
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -137,11 +157,13 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # Split three ways, one runner each: a third of the specs per shard, and no runner busier than one worker.
+  # Split three ways, one runner each: a third of the specs per shard, and no runner busier than one worker. The e2e
+  # drives the extension against the real host (host.spec.ts), the one test of both sides together, so it runs when
+  # either side changes.
   extension-chrome-e2e:
     name: extension-chrome-e2e (${{ matrix.shard }}/3)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.extension == 'true' || needs.changes.outputs.host == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -189,7 +211,7 @@ jobs:
   extension-firefox:
     name: extension-firefox
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.extension == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -270,16 +292,15 @@ jobs:
           workspaces: host
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      # Includes the protocol contract: the shared fixture corpus decodes, and src/generated.rs matches
-      # packages/protocol/protocol.schema.json.
+      # Includes the contract: the shared fixture corpus decodes, and src/generated.rs matches
+      # contract/protocol.schema.json.
       - run: cargo test --workspace --locked
 
-  # The one required check. Skipped jobs pass; a failed or cancelled one fails it. extension-firefox is left out
-  # until it is green on main.
+  # The one required check. Skipped jobs pass; a failed or cancelled one fails it.
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [changes, lint, core, extension-chrome, extension-chrome-e2e, cargo]
+    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

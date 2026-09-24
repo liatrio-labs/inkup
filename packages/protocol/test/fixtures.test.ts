@@ -1,4 +1,4 @@
-// The shared fixture corpus: host/crates/protocol/tests/fixtures.rs decodes the same files, so the two sides
+// The shared fixture corpus (contract/fixtures): host/crates/protocol/tests/fixtures.rs decodes the same files, so the two sides
 // agree on the wire. A fixture named `<type>.<case>.json` must parse as that message type (health.json as the
 // /health document); every file under invalid/ must be refused.
 import { readdirSync, readFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { Envelope, Health } from '../src/index.ts';
 
-const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
+const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'contract', 'fixtures');
 const jsonFiles = (dir: string) =>
   readdirSync(dir)
     .filter((f) => f.endsWith('.json'))
