@@ -21,8 +21,8 @@ env:
 
 jobs:
   # What the change touches. A docs-only change (Markdown, docs/ outside docs/schema) runs lint alone; the host
-  # matrix runs only when host/, packages/protocol/ or this file changes. Anything else, or a push with no usable
-  # base, runs everything.
+  # matrix runs only when host/, packages/protocol/, docs/schema/ (the host reads session.schema.json) or this file
+  # changes. Anything else, or a push with no usable base, runs everything.
   changes:
     name: changes
     runs-on: ubuntu-latest
@@ -50,7 +50,7 @@ jobs:
           code=false host=false
           if printf '%s\n' "$files" | grep -Ev '\.md$|^LICENSE$' | grep -Ev '^docs/' | grep -q . \
             || printf '%s\n' "$files" | grep -q '^docs/schema/'; then code=true; fi
-          if printf '%s\n' "$files" | grep -Eq '^(host/|packages/protocol/|\.github/workflows/ci\.yml$)'; then host=true; fi
+          if printf '%s\n' "$files" | grep -Eq '^(host/|packages/protocol/|docs/schema/|\.github/workflows/ci\.yml$)'; then host=true; fi
           echo "code=$code host=$host"
           { echo "code=$code"; echo "host=$host"; } >> "$GITHUB_OUTPUT"
 
