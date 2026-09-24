@@ -9,6 +9,8 @@
 // and vad-web's own microphone node would only hear what comes after. The backlog is fed through once the model
 // is ready, with each frame's own time, so speech from the first seconds still makes islands, Voice Commands and
 // (for local Whisper) speech spans.
+import { spokenSpan } from '@inkup/core/process/align';
+import type { Span } from '@inkup/core/process/pairing';
 import { type ActivityEdge, createSpeechActivityTracker } from '@inkup/core/speech-activity';
 import { createSpanHold, createVadFeed } from '@inkup/core/vad-feed';
 import { createCommandWatcher, type WatchedSegment } from '@inkup/core/voice-commands';
@@ -19,6 +21,11 @@ export interface VoiceCommands {
   /** vad-web's speech spans with their audio: local Whisper transcribes each one. */
   speech: SpeechSpanSource;
   segment(seg: WatchedSegment): void;
+  /**
+   * When a late (approximate) segment was said: the VAD speech that explains it (packages/core/src/process/align.ts),
+   * or null when the VAD heard none (not loaded yet, or muted).
+   */
+  spoken(seg: Span): Span | null;
   setCaptions(live: boolean): void;
   setPaused(paused: boolean): void;
   /** Mute (E10): no Voice Command at all (not even `resume`), and no speech spans or starts are reported. */
@@ -35,6 +42,8 @@ const TICK_MS = 100;
 const SAMPLE_RATE_KHZ = 16;
 /** Silero v5's frame: 512 samples, 32 ms at 16 kHz. */
 const VAD_FRAME = 512;
+/** Recent speech/silence spans kept for `spoken`. */
+const KEPT_HEARD = 64;
 /** Speech spans kept for a listener that has not subscribed yet (local Whisper loads its model first). */
 const MAX_PENDING_SPAN_SAMPLES = 60 * 16_000;
 
@@ -74,6 +83,9 @@ export function startVoiceCommands(stream: MediaStream, pcm: Promise<PcmSource>,
   /** vad-web's internals changed: MicVAD runs on its own stream from when it loaded, on the wall clock. */
   let live = false;
   const spans = createSpanHold<SpeechSpan>(MAX_PENDING_SPAN_SAMPLES);
+  /** Every span of speech the VAD heard lately (whatever is reported), and the start of the one going on. */
+  let heard: Span[] = [];
+  let speaking: number | null = null;
   // `frameT` is the Session time of the frame being processed, which the callbacks below use.
   let frameT = 0;
   const feed = createVadFeed({
@@ -97,6 +109,11 @@ export function startVoiceCommands(stream: MediaStream, pcm: Promise<PcmSource>,
   const onEdges = (edges: ActivityEdge[]) => {
     for (const e of edges) {
       watcher.activity(e);
+      if (e.type === 'speech_start') speaking = e.t;
+      if (e.type === 'speech_end') {
+        speaking = null;
+        heard = [...heard, { t: e.start, t_end: e.t }].slice(-KEPT_HEARD);
+      }
       if (e.type === 'speech_end' && !paused && !muted && !dictating)
         void sendMessage('speechActivity', { t: e.start, t_end: e.t }).catch(() => {});
       if (e.type === 'speech_start' && !paused && !muted && !dictating)
@@ -195,6 +212,9 @@ export function startVoiceCommands(stream: MediaStream, pcm: Promise<PcmSource>,
     },
     segment(seg) {
       if (captions) watcher.segment(seg);
+    },
+    spoken(seg) {
+      return spokenSpan(seg, speaking === null ? heard : [...heard, { t: speaking, t_end: now() }]);
     },
     setCaptions(live) {
       captions = live;

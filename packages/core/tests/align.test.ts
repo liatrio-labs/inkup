@@ -15,6 +15,7 @@ import {
   spokenSpan,
 } from '../src/process';
 import { type SessionDocument, SessionDocumentSchema } from '../src/session-document';
+import { speechBoundaryAt } from '../src/speech-boundary';
 import { type TimelineEvent, TimelineEventSchema } from '../src/timeline';
 
 let n = 0;
@@ -204,5 +205,22 @@ describe('script with VAD-aligned speech', () => {
     const doc = load();
     expect(buildProcessPrompt(withSpans(doc, [])).script).toBe(buildProcessPrompt(doc).script);
     expect(buildProcessPrompt(doc).script.split('\n')[0]).toBe('TIMESTAMP QUALITY: approximate');
+  });
+});
+
+describe('Speech Boundary with VAD speech starts', () => {
+  const late = { t: 3200, text: 'and this card should match', words: null };
+  it('an approximate segment starts at the latest VAD speech start before its first interim', () => {
+    expect(speechBoundaryAt(late, [500, 1200, 2100, 3500])).toBe(2100);
+  });
+  it('only within 2.5 s; otherwise at its own start', () => {
+    expect(speechBoundaryAt({ ...late, t: 9000 }, [6400])).toBe(9000);
+    expect(speechBoundaryAt({ ...late, t: 9000 }, [6600])).toBe(6600);
+    expect(speechBoundaryAt(late)).toBe(3200);
+  });
+  it('word-level segments ignore the VAD', () => {
+    expect(speechBoundaryAt({ t: 1000, text: 'this', words: [{ text: 'this', t: 1000, t_end: 1200 }] }, [900])).toBe(
+      1000,
+    );
   });
 });
