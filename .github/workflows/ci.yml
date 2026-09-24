@@ -16,8 +16,44 @@ concurrency:
 env:
   NODE_VERSION: "26"
   PNPM_VERSION: "12"
+  RUST_VERSION: "1.98"
+  CARGO_TERM_COLOR: always
 
 jobs:
+  # What the change touches. A docs-only change (Markdown, docs/ outside docs/schema) runs lint alone; the host
+  # matrix runs only when host/, packages/protocol/ or this file changes. Anything else, or a push with no usable
+  # base, runs everything.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+      host: ${{ steps.diff.outputs.host }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+            || ! files=$(git diff --name-only "$BASE...$HEAD"); then
+            echo "No base to diff against; running everything."
+            { echo code=true; echo host=true; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s\n' "$files"
+          code=false host=false
+          if printf '%s\n' "$files" | grep -Ev '\.md$|^LICENSE$' | grep -Ev '^docs/' | grep -q . \
+            || printf '%s\n' "$files" | grep -q '^docs/schema/'; then code=true; fi
+          if printf '%s\n' "$files" | grep -Eq '^(host/|packages/protocol/|\.github/workflows/ci\.yml$)'; then host=true; fi
+          echo "code=$code host=$host"
+          { echo "code=$code"; echo "host=$host"; } >> "$GITHUB_OUTPUT"
+
   # The pre-commit hooks (Biome, markdownlint, zizmor, file hygiene) over every file, and gitleaks over the whole
   # history. host.yml runs the cargo hooks; gitleaks's hook only reads staged changes, so it runs as a step here.
   lint:
@@ -47,6 +83,8 @@ jobs:
   # packages/core on its own: pure TS, no browser. Fast, and the one the host work builds on.
   core:
     name: core
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -69,6 +107,8 @@ jobs:
   # The Chrome build of extensions/web: typecheck and unit tests for the whole workspace, schema sync, the zip.
   extension-chrome:
     name: extension-chrome
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -100,6 +140,8 @@ jobs:
   # Split three ways, one runner each: a third of the specs per shard, and no runner busier than one worker.
   extension-chrome-e2e:
     name: extension-chrome-e2e (${{ matrix.shard }}/3)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -146,6 +188,8 @@ jobs:
   # Firefox's remote debugging protocol; tests/e2e-firefox/fixtures.ts).
   extension-firefox:
     name: extension-firefox
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -179,3 +223,49 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  # The host: fmt, clippy and tests on all three platforms.
+  cargo:
+    name: cargo (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.host == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: host
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master, 2026-09-12
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: host
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      # Includes the protocol contract: the shared fixture corpus decodes, and src/generated.rs matches
+      # packages/protocol/protocol.schema.json.
+      - run: cargo test --workspace --locked
+
+  # The one required check. Skipped jobs pass; a failed or cancelled one fails it. extension-firefox is left out
+  # until it is green on main.
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [changes, lint, core, extension-chrome, extension-chrome-e2e, cargo]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
