@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "type": "error",
+  "id": "h-5",
+  "re": null,
+  "code": "bad_message",
+  "message": "expected a JSON envelope"
+}

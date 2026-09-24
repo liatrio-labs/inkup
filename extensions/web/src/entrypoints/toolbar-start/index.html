@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Start a review Session</title>
+  <style>
+    html, body { margin: 0; background: transparent; overflow: hidden; }
+    button { all: unset; box-sizing: border-box; width: 100%; height: 26px; padding: 0 8px; border-radius: 6px; cursor: pointer; text-align: center;
+      font: 500 12px/26px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; color: #f4f4f5; background: #dc2626; }
+    button:hover { background: #b91c1c; }
+    button:focus-visible { outline: 2px solid #60a5fa; outline-offset: -2px; }
+    button[disabled] { opacity: .45; cursor: default; }
+  </style>
+</head>
+<body>
+  <!-- Disabled until main.ts listens: a click before that would do nothing (F1). -->
+  <button type="button" id="start" data-testid="toolbar-start" disabled>Start</button>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

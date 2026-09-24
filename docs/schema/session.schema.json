@@ -1,0 +1,4084 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:inkup:session:v19",
+  "title": "InkUp session.json (schema_version 19)",
+  "description": "One recorded review Session: the full event timeline on one clock (t = ms since t0), plus references to screenshots and media. Generated from packages/core/src/session-document.ts by `pnpm schema`; do not edit by hand.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "number",
+      "const": 19
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "session": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tab_id": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "t0": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "duration_ms": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start_url": {
+          "type": "string"
+        },
+        "start_title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "recording",
+            "ended"
+          ]
+        },
+        "transcription": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "engine": {
+                  "type": "string",
+                  "description": "adapter id, e.g. webspeech, scripted, whisper, deepgram, elevenlabs"
+                },
+                "local": {
+                  "description": "true when audio never leaves the machine; null when unknown",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "timestamp_quality": {
+                  "type": "string",
+                  "enum": [
+                    "word",
+                    "approximate"
+                  ]
+                }
+              },
+              "required": [
+                "engine",
+                "local",
+                "timestamp_quality"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "video_off_reason": {
+          "default": null,
+          "description": "why the Session has no video: the picker was cancelled, getDisplayMedia is missing, or recording failed",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "picker_cancelled",
+                "unavailable",
+                "failed"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "media_deleted_at": {
+          "default": null,
+          "description": "set when the reviewer deleted the audio and video after an export",
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "tab_id",
+        "t0",
+        "started_at",
+        "ended_at",
+        "duration_ms",
+        "start_url",
+        "start_title",
+        "status",
+        "transcription",
+        "video_off_reason",
+        "media_deleted_at"
+      ],
+      "additionalProperties": false
+    },
+    "media": {
+      "type": "object",
+      "properties": {
+        "audio": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "blob_id": {
+                  "type": "string",
+                  "description": "the finalized, duration-fixed WebM/Opus recording"
+                },
+                "mime": {
+                  "type": "string"
+                },
+                "start_offset_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "recorder start, ms since t0"
+                },
+                "duration_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "chunk_count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "30s chunks persisted while recording"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "blob_id",
+                "mime",
+                "start_offset_ms",
+                "duration_ms",
+                "chunk_count",
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "video": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "blob_id": {
+                  "type": "string",
+                  "description": "the finalized WebM/VP8 or VP9 recording, made seekable (duration and cues)"
+                },
+                "mime": {
+                  "type": "string"
+                },
+                "start_offset_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "recorder start, ms since t0; pauses leave no gap in the file (packages/core/src/media-time.ts)"
+                },
+                "duration_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "chunk_count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "chunks persisted while recording"
+                },
+                "seekable": {
+                  "type": "boolean",
+                  "description": "true when ts-ebml wrote the duration and cues"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "what the reviewer picked in the screen picker, e.g. the tab title"
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "height": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "blob_id",
+                "mime",
+                "start_offset_ms",
+                "duration_ms",
+                "chunk_count",
+                "seekable",
+                "label",
+                "width",
+                "height",
+                "path"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "audio",
+        "video"
+      ],
+      "additionalProperties": false
+    },
+    "blobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "screenshot",
+              "screenshot_crop",
+              "audio_chunk",
+              "audio",
+              "video_chunk",
+              "video"
+            ]
+          },
+          "mime": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "path": {
+            "type": "string",
+            "description": "path inside an export folder"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "mime",
+          "size",
+          "path"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "session_start"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "tab_id": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "url": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "t0": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "epoch ms of the Session clock origin"
+              },
+              "clicked_at": {
+                "default": null,
+                "description": "epoch ms of the Start click, before the screen picker; Start→recording latency = t0 + media.audio.start_offset_ms − clicked_at",
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "overlay": {
+                "default": "page",
+                "description": "'none': no drawing possible on this page (another extension's page or chrome://); Locations there are URL + screenshot only",
+                "type": "string",
+                "enum": [
+                  "page",
+                  "none"
+                ]
+              },
+              "voice": {
+                "default": true,
+                "description": "false: the Session started without a microphone (no audio or transcript until `voice_on`)",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "tab_id",
+              "url",
+              "title",
+              "t0",
+              "clicked_at",
+              "overlay",
+              "voice"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "session_pause"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "via": {
+                "default": "button",
+                "type": "string",
+                "enum": [
+                  "button",
+                  "voice"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "via"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "session_resume"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "gap_ms": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "via": {
+                "default": "button",
+                "type": "string",
+                "enum": [
+                  "button",
+                  "voice"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "gap_ms",
+              "via"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "stroke"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "stroke_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "t_end": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "points": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "t": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "ms since the Session t0"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y",
+                    "t"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "page coordinates"
+              },
+              "bbox": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "page coordinates, CSS px"
+              },
+              "url": {
+                "type": "string"
+              },
+              "scroll": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false,
+                "description": "page scroll offset (scrollX, scrollY), CSS px"
+              },
+              "viewport": {
+                "type": "object",
+                "properties": {
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "viewport size, CSS px"
+              },
+              "dpr": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "devicePixelRatio"
+              },
+              "shape": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "circle",
+                      "underline",
+                      "arrow",
+                      "scribble",
+                      "freeform"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "shape class; null until shape recognition (Slice 3)"
+              },
+              "color": {
+                "description": "the ink colour, picked at pointer-down to stand out 3:1 against the page (packages/core/src/contrast.ts); absent: the default red",
+                "type": "string",
+                "pattern": "^#[0-9a-f]{6}$"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "stroke_id",
+              "t_end",
+              "points",
+              "bbox",
+              "url",
+              "scroll",
+              "viewport",
+              "dpr",
+              "shape"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "annotation"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "annotation_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "index": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "description": "1-based order within the Session"
+              },
+              "t_end": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "stroke_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "empty only for an Object Select pick (close_reason object_select) or a page_api Annotation"
+              },
+              "close_reason": {
+                "type": "string",
+                "enum": [
+                  "time_gap",
+                  "scroll",
+                  "navigation",
+                  "speech_boundary",
+                  "draw_toggle",
+                  "voice_command",
+                  "pause",
+                  "session_end",
+                  "object_select",
+                  "text_comment",
+                  "page_api",
+                  "cleared"
+                ]
+              },
+              "bbox": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "page coordinates, CSS px"
+              },
+              "url": {
+                "type": "string"
+              },
+              "scroll": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false,
+                "description": "page scroll offset (scrollX, scrollY), CSS px"
+              },
+              "viewport": {
+                "type": "object",
+                "properties": {
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "viewport size, CSS px"
+              },
+              "dpr": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "devicePixelRatio"
+              },
+              "resolution": {
+                "type": "string",
+                "enum": [
+                  "element",
+                  "region"
+                ],
+                "description": "\"region\": nothing resolved, only bbox is meaningful"
+              },
+              "candidates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "selector": {
+                      "type": "string",
+                      "description": "stable CSS selector that resolves to this element on the page"
+                    },
+                    "tag": {
+                      "type": "string",
+                      "description": "lower-case tag name"
+                    },
+                    "role": {
+                      "description": "ARIA role (explicit or implicit)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "description": "accessible name, truncated to 200 chars"
+                    },
+                    "text": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "description": "visible text, whitespace-collapsed, truncated to 200 chars"
+                    },
+                    "testid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "classes": {
+                      "default": [],
+                      "description": "class names, generated and utility classes removed (appearance hints: a link styled .btn is a button)",
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "bbox": {
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        },
+                        "width": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "height": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "width",
+                        "height"
+                      ],
+                      "additionalProperties": false,
+                      "description": "page coordinates, CSS px"
+                    },
+                    "relation": {
+                      "type": "string",
+                      "enum": [
+                        "pick",
+                        "ancestor",
+                        "sibling",
+                        "descendant"
+                      ],
+                      "description": "relation to the geometric pick"
+                    },
+                    "coverage": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "description": "fraction of the Annotation bbox this element covers"
+                    },
+                    "source": {
+                      "description": "absent when the page reports no source (a production build, or no framework)",
+                      "type": "object",
+                      "properties": {
+                        "file": {
+                          "description": "source file, from src/ or app/ when the path has one, e.g. src/components/Button.tsx",
+                          "type": "string"
+                        },
+                        "line": {
+                          "description": "1-based line in that file",
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "components": {
+                          "maxItems": 8,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "the components that rendered the element, nearest first; minified names left out"
+                        }
+                      },
+                      "required": [
+                        "components"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "selector",
+                    "tag",
+                    "role",
+                    "name",
+                    "text",
+                    "testid",
+                    "id",
+                    "classes",
+                    "bbox",
+                    "relation",
+                    "coverage"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "pick": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "index into candidates of the geometric pick"
+              },
+              "screenshot_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "connector": {
+                "default": null,
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "stroke_ids": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "the arrow Strokes (one, or a shaft and a V)"
+                      },
+                      "tail": {
+                        "type": "object",
+                        "properties": {
+                          "point": {
+                            "type": "object",
+                            "properties": {
+                              "x": {
+                                "type": "number"
+                              },
+                              "y": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "x",
+                              "y"
+                            ],
+                            "additionalProperties": false,
+                            "description": "page coordinates of the arrow end"
+                          },
+                          "bbox": {
+                            "type": "object",
+                            "properties": {
+                              "x": {
+                                "type": "number"
+                              },
+                              "y": {
+                                "type": "number"
+                              },
+                              "width": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "height": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "x",
+                              "y",
+                              "width",
+                              "height"
+                            ],
+                            "additionalProperties": false,
+                            "description": "the region resolved: the mark at this end, or a small box around the point"
+                          },
+                          "resolution": {
+                            "type": "string",
+                            "enum": [
+                              "element",
+                              "region"
+                            ]
+                          },
+                          "candidates": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "selector": {
+                                  "type": "string",
+                                  "description": "stable CSS selector that resolves to this element on the page"
+                                },
+                                "tag": {
+                                  "type": "string",
+                                  "description": "lower-case tag name"
+                                },
+                                "role": {
+                                  "description": "ARIA role (explicit or implicit)",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 200,
+                                  "description": "accessible name, truncated to 200 chars"
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "maxLength": 200,
+                                  "description": "visible text, whitespace-collapsed, truncated to 200 chars"
+                                },
+                                "testid": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "classes": {
+                                  "default": [],
+                                  "description": "class names, generated and utility classes removed (appearance hints: a link styled .btn is a button)",
+                                  "maxItems": 8,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "bbox": {
+                                  "type": "object",
+                                  "properties": {
+                                    "x": {
+                                      "type": "number"
+                                    },
+                                    "y": {
+                                      "type": "number"
+                                    },
+                                    "width": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    "height": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": [
+                                    "x",
+                                    "y",
+                                    "width",
+                                    "height"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "page coordinates, CSS px"
+                                },
+                                "relation": {
+                                  "type": "string",
+                                  "enum": [
+                                    "pick",
+                                    "ancestor",
+                                    "sibling",
+                                    "descendant"
+                                  ],
+                                  "description": "relation to the geometric pick"
+                                },
+                                "coverage": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "description": "fraction of the Annotation bbox this element covers"
+                                },
+                                "source": {
+                                  "description": "absent when the page reports no source (a production build, or no framework)",
+                                  "type": "object",
+                                  "properties": {
+                                    "file": {
+                                      "description": "source file, from src/ or app/ when the path has one, e.g. src/components/Button.tsx",
+                                      "type": "string"
+                                    },
+                                    "line": {
+                                      "description": "1-based line in that file",
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "components": {
+                                      "maxItems": 8,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      },
+                                      "description": "the components that rendered the element, nearest first; minified names left out"
+                                    }
+                                  },
+                                  "required": [
+                                    "components"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "selector",
+                                "tag",
+                                "role",
+                                "name",
+                                "text",
+                                "testid",
+                                "id",
+                                "classes",
+                                "bbox",
+                                "relation",
+                                "coverage"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "pick": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "point",
+                          "bbox",
+                          "resolution",
+                          "candidates",
+                          "pick"
+                        ],
+                        "additionalProperties": false,
+                        "description": "the subject: where the arrow starts"
+                      },
+                      "head": {
+                        "type": "object",
+                        "properties": {
+                          "point": {
+                            "type": "object",
+                            "properties": {
+                              "x": {
+                                "type": "number"
+                              },
+                              "y": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "x",
+                              "y"
+                            ],
+                            "additionalProperties": false,
+                            "description": "page coordinates of the arrow end"
+                          },
+                          "bbox": {
+                            "type": "object",
+                            "properties": {
+                              "x": {
+                                "type": "number"
+                              },
+                              "y": {
+                                "type": "number"
+                              },
+                              "width": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "height": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "x",
+                              "y",
+                              "width",
+                              "height"
+                            ],
+                            "additionalProperties": false,
+                            "description": "the region resolved: the mark at this end, or a small box around the point"
+                          },
+                          "resolution": {
+                            "type": "string",
+                            "enum": [
+                              "element",
+                              "region"
+                            ]
+                          },
+                          "candidates": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "selector": {
+                                  "type": "string",
+                                  "description": "stable CSS selector that resolves to this element on the page"
+                                },
+                                "tag": {
+                                  "type": "string",
+                                  "description": "lower-case tag name"
+                                },
+                                "role": {
+                                  "description": "ARIA role (explicit or implicit)",
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "maxLength": 200,
+                                  "description": "accessible name, truncated to 200 chars"
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "maxLength": 200,
+                                  "description": "visible text, whitespace-collapsed, truncated to 200 chars"
+                                },
+                                "testid": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "id": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "classes": {
+                                  "default": [],
+                                  "description": "class names, generated and utility classes removed (appearance hints: a link styled .btn is a button)",
+                                  "maxItems": 8,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "bbox": {
+                                  "type": "object",
+                                  "properties": {
+                                    "x": {
+                                      "type": "number"
+                                    },
+                                    "y": {
+                                      "type": "number"
+                                    },
+                                    "width": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    },
+                                    "height": {
+                                      "type": "number",
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": [
+                                    "x",
+                                    "y",
+                                    "width",
+                                    "height"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "page coordinates, CSS px"
+                                },
+                                "relation": {
+                                  "type": "string",
+                                  "enum": [
+                                    "pick",
+                                    "ancestor",
+                                    "sibling",
+                                    "descendant"
+                                  ],
+                                  "description": "relation to the geometric pick"
+                                },
+                                "coverage": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "description": "fraction of the Annotation bbox this element covers"
+                                },
+                                "source": {
+                                  "description": "absent when the page reports no source (a production build, or no framework)",
+                                  "type": "object",
+                                  "properties": {
+                                    "file": {
+                                      "description": "source file, from src/ or app/ when the path has one, e.g. src/components/Button.tsx",
+                                      "type": "string"
+                                    },
+                                    "line": {
+                                      "description": "1-based line in that file",
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "components": {
+                                      "maxItems": 8,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      },
+                                      "description": "the components that rendered the element, nearest first; minified names left out"
+                                    }
+                                  },
+                                  "required": [
+                                    "components"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "selector",
+                                "tag",
+                                "role",
+                                "name",
+                                "text",
+                                "testid",
+                                "id",
+                                "classes",
+                                "bbox",
+                                "relation",
+                                "coverage"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "pick": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "point",
+                          "bbox",
+                          "resolution",
+                          "candidates",
+                          "pick"
+                        ],
+                        "additionalProperties": false,
+                        "description": "the destination: where the arrow points"
+                      }
+                    },
+                    "required": [
+                      "stroke_ids",
+                      "tail",
+                      "head"
+                    ],
+                    "additionalProperties": false,
+                    "description": "an arrow in this Annotation joining two places (PRD P0-3)"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "comment": {
+                "default": null,
+                "description": "what the reviewer typed or dictated in the comment box of an Object Select pick, or of a drawn Annotation in a Session without voice (E11); null when there was none",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "crop": {
+                "type": "object",
+                "properties": {
+                  "blob_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "<screenshot_id>.crop, a blob of kind screenshot_crop"
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "path inside an export folder: screenshots/<screenshot_id>.crop.png"
+                  },
+                  "rect": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "width": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "height": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "width",
+                      "height"
+                    ],
+                    "additionalProperties": false,
+                    "description": "the crop in the screenshot's pixels"
+                  }
+                },
+                "required": [
+                  "blob_id",
+                  "path",
+                  "rect"
+                ],
+                "additionalProperties": false,
+                "description": "the screenshot cropped to the picked element's box plus 16 CSS px; absent when nothing was picked or it was off screen"
+              },
+              "source": {
+                "description": "absent: 'reviewer'",
+                "type": "string",
+                "enum": [
+                  "reviewer",
+                  "page_api"
+                ]
+              },
+              "page_api": {
+                "description": "the call's comment and changes, for source 'page_api'",
+                "type": "object",
+                "properties": {
+                  "comment": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "description": "what the calling script says should change"
+                  }
+                },
+                "required": [
+                  "comment"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "annotation_id",
+              "index",
+              "t_end",
+              "stroke_ids",
+              "close_reason",
+              "bbox",
+              "url",
+              "scroll",
+              "viewport",
+              "dpr",
+              "resolution",
+              "candidates",
+              "pick",
+              "screenshot_id",
+              "connector",
+              "comment"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "click"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "url": {
+                "type": "string"
+              },
+              "scroll": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false,
+                "description": "page scroll offset (scrollX, scrollY), CSS px"
+              },
+              "viewport": {
+                "type": "object",
+                "properties": {
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "viewport size, CSS px"
+              },
+              "dpr": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "devicePixelRatio"
+              },
+              "point": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false
+              },
+              "selector": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "url",
+              "scroll",
+              "viewport",
+              "dpr",
+              "point",
+              "selector",
+              "tag",
+              "name"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "navigation"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "url": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "overlay": {
+                "default": "page",
+                "description": "'none': no drawing possible on this page (another extension's page or chrome://); Locations there are URL + screenshot only",
+                "type": "string",
+                "enum": [
+                  "page",
+                  "none"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "url",
+              "title",
+              "overlay"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "tab_switch"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "to_tab_id": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "to_title": {
+                "type": "string"
+              },
+              "away": {
+                "type": "boolean",
+                "description": "true when leaving the Session tab, false when returning"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "to_tab_id",
+              "to_title",
+              "away"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "scroll_settle"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "url": {
+                "type": "string"
+              },
+              "scroll": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false,
+                "description": "page scroll offset (scrollX, scrollY), CSS px"
+              },
+              "viewport": {
+                "type": "object",
+                "properties": {
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "viewport size, CSS px"
+              },
+              "dpr": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "devicePixelRatio"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "url",
+              "scroll",
+              "viewport",
+              "dpr"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "screenshot"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "screenshot_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "also the key of the image in the blobs table"
+              },
+              "path": {
+                "type": "string",
+                "description": "path inside an export folder, e.g. screenshots/<screenshot_id>.png"
+              },
+              "mime": {
+                "type": "string"
+              },
+              "trigger": {
+                "type": "string",
+                "enum": [
+                  "annotation",
+                  "click",
+                  "navigation",
+                  "voice_command",
+                  "panel",
+                  "shortcut",
+                  "text_comment",
+                  "page_api"
+                ]
+              },
+              "annotation_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": "string"
+              },
+              "scroll": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false,
+                "description": "page scroll offset (scrollX, scrollY), CSS px"
+              },
+              "viewport": {
+                "type": "object",
+                "properties": {
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "viewport size, CSS px"
+              },
+              "dpr": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "devicePixelRatio"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "screenshot_id",
+              "path",
+              "mime",
+              "trigger",
+              "annotation_id",
+              "url",
+              "scroll",
+              "viewport",
+              "dpr"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "transcript_segment"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "segment_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "t_end": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "text": {
+                "type": "string"
+              },
+              "engine": {
+                "type": "string",
+                "description": "adapter id, e.g. webspeech, scripted, whisper, deepgram, elevenlabs"
+              },
+              "local": {
+                "description": "true when audio never leaves the machine; null when unknown",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "timestamp_quality": {
+                "type": "string",
+                "enum": [
+                  "word",
+                  "approximate"
+                ]
+              },
+              "words": {
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string"
+                        },
+                        "t": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "ms since the Session t0"
+                        },
+                        "t_end": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "ms since the Session t0"
+                        }
+                      },
+                      "required": [
+                        "text",
+                        "t",
+                        "t_end"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "word timings; null for approximate engines"
+              },
+              "confidence": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "run_id": {
+                "default": null,
+                "description": "the transcription run; null for the live run recorded during the Session",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "target": {
+                "default": null,
+                "description": "set when the speech was dictated into a comment box: it is that comment's text, not part of the Session transcript",
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "annotation_id": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "annotation_id"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "comment_id": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "comment_id"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "segment_id",
+              "t_end",
+              "text",
+              "engine",
+              "local",
+              "timestamp_quality",
+              "words",
+              "confidence",
+              "run_id",
+              "target"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "transcription_fallback"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "from",
+              "to",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "voice_command"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "t_end": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "command": {
+                "type": "string",
+                "enum": [
+                  "scratch_that",
+                  "next",
+                  "pin_that",
+                  "snap",
+                  "pause",
+                  "resume"
+                ]
+              },
+              "phrase": {
+                "type": "string",
+                "description": "the words as transcribed; removed from that segment before Process"
+              },
+              "segment_id": {
+                "description": "the transcript segment the phrase came from; null when it was heard while paused",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "target": {
+                "default": null,
+                "description": "what scratch that / pin that acted on",
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "annotation",
+                          "draft_item"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "t_end",
+              "command",
+              "phrase",
+              "segment_id",
+              "target"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "speech_activity"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "t_end": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "t_end"
+            ],
+            "additionalProperties": false,
+            "description": "a span of speech detected by the VAD"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "draft_item"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "draft_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "d1, d2, … in the order written"
+              },
+              "pass_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the live pass that produced it"
+              },
+              "model": {
+                "type": "string",
+                "description": "the Draft model ID"
+              },
+              "title": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "layout",
+                  "style",
+                  "copy",
+                  "content",
+                  "behavior",
+                  "bug",
+                  "question"
+                ]
+              },
+              "intent": {
+                "type": "string",
+                "description": "one sentence: what the reviewer wants"
+              },
+              "transcript": {
+                "type": "string",
+                "description": "the reviewer words it came from, verbatim"
+              },
+              "locations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "subject",
+                        "reference",
+                        "destination"
+                      ]
+                    },
+                    "element": {
+                      "type": "string",
+                      "description": "short element name, e.g. button 'Get started'"
+                    },
+                    "selector": {
+                      "description": "the Candidate selector the draft chose; null for a region or the page",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "annotation": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Annotation number (#n); null for speech with no Annotation"
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "element",
+                    "selector",
+                    "annotation"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "annotation_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "the Annotations it covers"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "draft_id",
+              "pass_id",
+              "model",
+              "title",
+              "category",
+              "intent",
+              "transcript",
+              "locations",
+              "annotation_ids"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "draft_action"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "draft_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "discard",
+                  "pin"
+                ]
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "click",
+                  "voice"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "draft_id",
+              "action",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "session_end"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "stop",
+                  "panel_closed",
+                  "tab_closed",
+                  "shortcut"
+                ]
+              },
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "reason",
+              "duration_ms"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "transcript_edit"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "segment_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the transcript_segment this replaces the text of; the latest edit wins"
+              },
+              "text": {
+                "type": "string"
+              },
+              "edited_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "segment_id",
+              "text",
+              "edited_at"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "item_edit"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "run_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the Process run whose Change Items this edits"
+              },
+              "edited_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "edit": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "edit"
+                      },
+                      "item_id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "changes": {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "intent": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "layout",
+                              "style",
+                              "copy",
+                              "content",
+                              "behavior",
+                              "bug",
+                              "question"
+                            ]
+                          },
+                          "agent_prompt": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "ambiguity": {
+                            "description": "null: the item has no ambiguity any more",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "origin": {
+                        "description": "combine: written by the merge model right after a merge (the review page's Combine), not typed by the reviewer",
+                        "type": "string",
+                        "const": "combine"
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "item_id",
+                      "changes"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "delete"
+                      },
+                      "item_id": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "item_id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "merge"
+                      },
+                      "into": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "from": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "into",
+                      "from"
+                    ],
+                    "additionalProperties": false,
+                    "description": "`from` is folded into `into`, which keeps its id, title and category"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "split"
+                      },
+                      "item_id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "new_id": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "item_id",
+                      "new_id"
+                    ],
+                    "additionalProperties": false,
+                    "description": "a copy of the item under `new_id`, placed after it, to be edited"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "reorder"
+                      },
+                      "order": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "order"
+                    ],
+                    "additionalProperties": false,
+                    "description": "the full item order after a drag"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "undo"
+                      }
+                    },
+                    "required": [
+                      "op"
+                    ],
+                    "additionalProperties": false,
+                    "description": "takes back the latest step not yet undone (a merge and its combine are one step)"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "redo"
+                      }
+                    },
+                    "required": [
+                      "op"
+                    ],
+                    "additionalProperties": false,
+                    "description": "puts back the latest undone step; a new edit clears what can be redone"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "run_id",
+              "edited_at",
+              "edit"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "transcription_run"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "run_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "engine": {
+                "type": "string",
+                "description": "adapter id, e.g. webspeech, scripted, whisper, deepgram, elevenlabs"
+              },
+              "local": {
+                "description": "true when audio never leaves the machine; null when unknown",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "timestamp_quality": {
+                "type": "string",
+                "enum": [
+                  "word",
+                  "approximate"
+                ]
+              },
+              "model": {
+                "type": "string",
+                "description": "the engine model, e.g. nova-3, scribe_v2, onnx-community/whisper-base_timestamped"
+              },
+              "segment_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "run_id",
+              "engine",
+              "local",
+              "timestamp_quality",
+              "model",
+              "segment_count",
+              "created_at"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "transcript_select"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "run_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "null: the live run"
+              },
+              "edited_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "run_id",
+              "edited_at"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "viewport_change"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "width": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "description": "viewport width now, CSS px"
+              },
+              "height": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "description": "viewport height now, CSS px"
+              },
+              "scale": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1,
+                "description": "how much the page is scaled down to fit the tab (1: not at all)"
+              },
+              "mechanism": {
+                "type": "string",
+                "enum": [
+                  "frame_host",
+                  "none"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "width",
+              "height",
+              "scale",
+              "mechanism"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "style_edit"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "annotation_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the Annotation whose element the changes are for (a page_api Annotation whose script asked for them)"
+              },
+              "selector": {
+                "type": "string",
+                "description": "the element's selector"
+              },
+              "changes": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "description": "the element's computed value when the change was recorded"
+                    },
+                    "to": {
+                      "type": "string",
+                      "description": "the value it should become, e.g. 20px 32px or var(--brand)"
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "to"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "CSS property (kebab-case) → from/to; empty when only the text changed"
+              },
+              "text": {
+                "description": "the element's text, when it should say something else",
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "description": "the element's computed value when the change was recorded"
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "the value it should become, e.g. 20px 32px or var(--brand)"
+                  }
+                },
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "annotation_id",
+              "selector",
+              "changes"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "text_comment"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "comment_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "index": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "description": "1-based order within the Session (tN)"
+              },
+              "t_end": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "selected_text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "description": "the selection as the page shows it, whitespace collapsed"
+              },
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "exact": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "the selected text"
+                  },
+                  "prefix": {
+                    "type": "string",
+                    "description": "the text just before it"
+                  },
+                  "suffix": {
+                    "type": "string",
+                    "description": "the text just after it"
+                  }
+                },
+                "required": [
+                  "exact",
+                  "prefix",
+                  "suffix"
+                ],
+                "additionalProperties": false
+              },
+              "element": {
+                "type": "object",
+                "properties": {
+                  "selector": {
+                    "type": "string",
+                    "description": "stable CSS selector that resolves to this element on the page"
+                  },
+                  "tag": {
+                    "type": "string",
+                    "description": "lower-case tag name"
+                  },
+                  "role": {
+                    "description": "ARIA role (explicit or implicit)",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "accessible name, truncated to 200 chars"
+                  },
+                  "text": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "visible text, whitespace-collapsed, truncated to 200 chars"
+                  },
+                  "testid": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "classes": {
+                    "default": [],
+                    "description": "class names, generated and utility classes removed (appearance hints: a link styled .btn is a button)",
+                    "maxItems": 8,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "bbox": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "width": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "height": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "width",
+                      "height"
+                    ],
+                    "additionalProperties": false,
+                    "description": "page coordinates, CSS px"
+                  }
+                },
+                "required": [
+                  "selector",
+                  "tag",
+                  "role",
+                  "name",
+                  "text",
+                  "testid",
+                  "id",
+                  "classes",
+                  "bbox"
+                ],
+                "additionalProperties": false
+              },
+              "comment": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "bbox": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "the selection"
+              },
+              "url": {
+                "type": "string"
+              },
+              "scroll": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false,
+                "description": "page scroll offset (scrollX, scrollY), CSS px"
+              },
+              "viewport": {
+                "type": "object",
+                "properties": {
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false,
+                "description": "viewport size, CSS px"
+              },
+              "dpr": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "devicePixelRatio"
+              },
+              "screenshot_id": {
+                "description": "taken with the selection on screen and the comment box hidden",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "comment_id",
+              "index",
+              "t_end",
+              "selected_text",
+              "anchor",
+              "element",
+              "comment",
+              "bbox",
+              "url",
+              "scroll",
+              "viewport",
+              "dpr",
+              "screenshot_id"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "mic_muted"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "via": {
+                "type": "string",
+                "enum": [
+                  "button",
+                  "shortcut"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "via"
+            ],
+            "additionalProperties": false,
+            "description": "the microphone went off: the audio holds silence from here, nothing is transcribed"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "mic_unmuted"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "via": {
+                "type": "string",
+                "enum": [
+                  "button",
+                  "shortcut"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "via"
+            ],
+            "additionalProperties": false,
+            "description": "the microphone came back on"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "voice_on"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t"
+            ],
+            "additionalProperties": false,
+            "description": "the microphone was turned on mid-Session"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "overlay_cleared"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "url": {
+                "type": "string"
+              },
+              "strokes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Strokes removed from the page"
+              },
+              "picks": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Object Select picks dropped before they were done"
+              },
+              "comments": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "open comment boxes closed unsaved"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "url",
+              "strokes",
+              "picks",
+              "comments"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "change_items": {
+      "description": "the Change Items as reviewed: the latest successful Process with the review edits (item_edit events) applied, in review order; absent until Process ran",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "item_0001, item_0002, … in output order"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "imperative, under ~80 chars"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "layout",
+              "style",
+              "copy",
+              "content",
+              "behavior",
+              "bug",
+              "question"
+            ]
+          },
+          "intent": {
+            "type": "string",
+            "minLength": 1,
+            "description": "what the reviewer wants and why, one or two sentences"
+          },
+          "locations": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "subject",
+                    "reference",
+                    "destination"
+                  ],
+                  "description": "subject: what changes; reference: what it should match or relate to; destination: where it goes"
+                },
+                "selector": {
+                  "description": "CSS selector of the chosen Candidate; null when only a region or the whole page is meant",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "element": {
+                  "type": "string",
+                  "description": "short human description, e.g. button 'Get started' or nav region right of link 'Docs'"
+                },
+                "url": {
+                  "type": "string",
+                  "description": "page path (or full URL when on another origin) where the Location is"
+                },
+                "screenshot": {
+                  "description": "screenshot id showing this Location",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "annotation": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Annotation number (#n) this Location came from"
+                },
+                "source": {
+                  "description": "the chosen Candidate's source (file, line, components), when the page reported one",
+                  "type": "object",
+                  "properties": {
+                    "file": {
+                      "description": "source file, from src/ or app/ when the path has one, e.g. src/components/Button.tsx",
+                      "type": "string"
+                    },
+                    "line": {
+                      "description": "1-based line in that file",
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "components": {
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "the components that rendered the element, nearest first; minified names left out"
+                    }
+                  },
+                  "required": [
+                    "components"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "role",
+                "selector",
+                "element",
+                "url",
+                "screenshot",
+                "annotation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "video": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "start": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "end": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "start",
+                      "end"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Session time range in seconds covering the speech and Annotations of this item"
+              },
+              "screenshots": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "ids of every screenshot that shows this item"
+              },
+              "crops": {
+                "description": "ids of element crops (screenshots/<id>.png) of the Annotations this item uses",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "video",
+              "screenshots"
+            ],
+            "additionalProperties": false
+          },
+          "transcript": {
+            "type": "string",
+            "description": "the reviewer words this item came from, verbatim, joined with \" ... \""
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "ambiguity": {
+            "description": "required when confidence < 0.6: what is unclear, one sentence",
+            "type": "string"
+          },
+          "agent_prompt": {
+            "type": "string",
+            "minLength": 1,
+            "description": "self-contained instruction for a coding agent; cites every evidence screenshot as screenshots/<id>.png"
+          },
+          "pinned": {
+            "default": false,
+            "type": "boolean"
+          },
+          "style_changes": {
+            "description": "exact style and text changes recorded for elements this item covers; agent_prompt states each one",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "annotation": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "the Annotation (#n) whose element the changes are for"
+                },
+                "selector": {
+                  "type": "string",
+                  "description": "the element's selector"
+                },
+                "changes": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "from": {
+                        "type": "string",
+                        "description": "the element's computed value when the change was recorded"
+                      },
+                      "to": {
+                        "type": "string",
+                        "description": "the value it should become, e.g. 20px 32px or var(--brand)"
+                      }
+                    },
+                    "required": [
+                      "from",
+                      "to"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "CSS property (kebab-case) → from/to"
+                },
+                "text": {
+                  "description": "the element's text, when it should say something else",
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "description": "the element's computed value when the change was recorded"
+                    },
+                    "to": {
+                      "type": "string",
+                      "description": "the value it should become, e.g. 20px 32px or var(--brand)"
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "to"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "annotation",
+                "selector",
+                "changes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "source": {
+            "description": "'page_api': every Annotation it comes from was made by a script on the page, not the reviewer; absent: the reviewer",
+            "type": "string",
+            "enum": [
+              "reviewer",
+              "page_api"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "intent",
+          "locations",
+          "evidence",
+          "transcript",
+          "confidence",
+          "agent_prompt",
+          "pinned"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "process_run": {
+      "description": "the run change_items came from, for the acceptance rate (PRD §8)",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string"
+        },
+        "generated_items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "item_0001, item_0002, … in output order"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "description": "imperative, under ~80 chars"
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "layout",
+                  "style",
+                  "copy",
+                  "content",
+                  "behavior",
+                  "bug",
+                  "question"
+                ]
+              },
+              "intent": {
+                "type": "string",
+                "minLength": 1,
+                "description": "what the reviewer wants and why, one or two sentences"
+              },
+              "locations": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "subject",
+                        "reference",
+                        "destination"
+                      ],
+                      "description": "subject: what changes; reference: what it should match or relate to; destination: where it goes"
+                    },
+                    "selector": {
+                      "description": "CSS selector of the chosen Candidate; null when only a region or the whole page is meant",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "element": {
+                      "type": "string",
+                      "description": "short human description, e.g. button 'Get started' or nav region right of link 'Docs'"
+                    },
+                    "url": {
+                      "type": "string",
+                      "description": "page path (or full URL when on another origin) where the Location is"
+                    },
+                    "screenshot": {
+                      "description": "screenshot id showing this Location",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "annotation": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Annotation number (#n) this Location came from"
+                    },
+                    "source": {
+                      "description": "the chosen Candidate's source (file, line, components), when the page reported one",
+                      "type": "object",
+                      "properties": {
+                        "file": {
+                          "description": "source file, from src/ or app/ when the path has one, e.g. src/components/Button.tsx",
+                          "type": "string"
+                        },
+                        "line": {
+                          "description": "1-based line in that file",
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "components": {
+                          "maxItems": 8,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "the components that rendered the element, nearest first; minified names left out"
+                        }
+                      },
+                      "required": [
+                        "components"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "selector",
+                    "element",
+                    "url",
+                    "screenshot",
+                    "annotation"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "evidence": {
+                "type": "object",
+                "properties": {
+                  "video": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "start": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "end": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "start",
+                          "end"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Session time range in seconds covering the speech and Annotations of this item"
+                  },
+                  "screenshots": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "ids of every screenshot that shows this item"
+                  },
+                  "crops": {
+                    "description": "ids of element crops (screenshots/<id>.png) of the Annotations this item uses",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "video",
+                  "screenshots"
+                ],
+                "additionalProperties": false
+              },
+              "transcript": {
+                "type": "string",
+                "description": "the reviewer words this item came from, verbatim, joined with \" ... \""
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "ambiguity": {
+                "description": "required when confidence < 0.6: what is unclear, one sentence",
+                "type": "string"
+              },
+              "agent_prompt": {
+                "type": "string",
+                "minLength": 1,
+                "description": "self-contained instruction for a coding agent; cites every evidence screenshot as screenshots/<id>.png"
+              },
+              "pinned": {
+                "default": false,
+                "type": "boolean"
+              },
+              "style_changes": {
+                "description": "exact style and text changes recorded for elements this item covers; agent_prompt states each one",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "annotation": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "the Annotation (#n) whose element the changes are for"
+                    },
+                    "selector": {
+                      "type": "string",
+                      "description": "the element's selector"
+                    },
+                    "changes": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "from": {
+                            "type": "string",
+                            "description": "the element's computed value when the change was recorded"
+                          },
+                          "to": {
+                            "type": "string",
+                            "description": "the value it should become, e.g. 20px 32px or var(--brand)"
+                          }
+                        },
+                        "required": [
+                          "from",
+                          "to"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "CSS property (kebab-case) → from/to"
+                    },
+                    "text": {
+                      "description": "the element's text, when it should say something else",
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string",
+                          "description": "the element's computed value when the change was recorded"
+                        },
+                        "to": {
+                          "type": "string",
+                          "description": "the value it should become, e.g. 20px 32px or var(--brand)"
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "annotation",
+                    "selector",
+                    "changes"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "source": {
+                "description": "'page_api': every Annotation it comes from was made by a script on the page, not the reviewer; absent: the reviewer",
+                "type": "string",
+                "enum": [
+                  "reviewer",
+                  "page_api"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "category",
+              "intent",
+              "locations",
+              "evidence",
+              "transcript",
+              "confidence",
+              "agent_prompt",
+              "pinned"
+            ],
+            "additionalProperties": false
+          },
+          "description": "what Process produced, before any review edit"
+        },
+        "acceptance": {
+          "type": "object",
+          "properties": {
+            "generated": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "unedited": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "rate": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "generated",
+            "unedited",
+            "rate"
+          ],
+          "additionalProperties": false
+        },
+        "windows": {
+          "default": 1,
+          "description": "Process windows: 1 up to 12 minutes, then ~10-minute windows with overlap",
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "dropped_annotations": {
+          "default": [],
+          "description": "Annotations the model said no Change Item comes from, with its reason",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "annotation": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "annotation",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "unaccounted_annotations": {
+          "default": [],
+          "description": "live Annotations no item uses and the model did not list as dropped",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      "required": [
+        "id",
+        "model",
+        "generated_items",
+        "acceptance",
+        "windows",
+        "dropped_annotations",
+        "unaccounted_annotations"
+      ],
+      "additionalProperties": false
+    },
+    "process_runs": {
+      "default": [],
+      "description": "every Process run of this Session, oldest first, failed ones included (PRD §8 processing failure rate)",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "done",
+              "failed"
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "windows": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "model",
+          "created_at",
+          "error_code",
+          "windows"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "generated_at",
+    "session",
+    "media",
+    "blobs",
+    "events",
+    "process_runs"
+  ],
+  "additionalProperties": false
+}

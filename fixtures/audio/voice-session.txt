@@ -1,0 +1,1 @@
+~2|this button|~1.5|scratch that|~2|the video should|pause|here when it loads|~1.5|pause|~4

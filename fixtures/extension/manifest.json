@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "VAR Fixture Extension",
+  "version": "1.0",
+  "description": "Another extension for the e2e tests: its page is a review target where no overlay can run.",
+  "background": { "service_worker": "fixture-sw.js" },
+  "options_page": "page.html"
+}

@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "type": "hello",
+  "id": "m-1",
+  "client_kind": "chrome",
+  "client_name": "Chrome on MacBook",
+  "pairing_code": "12345"
+}

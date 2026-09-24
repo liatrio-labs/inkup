@@ -1,0 +1,111 @@
+# Install once per clone: pre-commit install
+# (default_install_hook_types below also wires pre-push and commit-msg.)
+# Run everything by hand: pre-commit run --all-files
+default_install_hook_types: [pre-commit, pre-push, commit-msg]
+default_stages: [pre-commit]
+minimum_pre_commit_version: "4.0.0"
+
+# Byte-exact test inputs and generated output: never rewrite them.
+exclude: |
+  (?x)^(
+    fixtures/(audio|extension|sessions|site/vendor|strokes)/.*
+    | packages/protocol/fixtures/.*
+    | host/crates/tui/tests/snapshots/.*
+    | extensions/web/safari-xcode/.*
+  )$
+
+repos:
+  # File hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-json
+        exclude: ^(tsconfig.*\.json|.*/tsconfig.*\.json|\.vscode/.*)$ # JSONC
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Secrets
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        args: [--redact]
+
+  # Markdown
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.49.1
+    hooks:
+      - id: markdownlint-fix
+
+  # GitHub Actions security
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.30.1
+    hooks:
+      - id: zizmor
+        args: [--offline]
+
+  # Conventional Commits
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.27.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ["@commitlint/config-conventional@19"]
+
+  # TypeScript and Rust use the repo's own toolchains (pnpm install, rustup).
+  - repo: local
+    hooks:
+      - id: biome
+        name: biome check (format, lint, imports)
+        entry: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true
+        language: system
+        types_or: [ts, tsx, javascript, jsx]
+
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --manifest-path host/Cargo.toml --all
+        language: system
+        files: ^host/.*\.rs$
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --manifest-path host/Cargo.toml --workspace --all-targets --locked -- -D warnings
+        language: system
+        files: ^host/.*\.(rs|toml)$|^host/Cargo\.lock$
+        pass_filenames: false
+
+      - id: typecheck
+        name: tsc (pnpm typecheck)
+        entry: pnpm typecheck
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: unit-tests
+        name: vitest (pnpm test)
+        entry: pnpm test
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: cargo-test
+        name: cargo test
+        entry: cargo test --manifest-path host/Cargo.toml --workspace --locked
+        language: system
+        files: ^host/
+        pass_filenames: false
+        stages: [pre-push]

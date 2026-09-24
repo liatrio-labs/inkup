@@ -1,0 +1,1030 @@
+{
+  "schema_version": 3,
+  "generated_at": "2026-09-23T01:35:44.221Z",
+  "session": {
+    "id": "4a672f65-885c-45b1-b2e5-14fd0cf6c865",
+    "tab_id": 622576851,
+    "t0": 1790127339922,
+    "started_at": "2026-09-23T01:35:39.922Z",
+    "ended_at": "2026-09-23T01:35:44.126Z",
+    "duration_ms": 4204,
+    "start_url": "http://localhost:4401/pricing.html",
+    "start_title": "Pricing Fixture",
+    "status": "ended",
+    "transcription": {
+      "engine": "scripted",
+      "local": true,
+      "timestamp_quality": "approximate"
+    }
+  },
+  "media": {
+    "audio": {
+      "blob_id": "4a672f65-885c-45b1-b2e5-14fd0cf6c865:audio",
+      "mime": "audio/webm;codecs=opus",
+      "start_offset_ms": 202,
+      "duration_ms": 3991,
+      "chunk_count": 1,
+      "path": "audio.webm"
+    },
+    "video": null
+  },
+  "blobs": [
+    {
+      "id": "4a672f65-885c-45b1-b2e5-14fd0cf6c865:audio",
+      "kind": "audio",
+      "mime": "audio/webm;codecs=opus",
+      "size": 40773,
+      "path": "audio.webm"
+    },
+    {
+      "id": "aa33f97f-7d31-4ac1-a23e-7e16f64d6a7c",
+      "kind": "screenshot",
+      "mime": "image/png",
+      "size": 41562,
+      "path": "screenshots/aa33f97f-7d31-4ac1-a23e-7e16f64d6a7c.png"
+    }
+  ],
+  "events": [
+    {
+      "id": "8f6099d7-4c54-4790-a160-9ed2a5d44763",
+      "type": "session_start",
+      "t": 0,
+      "tab_id": 622576851,
+      "url": "http://localhost:4401/pricing.html",
+      "title": "Pricing Fixture",
+      "t0": 1790127339922
+    },
+    {
+      "id": "a74ecc9c-6c30-4178-9d9d-082a86777ae6",
+      "type": "stroke",
+      "t": 148,
+      "stroke_id": "f057e0d4-1889-4557-b873-74203c87a287",
+      "t_end": 2363,
+      "points": [
+        {
+          "x": 891.6,
+          "y": 235,
+          "t": 148
+        },
+        {
+          "x": 901.6,
+          "y": 229.5,
+          "t": 161
+        },
+        {
+          "x": 911.3,
+          "y": 221.5,
+          "t": 177
+        },
+        {
+          "x": 921.1,
+          "y": 216.6,
+          "t": 194
+        },
+        {
+          "x": 930.7,
+          "y": 210.2,
+          "t": 211
+        },
+        {
+          "x": 941.5,
+          "y": 203.9,
+          "t": 227
+        },
+        {
+          "x": 950.9,
+          "y": 198.4,
+          "t": 244
+        },
+        {
+          "x": 959.5,
+          "y": 191,
+          "t": 261
+        },
+        {
+          "x": 969.7,
+          "y": 185.4,
+          "t": 278
+        },
+        {
+          "x": 979.8,
+          "y": 179.6,
+          "t": 293
+        },
+        {
+          "x": 989.1,
+          "y": 173.5,
+          "t": 310
+        },
+        {
+          "x": 1000.1,
+          "y": 166.8,
+          "t": 327
+        },
+        {
+          "x": 1010.7,
+          "y": 161.6,
+          "t": 343
+        },
+        {
+          "x": 1020.5,
+          "y": 154.2,
+          "t": 361
+        },
+        {
+          "x": 1030.2,
+          "y": 147.8,
+          "t": 394
+        },
+        {
+          "x": 1038.9,
+          "y": 142.7,
+          "t": 410
+        },
+        {
+          "x": 1051.1,
+          "y": 135.3,
+          "t": 427
+        },
+        {
+          "x": 1059.2,
+          "y": 130.1,
+          "t": 444
+        },
+        {
+          "x": 1069.8,
+          "y": 123.3,
+          "t": 461
+        },
+        {
+          "x": 1080.5,
+          "y": 117.7,
+          "t": 477
+        },
+        {
+          "x": 1089.7,
+          "y": 111.4,
+          "t": 495
+        },
+        {
+          "x": 1101.5,
+          "y": 103.9,
+          "t": 512
+        },
+        {
+          "x": 1109.8,
+          "y": 96.7,
+          "t": 529
+        },
+        {
+          "x": 1122,
+          "y": 91.4,
+          "t": 545
+        },
+        {
+          "x": 1131.6,
+          "y": 84.4,
+          "t": 562
+        },
+        {
+          "x": 1141.8,
+          "y": 79.1,
+          "t": 579
+        },
+        {
+          "x": 1151.2,
+          "y": 72.4,
+          "t": 594
+        },
+        {
+          "x": 1161.5,
+          "y": 65.4,
+          "t": 611
+        },
+        {
+          "x": 1173.3,
+          "y": 60.2,
+          "t": 627
+        },
+        {
+          "x": 1183.3,
+          "y": 52.5,
+          "t": 644
+        },
+        {
+          "x": 1193.5,
+          "y": 45,
+          "t": 662
+        },
+        {
+          "x": 1204.9,
+          "y": 39.3,
+          "t": 679
+        },
+        {
+          "x": 1215.5,
+          "y": 32.5,
+          "t": 695
+        },
+        {
+          "x": 1225.6,
+          "y": 26,
+          "t": 712
+        },
+        {
+          "x": 1225.4,
+          "y": 25.5,
+          "t": 729
+        },
+        {
+          "x": 1222.8,
+          "y": 26.5,
+          "t": 745
+        },
+        {
+          "x": 1223.1,
+          "y": 25.1,
+          "t": 762
+        },
+        {
+          "x": 1221.7,
+          "y": 25.5,
+          "t": 779
+        },
+        {
+          "x": 1222.2,
+          "y": 26.5,
+          "t": 795
+        },
+        {
+          "x": 1220.7,
+          "y": 25.3,
+          "t": 812
+        },
+        {
+          "x": 1220.6,
+          "y": 25.5,
+          "t": 829
+        },
+        {
+          "x": 1218.6,
+          "y": 24.7,
+          "t": 845
+        },
+        {
+          "x": 1218,
+          "y": 23.8,
+          "t": 862
+        },
+        {
+          "x": 1218.1,
+          "y": 24.3,
+          "t": 879
+        },
+        {
+          "x": 1216.2,
+          "y": 23.7,
+          "t": 895
+        },
+        {
+          "x": 1214.6,
+          "y": 25,
+          "t": 912
+        },
+        {
+          "x": 1214.9,
+          "y": 24.3,
+          "t": 929
+        },
+        {
+          "x": 1213.1,
+          "y": 24.2,
+          "t": 945
+        },
+        {
+          "x": 1213.5,
+          "y": 24.8,
+          "t": 962
+        },
+        {
+          "x": 1213.5,
+          "y": 23.9,
+          "t": 979
+        },
+        {
+          "x": 1211.8,
+          "y": 23.7,
+          "t": 995
+        },
+        {
+          "x": 1210.7,
+          "y": 22.4,
+          "t": 1012
+        },
+        {
+          "x": 1210.3,
+          "y": 23.6,
+          "t": 1027
+        },
+        {
+          "x": 1210.2,
+          "y": 23.6,
+          "t": 1044
+        },
+        {
+          "x": 1207.3,
+          "y": 22.1,
+          "t": 1061
+        },
+        {
+          "x": 1207.6,
+          "y": 24,
+          "t": 1077
+        },
+        {
+          "x": 1205.9,
+          "y": 23.8,
+          "t": 1095
+        },
+        {
+          "x": 1205,
+          "y": 23.3,
+          "t": 1112
+        },
+        {
+          "x": 1204.7,
+          "y": 21.6,
+          "t": 1129
+        },
+        {
+          "x": 1202.8,
+          "y": 23,
+          "t": 1145
+        },
+        {
+          "x": 1202.3,
+          "y": 22.9,
+          "t": 1162
+        },
+        {
+          "x": 1200.6,
+          "y": 23.1,
+          "t": 1179
+        },
+        {
+          "x": 1199.7,
+          "y": 21.6,
+          "t": 1195
+        },
+        {
+          "x": 1199.2,
+          "y": 22.3,
+          "t": 1212
+        },
+        {
+          "x": 1197.1,
+          "y": 23.3,
+          "t": 1229
+        },
+        {
+          "x": 1197.7,
+          "y": 23.2,
+          "t": 1245
+        },
+        {
+          "x": 1194.3,
+          "y": 22.6,
+          "t": 1262
+        },
+        {
+          "x": 1197.5,
+          "y": 22.8,
+          "t": 1279
+        },
+        {
+          "x": 1198.3,
+          "y": 22.9,
+          "t": 1295
+        },
+        {
+          "x": 1197.7,
+          "y": 22.6,
+          "t": 1312
+        },
+        {
+          "x": 1200,
+          "y": 21.8,
+          "t": 1329
+        },
+        {
+          "x": 1201.8,
+          "y": 21.6,
+          "t": 1345
+        },
+        {
+          "x": 1201.1,
+          "y": 23.9,
+          "t": 1362
+        },
+        {
+          "x": 1203.4,
+          "y": 23.2,
+          "t": 1379
+        },
+        {
+          "x": 1204.9,
+          "y": 23.8,
+          "t": 1395
+        },
+        {
+          "x": 1206.2,
+          "y": 21.8,
+          "t": 1412
+        },
+        {
+          "x": 1205.2,
+          "y": 23.2,
+          "t": 1429
+        },
+        {
+          "x": 1206.7,
+          "y": 22.9,
+          "t": 1445
+        },
+        {
+          "x": 1207.9,
+          "y": 22.1,
+          "t": 1461
+        },
+        {
+          "x": 1207.6,
+          "y": 23.2,
+          "t": 1479
+        },
+        {
+          "x": 1209,
+          "y": 23.3,
+          "t": 1494
+        },
+        {
+          "x": 1210.9,
+          "y": 23.4,
+          "t": 1511
+        },
+        {
+          "x": 1210.8,
+          "y": 24,
+          "t": 1527
+        },
+        {
+          "x": 1211.7,
+          "y": 25.1,
+          "t": 1544
+        },
+        {
+          "x": 1212.3,
+          "y": 24,
+          "t": 1561
+        },
+        {
+          "x": 1213,
+          "y": 24.8,
+          "t": 1579
+        },
+        {
+          "x": 1213.9,
+          "y": 24.6,
+          "t": 1594
+        },
+        {
+          "x": 1215.5,
+          "y": 23.5,
+          "t": 1612
+        },
+        {
+          "x": 1215.1,
+          "y": 24.1,
+          "t": 1627
+        },
+        {
+          "x": 1217.5,
+          "y": 24.2,
+          "t": 1643
+        },
+        {
+          "x": 1218.3,
+          "y": 24.5,
+          "t": 1661
+        },
+        {
+          "x": 1218.6,
+          "y": 26.2,
+          "t": 1678
+        },
+        {
+          "x": 1219.7,
+          "y": 26.3,
+          "t": 1694
+        },
+        {
+          "x": 1219,
+          "y": 24.8,
+          "t": 1710
+        },
+        {
+          "x": 1221.3,
+          "y": 25.2,
+          "t": 1727
+        },
+        {
+          "x": 1220.7,
+          "y": 25.7,
+          "t": 1745
+        },
+        {
+          "x": 1221.5,
+          "y": 27.1,
+          "t": 1761
+        },
+        {
+          "x": 1223.6,
+          "y": 26.9,
+          "t": 1779
+        },
+        {
+          "x": 1224.4,
+          "y": 27.1,
+          "t": 1794
+        },
+        {
+          "x": 1225.6,
+          "y": 26.3,
+          "t": 1811
+        },
+        {
+          "x": 1224.9,
+          "y": 27.2,
+          "t": 1827
+        },
+        {
+          "x": 1222.7,
+          "y": 28.2,
+          "t": 1845
+        },
+        {
+          "x": 1222.8,
+          "y": 29.1,
+          "t": 1861
+        },
+        {
+          "x": 1221.9,
+          "y": 32.5,
+          "t": 1879
+        },
+        {
+          "x": 1221.8,
+          "y": 32.6,
+          "t": 1894
+        },
+        {
+          "x": 1221.1,
+          "y": 32.7,
+          "t": 1910
+        },
+        {
+          "x": 1219.5,
+          "y": 35.5,
+          "t": 1927
+        },
+        {
+          "x": 1218.2,
+          "y": 37.1,
+          "t": 1944
+        },
+        {
+          "x": 1217.2,
+          "y": 38,
+          "t": 1961
+        },
+        {
+          "x": 1217.4,
+          "y": 39.2,
+          "t": 1977
+        },
+        {
+          "x": 1218.1,
+          "y": 38.9,
+          "t": 1994
+        },
+        {
+          "x": 1216.2,
+          "y": 40.1,
+          "t": 2011
+        },
+        {
+          "x": 1214.8,
+          "y": 40.5,
+          "t": 2027
+        },
+        {
+          "x": 1214.3,
+          "y": 41.3,
+          "t": 2044
+        },
+        {
+          "x": 1215.8,
+          "y": 43.4,
+          "t": 2060
+        },
+        {
+          "x": 1214.5,
+          "y": 43.6,
+          "t": 2077
+        },
+        {
+          "x": 1214.9,
+          "y": 44.2,
+          "t": 2094
+        },
+        {
+          "x": 1214.3,
+          "y": 45.6,
+          "t": 2112
+        },
+        {
+          "x": 1212.1,
+          "y": 46.9,
+          "t": 2128
+        },
+        {
+          "x": 1212.5,
+          "y": 47.1,
+          "t": 2145
+        },
+        {
+          "x": 1212.1,
+          "y": 48,
+          "t": 2161
+        },
+        {
+          "x": 1213.1,
+          "y": 49.9,
+          "t": 2179
+        },
+        {
+          "x": 1211.7,
+          "y": 51.8,
+          "t": 2194
+        },
+        {
+          "x": 1211.2,
+          "y": 51.6,
+          "t": 2211
+        },
+        {
+          "x": 1211.4,
+          "y": 51.8,
+          "t": 2227
+        },
+        {
+          "x": 1211.1,
+          "y": 54.2,
+          "t": 2244
+        },
+        {
+          "x": 1210.4,
+          "y": 53.9,
+          "t": 2261
+        },
+        {
+          "x": 1210.5,
+          "y": 53.9,
+          "t": 2279
+        },
+        {
+          "x": 1209.9,
+          "y": 55.9,
+          "t": 2294
+        },
+        {
+          "x": 1209.2,
+          "y": 55.5,
+          "t": 2311
+        },
+        {
+          "x": 1210.7,
+          "y": 56.4,
+          "t": 2327
+        },
+        {
+          "x": 1209.3,
+          "y": 57.9,
+          "t": 2344
+        },
+        {
+          "x": 1210.5,
+          "y": 59.1,
+          "t": 2361
+        },
+        {
+          "x": 1210.5,
+          "y": 59.1,
+          "t": 2363
+        }
+      ],
+      "bbox": {
+        "x": 891.6276245117188,
+        "y": 21.558507919311523,
+        "width": 333.96502685546875,
+        "height": 213.4628391265869
+      },
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1,
+      "shape": "arrow"
+    },
+    {
+      "id": "9655c694-508e-4c5e-b6ba-a7804cc6cb38",
+      "type": "annotation",
+      "t": 148,
+      "annotation_id": "1330518d-392c-46c9-94c7-a6c8638978b2",
+      "index": 1,
+      "t_end": 2363,
+      "stroke_ids": [
+        "f057e0d4-1889-4557-b873-74203c87a287"
+      ],
+      "close_reason": "time_gap",
+      "bbox": {
+        "x": 891.6276245117188,
+        "y": 21.558507919311523,
+        "width": 333.96502685546875,
+        "height": 213.4628391265869
+      },
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1,
+      "resolution": "element",
+      "candidates": [
+        {
+          "selector": "main",
+          "tag": "main",
+          "role": "main",
+          "name": "",
+          "text": "Ship reviews in minutes Simple pricing for teams of every size. Start your free trial today. Get started Basic $9 / month For individuals. Pro $29 / month For teams that review every release. Includes",
+          "testid": null,
+          "id": null,
+          "classes": [],
+          "bbox": {
+            "x": 120,
+            "y": 49,
+            "width": 1040,
+            "height": 1912.90625
+          },
+          "relation": "pick",
+          "coverage": 0.7
+        },
+        {
+          "selector": "header.site-header",
+          "tag": "header",
+          "role": "banner",
+          "name": "",
+          "text": "Acme Home Pricing Docs",
+          "testid": null,
+          "id": null,
+          "classes": [
+            "site-header"
+          ],
+          "bbox": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 49
+          },
+          "relation": "sibling",
+          "coverage": 0.129
+        }
+      ],
+      "pick": 0,
+      "screenshot_id": "aa33f97f-7d31-4ac1-a23e-7e16f64d6a7c",
+      "connector": {
+        "stroke_ids": [
+          "f057e0d4-1889-4557-b873-74203c87a287"
+        ],
+        "tail": {
+          "point": {
+            "x": 891.6,
+            "y": 235
+          },
+          "bbox": {
+            "x": 879.6276245117188,
+            "y": 223.02134704589844,
+            "width": 24,
+            "height": 24
+          },
+          "resolution": "element",
+          "candidates": [
+            {
+              "selector": "button.cta",
+              "tag": "button",
+              "role": "button",
+              "name": "Get started",
+              "text": "Get started",
+              "testid": null,
+              "id": null,
+              "classes": [
+                "cta"
+              ],
+              "bbox": {
+                "x": 819.46875,
+                "y": 210,
+                "width": 145.046875,
+                "height": 49
+              },
+              "relation": "pick",
+              "coverage": 1
+            },
+            {
+              "selector": "div.hero-card",
+              "tag": "div",
+              "role": null,
+              "name": "",
+              "text": "Start your free trial today. Get started",
+              "testid": null,
+              "id": null,
+              "classes": [
+                "card",
+                "hero-card"
+              ],
+              "bbox": {
+                "x": 656,
+                "y": 129,
+                "width": 472,
+                "height": 155
+              },
+              "relation": "ancestor",
+              "coverage": 1
+            },
+            {
+              "selector": "section.hero",
+              "tag": "section",
+              "role": "region",
+              "name": "Ship reviews in minutes",
+              "text": "Ship reviews in minutes Simple pricing for teams of every size. Start your free trial today. Get started",
+              "testid": null,
+              "id": null,
+              "classes": [
+                "hero"
+              ],
+              "bbox": {
+                "x": 152,
+                "y": 81,
+                "width": 976,
+                "height": 251
+              },
+              "relation": "ancestor",
+              "coverage": 1
+            },
+            {
+              "selector": "main",
+              "tag": "main",
+              "role": "main",
+              "name": "",
+              "text": "Ship reviews in minutes Simple pricing for teams of every size. Start your free trial today. Get started Basic $9 / month For individuals. Pro $29 / month For teams that review every release. Includes",
+              "testid": null,
+              "id": null,
+              "classes": [],
+              "bbox": {
+                "x": 120,
+                "y": 49,
+                "width": 1040,
+                "height": 1912.90625
+              },
+              "relation": "ancestor",
+              "coverage": 1
+            }
+          ],
+          "pick": 0
+        },
+        "head": {
+          "point": {
+            "x": 1222.8,
+            "y": 26.2
+          },
+          "bbox": {
+            "x": 1210.8169190520036,
+            "y": 14.22040210756871,
+            "width": 24,
+            "height": 24
+          },
+          "resolution": "element",
+          "candidates": [
+            {
+              "selector": "a:nth-of-type(3)",
+              "tag": "a",
+              "role": "link",
+              "name": "Docs",
+              "text": "Docs",
+              "testid": null,
+              "id": null,
+              "classes": [],
+              "bbox": {
+                "x": 1210.84375,
+                "y": 15,
+                "width": 37.15625,
+                "height": 18
+              },
+              "relation": "pick",
+              "coverage": 0.749
+            },
+            {
+              "selector": "nav",
+              "tag": "nav",
+              "role": "navigation",
+              "name": "Main",
+              "text": "Home Pricing Docs",
+              "testid": null,
+              "id": null,
+              "classes": [],
+              "bbox": {
+                "x": 1049.3125,
+                "y": 12,
+                "width": 198.6875,
+                "height": 24
+              },
+              "relation": "ancestor",
+              "coverage": 0.907
+            },
+            {
+              "selector": "header.site-header",
+              "tag": "header",
+              "role": "banner",
+              "name": "",
+              "text": "Acme Home Pricing Docs",
+              "testid": null,
+              "id": null,
+              "classes": [
+                "site-header"
+              ],
+              "bbox": {
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 49
+              },
+              "relation": "ancestor",
+              "coverage": 1
+            }
+          ],
+          "pick": 0
+        }
+      }
+    },
+    {
+      "id": "43bc11e0-278b-41d1-b011-54aa48bd48d8",
+      "type": "speech_activity",
+      "t": 730,
+      "t_end": 1940
+    },
+    {
+      "id": "3f817c00-0bb8-4134-9e20-57d72ff8d505",
+      "type": "screenshot",
+      "t": 3880,
+      "screenshot_id": "aa33f97f-7d31-4ac1-a23e-7e16f64d6a7c",
+      "path": "screenshots/aa33f97f-7d31-4ac1-a23e-7e16f64d6a7c.png",
+      "mime": "image/png",
+      "trigger": "annotation",
+      "annotation_id": "1330518d-392c-46c9-94c7-a6c8638978b2",
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1
+    },
+    {
+      "id": "9b7744a7-1389-4cbb-b6b3-a1a658c488ed",
+      "type": "session_end",
+      "t": 4204,
+      "reason": "stop",
+      "duration_ms": 4204
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+.claude/settings.local.json
+.DS_Store
+node_modules/
+.env
+# WXT
+.output/
+.wxt/
+stats.html
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+# Generated on postinstall by extensions/web/scripts/copy-wasm-assets.mjs (copied from node_modules, ~45 MB)
+extensions/web/public/ort/
+extensions/web/public/vad/
+fixtures/sessions/long-*.json

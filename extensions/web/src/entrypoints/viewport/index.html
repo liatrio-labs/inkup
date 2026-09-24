@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Resized page</title>
+  <style>
+    :root { color-scheme: dark; --bar: 40px; --pad: 16px; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #3f3f46; font: 500 12px/1.2 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; color: #f4f4f5; }
+    header { position: fixed; inset: 0 0 auto 0; height: var(--bar); box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: #18181b; }
+    header .size { font-variant-numeric: tabular-nums; font-weight: 600; }
+    header .url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #a1a1aa; }
+    header button { all: unset; cursor: pointer; padding: 6px 10px; border-radius: 6px; background: #27272a; }
+    header button:hover { background: #3f3f46; }
+    header button:focus-visible { outline: 2px solid #60a5fa; }
+    #wrap { position: absolute; background: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.4); }
+    #wrap[hidden] { display: none; }
+    iframe { border: 0; display: block; transform-origin: 0 0; background: #fff; }
+    .handle { position: absolute; background: rgba(59,130,246,.85); border-radius: 3px; touch-action: none; }
+    .handle[data-edge="right"] { cursor: ew-resize; width: 8px; height: 48px; right: -12px; top: calc(50% - 24px); }
+    .handle[data-edge="bottom"] { cursor: ns-resize; width: 48px; height: 8px; bottom: -12px; left: calc(50% - 24px); }
+    .handle[data-edge="corner"] { cursor: nwse-resize; width: 12px; height: 12px; right: -14px; bottom: -14px; }
+    .dragging iframe { pointer-events: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="size" data-testid="viewport-readout">…</span>
+    <span class="url" data-testid="viewport-url"></span>
+    <button type="button" id="reset" data-testid="viewport-host-reset" title="Give the page the whole tab again">The tab's own size</button>
+  </header>
+  <div id="wrap" hidden>
+    <iframe id="frame" name="var-viewport-frame" title="The page under review, at the chosen size"></iframe>
+    <!-- biome-ignore lint/a11y/useSemanticElements: a draggable resize handle; an <hr> cannot be one -->
+    <div class="handle" data-edge="right" data-testid="viewport-handle-right" role="separator" aria-label="Drag to resize the width"></div>
+    <!-- biome-ignore lint/a11y/useSemanticElements: a draggable resize handle; an <hr> cannot be one -->
+    <div class="handle" data-edge="bottom" data-testid="viewport-handle-bottom" role="separator" aria-label="Drag to resize the height"></div>
+    <!-- biome-ignore lint/a11y/useSemanticElements: a draggable resize handle; an <hr> cannot be one -->
+    <div class="handle" data-edge="corner" data-testid="viewport-handle-corner" role="separator" aria-label="Drag to resize"></div>
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+ 1 Clients │ 2 Sessions │ 3 Timeline │ 4 Items │ 5 Agents │ 6 Tokens           inkup 127.0.0.1:47823
+ Network mode: unencrypted on this LAN — trusted networks only   inkup.local · 192.168.7.149
+┌ Agent tokens ────────────────────────────────────────────────────────────────────────────────────┐
+│  For                                                       Id           Created      Last used   │
+│› codex on desktop                                          a-1f2e3d4c   1 d ago      30 s ago    │
+│                                                                                                  │
+│                                                                                                  │
+│ ┌ Agent token ─────────────────────────────────────────────────────────────────────────────────┐ │
+│ │Token for claude on lapto (shown once):                                                       │ │
+│ │ink1_0123abcd                                                                                 │ │
+│ │                                                                                              │ │
+│ │On the agent's machine:                                                                       │ │
+│ │inkup mcp install --remote http://inkup.local:47823 --token ink1_0123abcd                     │ │
+│ │                                                                                              │ │
+│ │Revoke it in Tokens (6) with r.                                                               │ │
+│ │                                                                                              │ │
+│ └───────────────────────────────────────────────────────────────────────────────────────── Esc ┘ │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+s start  p pause/resume  x stop  d draw  t token  N network  ⏎ details  ? help  q quit

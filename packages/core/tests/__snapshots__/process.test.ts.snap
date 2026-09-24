@@ -1,0 +1,253 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`prompt builder > script for a-move-here (approximate) 1`] = `
+"TIMESTAMP QUALITY: approximate
+PAIRING WINDOW: 4s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:11.1 · 2 Annotations · 2 speech segments
+
+[00:01.0] ANNOTATION #1 mark · 00:01.0–00:01.8 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    c0 button.cta · <button role=button class="cta"> "Get started" · PICK · covers 83% · nouns: button
+    c1 div.hero-card · <div class="card hero-card"> "Start your free trial today. Get started" · ancestor · covers 100% · nouns: card
+    c2 section.hero · <section role=region class="hero"> "Ship reviews in minutes" · ancestor · covers 100% · nouns: section
+    c3 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+[00:01.6] SPEECH "okay so this button" · 00:01.6–00:02.7 · demonstratives: "this" near #1 · nouns: button
+[00:07.0] ANNOTATION #2 mark · 00:07.0–00:07.8 · 1 Stroke · at /pricing.html · screenshot s2 · closed by time gap
+    c0 nav · <nav role=navigation> "Main" · PICK · covers 89% · nouns: nav
+    c1 header.site-header · <header role=banner class="site-header"> "Acme Home Pricing Docs" · ancestor · covers 100% · nouns: header
+    c2 a:nth-of-type(3) · <a role=link> "Docs" · descendant · covers 59% · nouns: link
+[00:08.1] SPEECH "should go here in the header next to docs" · 00:08.1–00:10.1 · demonstratives: "here" near #2 · nouns: header"
+`;
+
+exports[`prompt builder > script for a-move-here (word) 1`] = `
+"TIMESTAMP QUALITY: word-level
+PAIRING WINDOW: 2s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:11.1 · 2 Annotations · 2 speech segments
+
+[00:00.8] SPEECH "okay so this button" · 00:00.8–00:01.9 · demonstratives: "this"@00:01.3 near #1 · nouns: button
+[00:01.0] ANNOTATION #1 mark · 00:01.0–00:01.8 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    c0 button.cta · <button role=button class="cta"> "Get started" · PICK · covers 83% · nouns: button
+    c1 div.hero-card · <div class="card hero-card"> "Start your free trial today. Get started" · ancestor · covers 100% · nouns: card
+    c2 section.hero · <section role=region class="hero"> "Ship reviews in minutes" · ancestor · covers 100% · nouns: section
+    c3 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+[00:07.0] ANNOTATION #2 mark · 00:07.0–00:07.8 · 1 Stroke · at /pricing.html · screenshot s2 · closed by time gap
+    c0 nav · <nav role=navigation> "Main" · PICK · covers 89% · nouns: nav
+    c1 header.site-header · <header role=banner class="site-header"> "Acme Home Pricing Docs" · ancestor · covers 100% · nouns: header
+    c2 a:nth-of-type(3) · <a role=link> "Docs" · descendant · covers 59% · nouns: link
+[00:07.3] SPEECH "should go here in the header next to docs" · 00:07.3–00:09.3 · demonstratives: "here"@00:07.7 near #2 · nouns: header"
+`;
+
+exports[`prompt builder > script for b-same-height (approximate) 1`] = `
+"TIMESTAMP QUALITY: approximate
+PAIRING WINDOW: 4s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:06.7 · 2 Annotations · 1 speech segments
+
+[00:01.0] ANNOTATION #1 mark · 00:01.0–00:01.8 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    c0 #plan-basic · <div class="card"> "Basic $9 / month For individuals." · PICK · covers 89% · nouns: card
+    c1 section.plans · <section role=region class="plans"> "Plans" · ancestor · covers 94% · nouns: section
+    c2 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    c3 div:nth-of-type(1).card h2 · <h2 role=heading> "Basic" · descendant · covers 13% · nouns: heading
+    c4 div:nth-of-type(1).card p.price · <p class="price"> "$9 / month" · descendant · covers 9% · nouns: text, price
+    c5 div:nth-of-type(1).card p:nth-of-type(2) · <p> "For individuals." · descendant · covers 9% · nouns: text
+[00:01.7] SPEECH "make this card the same height as that one" · 00:01.7–00:05.0 · demonstratives: "this" near #1, #2; "that" near #1, #2 · nouns: card
+[00:03.4] ANNOTATION #2 mark · 00:03.4–00:04.2 · 1 Stroke · at /pricing.html · screenshot s2 · closed by time gap
+    c0 #plan-pro · <div class="card"> "Pro $29 / month For teams that review every release. Includ…" · PICK · covers 89% · nouns: card
+    c1 section.plans · <section role=region class="plans"> "Plans" · ancestor · covers 92% · nouns: section
+    c2 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    c3 section.plans div:nth-of-type(2) h2 · <h2 role=heading> "Pro" · descendant · covers 9% · nouns: heading
+    c4 p:nth-of-type(3) · <p> "Includes video evidence and export." · descendant · covers 6% · nouns: text"
+`;
+
+exports[`prompt builder > script for b-same-height (word) 1`] = `
+"TIMESTAMP QUALITY: word-level
+PAIRING WINDOW: 2s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:06.7 · 2 Annotations · 1 speech segments
+
+[00:00.9] SPEECH "make this card the same height as that one" · 00:00.9–00:04.2 · demonstratives: "this"@00:01.2 near #1; "that"@00:03.5 near #2, #1 · nouns: card
+[00:01.0] ANNOTATION #1 mark · 00:01.0–00:01.8 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    c0 #plan-basic · <div class="card"> "Basic $9 / month For individuals." · PICK · covers 89% · nouns: card
+    c1 section.plans · <section role=region class="plans"> "Plans" · ancestor · covers 94% · nouns: section
+    c2 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    c3 div:nth-of-type(1).card h2 · <h2 role=heading> "Basic" · descendant · covers 13% · nouns: heading
+    c4 div:nth-of-type(1).card p.price · <p class="price"> "$9 / month" · descendant · covers 9% · nouns: text, price
+    c5 div:nth-of-type(1).card p:nth-of-type(2) · <p> "For individuals." · descendant · covers 9% · nouns: text
+[00:03.4] ANNOTATION #2 mark · 00:03.4–00:04.2 · 1 Stroke · at /pricing.html · screenshot s2 · closed by time gap
+    c0 #plan-pro · <div class="card"> "Pro $29 / month For teams that review every release. Includ…" · PICK · covers 89% · nouns: card
+    c1 section.plans · <section role=region class="plans"> "Plans" · ancestor · covers 92% · nouns: section
+    c2 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    c3 section.plans div:nth-of-type(2) h2 · <h2 role=heading> "Pro" · descendant · covers 9% · nouns: heading
+    c4 p:nth-of-type(3) · <p> "Includes video evidence and export." · descendant · covers 6% · nouns: text"
+`;
+
+exports[`prompt builder > script for c-arrow-connector (approximate) 1`] = `
+"TIMESTAMP QUALITY: approximate
+PAIRING WINDOW: 4s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:05.7 · 1 Annotations · 0 speech segments
+
+[00:01.0] ANNOTATION #1 arrow · 00:01.0–00:03.2 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    CONNECTOR arrow from (892, 235) to (1223, 26): tail = subject, head = destination
+    tail c0 button.cta · <button role=button class="cta"> "Get started" · PICK · covers 100% · nouns: button
+    tail c1 div.hero-card · <div class="card hero-card"> "Start your free trial today. Get started" · ancestor · covers 100% · nouns: card
+    tail c2 section.hero · <section role=region class="hero"> "Ship reviews in minutes" · ancestor · covers 100% · nouns: section
+    tail c3 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    head c0 a:nth-of-type(3) · <a role=link> "Docs" · PICK · covers 75% · nouns: link
+    head c1 nav · <nav role=navigation> "Main" · ancestor · covers 91% · nouns: nav
+    head c2 header.site-header · <header role=banner class="site-header"> "Acme Home Pricing Docs" · ancestor · covers 100% · nouns: header
+    whole drawing:
+    c0 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · PICK · covers 70%
+    c1 header.site-header · <header role=banner class="site-header"> "Acme Home Pricing Docs" · sibling · covers 13% · nouns: header"
+`;
+
+exports[`prompt builder > script for c-arrow-connector (word) 1`] = `
+"TIMESTAMP QUALITY: word-level
+PAIRING WINDOW: 2s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:05.7 · 1 Annotations · 0 speech segments
+
+[00:01.0] ANNOTATION #1 arrow · 00:01.0–00:03.2 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    CONNECTOR arrow from (892, 235) to (1223, 26): tail = subject, head = destination
+    tail c0 button.cta · <button role=button class="cta"> "Get started" · PICK · covers 100% · nouns: button
+    tail c1 div.hero-card · <div class="card hero-card"> "Start your free trial today. Get started" · ancestor · covers 100% · nouns: card
+    tail c2 section.hero · <section role=region class="hero"> "Ship reviews in minutes" · ancestor · covers 100% · nouns: section
+    tail c3 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    head c0 a:nth-of-type(3) · <a role=link> "Docs" · PICK · covers 75% · nouns: link
+    head c1 nav · <nav role=navigation> "Main" · ancestor · covers 91% · nouns: nav
+    head c2 header.site-header · <header role=banner class="site-header"> "Acme Home Pricing Docs" · ancestor · covers 100% · nouns: header
+    whole drawing:
+    c0 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · PICK · covers 70%
+    c1 header.site-header · <header role=banner class="site-header"> "Acme Home Pricing Docs" · sibling · covers 13% · nouns: header"
+`;
+
+exports[`prompt builder > script for d-loose-circle-button (approximate) 1`] = `
+"TIMESTAMP QUALITY: approximate
+PAIRING WINDOW: 4s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:04.9 · 1 Annotations · 1 speech segments
+
+[00:01.0] ANNOTATION #1 mark · 00:01.0–00:01.8 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    c0 div.hero-card · <div class="card hero-card"> "Start your free trial today. Get started" · PICK · covers 80% · nouns: card
+    c1 section.hero · <section role=region class="hero"> "Ship reviews in minutes" · ancestor · covers 95% · nouns: section
+    c2 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    c3 div.hero-card p · <p> "Start your free trial today." · descendant · covers 11% · nouns: text
+    c4 button.cta · <button role=button class="cta"> "Get started" · descendant · covers 8% · nouns: button
+[00:02.1] SPEECH "this button should be a darker blue" · 00:02.1–00:03.9 · demonstratives: "this" near #1 · nouns: button"
+`;
+
+exports[`prompt builder > script for d-loose-circle-button (word) 1`] = `
+"TIMESTAMP QUALITY: word-level
+PAIRING WINDOW: 2s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:04.9 · 1 Annotations · 1 speech segments
+
+[00:01.0] ANNOTATION #1 mark · 00:01.0–00:01.8 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    c0 div.hero-card · <div class="card hero-card"> "Start your free trial today. Get started" · PICK · covers 80% · nouns: card
+    c1 section.hero · <section role=region class="hero"> "Ship reviews in minutes" · ancestor · covers 95% · nouns: section
+    c2 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    c3 div.hero-card p · <p> "Start your free trial today." · descendant · covers 11% · nouns: text
+    c4 button.cta · <button role=button class="cta"> "Get started" · descendant · covers 8% · nouns: button
+[00:01.3] SPEECH "this button should be a darker blue" · 00:01.3–00:03.1 · demonstratives: "this"@00:01.3 near #1 · nouns: button"
+`;
+
+exports[`prompt builder > script for d-loose-circle-card (approximate) 1`] = `
+"TIMESTAMP QUALITY: approximate
+PAIRING WINDOW: 4s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:04.9 · 1 Annotations · 1 speech segments
+
+[00:01.0] ANNOTATION #1 mark · 00:01.0–00:01.8 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    c0 div.hero-card · <div class="card hero-card"> "Start your free trial today. Get started" · PICK · covers 80% · nouns: card
+    c1 section.hero · <section role=region class="hero"> "Ship reviews in minutes" · ancestor · covers 95% · nouns: section
+    c2 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    c3 div.hero-card p · <p> "Start your free trial today." · descendant · covers 11% · nouns: text
+    c4 button.cta · <button role=button class="cta"> "Get started" · descendant · covers 8% · nouns: button
+[00:02.1] SPEECH "this card needs a stronger border" · 00:02.1–00:03.9 · demonstratives: "this" near #1 · nouns: card"
+`;
+
+exports[`prompt builder > script for d-loose-circle-card (word) 1`] = `
+"TIMESTAMP QUALITY: word-level
+PAIRING WINDOW: 2s
+SESSION: starts at http://localhost:4401/pricing.html · length 00:04.9 · 1 Annotations · 1 speech segments
+
+[00:01.0] ANNOTATION #1 mark · 00:01.0–00:01.8 · 1 Stroke · at /pricing.html · screenshot s1 · closed by time gap
+    c0 div.hero-card · <div class="card hero-card"> "Start your free trial today. Get started" · PICK · covers 80% · nouns: card
+    c1 section.hero · <section role=region class="hero"> "Ship reviews in minutes" · ancestor · covers 95% · nouns: section
+    c2 main · <main role=main> "Ship reviews in minutes Simple pricing for teams of every s…" · ancestor · covers 100%
+    c3 div.hero-card p · <p> "Start your free trial today." · descendant · covers 11% · nouns: text
+    c4 button.cta · <button role=button class="cta"> "Get started" · descendant · covers 8% · nouns: button
+[00:01.3] SPEECH "this card needs a stronger border" · 00:01.3–00:03.1 · demonstratives: "this"@00:01.3 near #1 · nouns: card"
+`;
+
+exports[`prompt builder > system prompt encodes the pairing windows, noun table, roles, categories and prompt rules 1`] = `
+"You turn a recorded, spoken and drawn-on review of a web page into Change Items: implementer-facing requests that say what should change, where, and the evidence for it.
+
+## Input
+A time-ordered script. Times are [mm:ss.s] from the start of the Session.
+- TIMESTAMP QUALITY and PAIRING WINDOW say how precise speech times are: word-level timings pair within 2s; approximate timings (whole segments stamped on arrival, often late) pair within 4s.
+- ANNOTATION #n: a group of Strokes the reviewer drew, with its shapes (circle, underline, arrow, scribble, freeform), page, screenshot id, what closed it, and its Candidates: c0 is the geometric PICK (the smallest element enclosing most of the drawing); the others are its ancestors (enclosing it), siblings the Strokes cover, and descendants enclosed by the drawing. "nouns:" lists what each Candidate can be called. "region only" means nothing on the page could be resolved (canvas, iframe).
+- "source:" on a Candidate is where the page's framework says it is rendered (file:line and the components, nearest first). Name that file in the agent_prompt when it helps the agent find the code.
+- ANNOTATION #n PAGE API: not drawn by the reviewer but made by a script on the page through the page API (__inkup.annotate), with what it says (and, as STYLE CHANGES under it, any style or text change it asks for). It is a request like the reviewer's: make an item from it (its Location is the PICK), unless the reviewer's speech rejects it.
+- OBJECT SELECT: an Annotation made by picking one element instead of drawing. Its only Candidate, c0, is exactly the element the reviewer chose: use it as the subject, whatever noun is spoken. It spans the time from the pick until the reviewer finished commenting: SPEECH in that span is about it.
+- COMMENT (under an OBJECT SELECT): what the reviewer typed about that element. It is their own words, as good as speech: an item from it quotes it in its transcript.
+- MIC MUTED … MIC ON: the reviewer turned the microphone off for that span. No speech exists there: an Annotation made then has only its drawing or typed comment, and silence there says nothing.
+- NO VOICE (until VOICE ON, if any): the Session had no microphone. Each Annotation's typed COMMENT is what the reviewer wants there; the absence of speech says nothing.
+- STYLE CHANGES (under an Annotation): exact changes for that element, as property: before → after (and text: before → after). An item for them is category style (copy when only the text changes); its agent_prompt states every change exactly as given. Where a new value matches one of the project's design tokens (a CSS custom property, theme or Tailwind value), use the token rather than the raw value; a value written as var(--name) names the token to use.
+- CONNECTOR: the Annotation contains an arrow. The "tail" Candidates are what it starts at (the subject), the "head" Candidates are where it points (the destination), each with its own PICK. The "whole drawing" Candidates follow.
+- DISCARDED: the reviewer took that Annotation back by saying "scratch that". Produce no item from it, nor from speech that only refers to it.
+- SPEECH: a transcript segment. "demonstratives" lists the pointing words with the Annotations inside the pairing window ("near"); nouns spoken are listed too. These are hints computed by rules: use them, but read the words.
+- SCROLL, NAVIGATION, CLICK, TAB SWITCH, SCREENSHOT: what the page did.
+- VIEWPORT: the reviewer resized the page's viewport (e.g. to a phone width) or gave it back to the tab. An Annotation drawn at a resized viewport says "viewport W×H"; an item from it is about the page at that size: say so in its intent and agent_prompt (e.g. "at 375 px wide").
+- NO DRAWING: a page marked (no drawing: URL and screenshots only) belongs to Chrome or to another extension; the reviewer could not draw there and no elements were read. Items about it have Locations with "selector": null, element "page", its URL and the screenshot taken there (if any).
+- TEXT COMMENT tN: the reviewer selected text in an element and typed a comment on it: the element's selector, the selected text with the words just before and after it, the comment, and what they said while the text was selected. A SPEECH line marked "during TEXT COMMENT tN" was said then. One marked HANDLED already states its new text and is a Change Item: output no item for it, nor for speech that only repeats it.
+- VOICE COMMAND: control phrases, already removed from SPEECH. Never content.
+- DRAFT dN: a Draft Item, a quick reading shown to the reviewer during the Session. "→ PINNED" means the reviewer confirmed it, "→ DISCARDED" that they rejected it. Drafts with neither are only hints.
+- PINNED DRAFT ITEMS (after the timeline): fixed items. Output each one as exactly one item with "pinned": true, its exact title and category, and its Locations; do not rewrite, merge or split it, and output no other item for the same Annotations.
+- REJECTED DRAFT ITEMS (after the timeline): readings the reviewer discarded. Do not produce them again; if the same Annotations mean something else, say that instead.
+- ANNOTATIONS TO ACCOUNT FOR (first line): every Annotation listed must be used in some item's Locations, or listed in "dropped_annotations" with a one-sentence reason. Never leave one out silently.
+- WINDOW k of n (long Sessions only): the Session is processed in parts. Produce items for what starts inside your part; the lines before and after it are context that another part covers.
+
+## Pairing speech with Annotations
+Pair each demonstrative with the Annotation inside the pairing window, nearest in time first. Speech often starts before the drawing ends or trails it by a second or two, and approximate timestamps arrive late: prefer the Annotation just before the speech when two are equally close. One Annotation can serve several demonstratives only if the reviewer clearly means the same thing.
+
+Demonstratives (English):
+- "this": usually subject; the thing being changed
+- "these": usually subject; several things being changed
+- "it": usually subject; refers back to the last subject when no new mark is near
+- "that": usually reference; in a comparison ("same … as that", "like that") it is the reference; alone it can be a subject
+- "those": usually reference; as "that", plural
+- "here": usually destination; after a motion verb ("should go here", "move it here") it is the destination
+- "there": usually destination; as "here"
+A place word after a motion cue (go, goes, move, moved, put, place, drag, swap, into, above, below, next) is a destination. A demonstrative after a comparison cue (same, as, like, match, matches, similar, than, align, aligned) is a reference.
+
+## Choosing the element (Candidates)
+If the paired speech names a noun, choose the Candidate whose "nouns:" include it: prefer the PICK, then descendants, siblings and ancestors, nearest to the PICK. A link styled as a button counts as a button. Copy that Candidate's selector exactly into the Location. If no noun is spoken, or none matches, use the PICK and lower confidence by about 0.1. Region-only Annotations get "selector": null and an element description of the region.
+
+Nouns (English):
+- button: said as "button", "cta", "call to action"; matches tags button, roles button, or class/id names starting "btn", "button", "cta"
+- link: said as "link", "hyperlink"; matches tags a, roles link
+- card: said as "card", "tile", "panel", "box"; matches tags article, roles article, or class/id names starting "card", "tile", "panel"
+- header: said as "header", "top bar", "masthead"; matches tags header, roles banner, or class/id names starting "header", "masthead", "topbar"
+- footer: said as "footer"; matches tags footer, roles contentinfo, or class/id names starting "footer"
+- nav: said as "nav", "navigation", "menu", "navbar"; matches tags nav, roles navigation, menu, menubar, or class/id names starting "nav", "menu"
+- section: said as "section", "area", "block", "hero", "banner"; matches tags section, roles region, or class/id names starting "section"
+- image: said as "image", "picture", "photo", "icon", "logo", "illustration"; matches tags img, picture, svg, figure, roles img, image, figure, or class/id names starting "img", "image", "logo", "icon", "photo"
+- heading: said as "heading", "headline", "title"; matches tags h1, h2, h3, h4, h5, h6, roles heading, or class/id names starting "title", "heading", "headline"
+- text: said as "text", "paragraph", "copy", "sentence", "label", "description"; matches tags p, span, label, roles paragraph, or class/id names starting "lede", "text", "copy", "desc"
+- price: said as "price", "pricing"; matches tags (none), roles (none), or class/id names starting "price"
+- list: said as "list", "items"; matches tags ul, ol, roles list, or class/id names starting "list"
+- field: said as "field", "input", "textbox", "dropdown", "checkbox"; matches tags input, textarea, select, roles textbox, combobox, checkbox, searchbox, or class/id names starting "input", "field"
+- form: said as "form"; matches tags form, roles form, or class/id names starting "form"
+- table: said as "table", "grid"; matches tags table, roles table, grid, or class/id names starting "table"
+
+## Change Items
+- One item per requested change. "this" at one Annotation and "should go here" at another is ONE layout item: subject = the first, destination = the second. "make this the same height as that" is ONE item: subject = this, reference = that. An arrow drawn from one mark to another is a move: subject at its tail, destination at its head, even with no speech (then category layout, and say in the intent that the arrow was the whole request).
+- Location roles: subject (what changes; every item has one), reference (what it should match or relate to), destination (where it goes). Each Location gives the selector, a short element description (e.g. button 'Get started'), the page path, the screenshot id and the Annotation number.
+- Categories: layout (position, size, spacing, order, alignment), style (color, font, border, visual weight), copy (wording of existing text), content (adding or removing content, images, sections), behavior (what happens on interaction or navigation), bug (something broken), question (the reviewer asks rather than requests).
+- Each TEXT COMMENT that is not HANDLED is one item about that text: category copy unless the comment clearly asks for something else, the subject Location is its selector with "annotation": null and its screenshot, and the agent_prompt quotes the selected text with the words around it so the implementer can find it. The reviewer pointed at exact text, so confidence is high unless the comment itself is unclear.
+- Speech with no Annotation nearby can still be an item; its Location is the page (selector null, element "page").
+- Do not invent changes the reviewer did not ask for. Ignore filler and self-corrections: when the reviewer restates something, keep the last version.
+- id: item_0001, item_0002, … in time order. transcript: the reviewer's own words for this item, verbatim, joined with " ... ". pinned: true only for the PINNED DRAFT ITEMS, false otherwise.
+- evidence.screenshots: the ids of the screenshots of every Annotation the item uses, exactly as written in the script (s1, s2, …). evidence.video: {start, end} in seconds of Session time covering the item's speech and Annotations.
+
+## Confidence and ambiguity
+confidence is how sure you are that the item says what the reviewer meant and points at the right elements. Below 0.6, "ambiguity" is required: one sentence naming what is unclear (e.g. which of two elements "this" means). At 0.6 or above, omit "ambiguity". Lower confidence when the pairing is far apart, the noun does not match any Candidate, speech is garbled, or two readings are plausible.
+
+## agent_prompt
+A self-contained instruction for a coding agent working in the exported review folder, which holds the screenshots. Name the page path, each element by its selector and visible name, and exactly what to change, in the imperative. Cite every evidence screenshot as screenshots/<id>.png (e.g. screenshots/s1.png), saying what each shows. Do not say "the reviewer said"; state the change.
+
+Answer with JSON only: {"items": [...], "dropped_annotations": [{"annotation": n, "reason": "..."}]}. Leave "dropped_annotations" empty when every Annotation is used."
+`;

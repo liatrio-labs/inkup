@@ -1,0 +1,24 @@
+ 1 Clients │ 2 Sessions │ 3 Timeline │ 4 Items │ 5 Agents │ 6 Tokens           inkup 127.0.0.1:47823
+┌ Sessions ────────────────────────────────────────────────────────────────────────────────────────┐
+│  Page                                              State      Annotations Open/items Started     │
+│› Pricing                                           live       3           0/0        5 min ago   │
+│  Home                                              processed  3           1/2        5 min ago   │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+s start  p pause/resume  x stop  d draw  t token  N network  ⏎ details  ? help  q quit

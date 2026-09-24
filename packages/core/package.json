@@ -1,0 +1,30 @@
+{
+  "name": "@inkup/core",
+  "version": "0.0.1",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "description": "Pure TypeScript domain logic: timeline, grouping, shapes, candidates, Process, export and the Zod schemas.",
+  "exports": {
+    "./process": "./src/process/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "compromise": "14.17.0",
+    "double-metaphone": "2.0.1",
+    "fuzzball": "2.2.6",
+    "perfect-freehand": "^1.2.3",
+    "unzipit": "^2.1.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "client-zip": "^2.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}

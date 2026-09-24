@@ -1,0 +1,15 @@
+{
+  "name": "inkup",
+  "version": "0.1.0",
+  "protocol_version": 1,
+  "capabilities": [
+    "events",
+    "blobs",
+    "items",
+    "resolutions",
+    "discard",
+    "forget",
+    "screenshot_discard"
+  ],
+  "hub_name": "inkup on studio-mac"
+}

@@ -1,0 +1,24 @@
+ 1 Clients │ 2 Sessions │ 3 Timeline │ 4 Items │ 5 Agents │ 6 Tokens           inkup 127.0.0.1:47823
+┌ Clients ─────────────────────────────────────────────────────────────────────────────────────────┐
+│  Name   ┌ Keys ────────────────────────────────────────────────────────────────────────┐t seen   │
+│› Chrome │Tab, ←/→, 1-6   switch view                                                   │ ago     │
+│  Firefox│↑/↓, j/k        select                                                        │ ago     │
+│         │⏎               details of the selected row                                   │         │
+│         │s               start an audio-only Session on the focused client's tab       │         │
+│         │p               pause or resume its Session                                   │         │
+│         │x               stop its Session                                              │         │
+│         │d               draw mode on or off                                           │         │
+│         │t               new agent token (for an agent on another machine)             │         │
+│         │r               in Tokens: revoke the selected token                          │         │
+│         │N               network mode on or off (restarts the server)                  │         │
+│         │?               this help (Esc closes)                                        │         │
+│         │q, Ctrl-C       quit                                                          │         │
+│         │                                                                              │         │
+│         │The focused client: the one selected in Clients, else the owner of the        │         │
+│         │Session selected in Sessions, else the first connected one.                   │         │
+│         │Agents connect over MCP at /mcp; from another machine with a token.           │         │
+│         │                                                                              │         │
+│         │                                                                              │         │
+│         └───────────────────────────────────────────────────────────────────────── Esc ┘         │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+s start  p pause/resume  x stop  d draw  t token  N network  ⏎ details  ? help  q quit

@@ -1,0 +1,24 @@
+ 1 Clients │ 2 Sessions │ 3 Timeline │ 4 Items │ 5 Agents │ 6 Tokens           inkup 127.0.0.1:47823
+┌ Items ───────────────────────────────────────────────────────────────────────────────────────────┐
+│  Id        Status     Title                                        Resolution                    │
+│  it┌ Details ───────────────────────────────────────────────────────────────────────────────┐o.ts│
+│› it│item-3  in work  style                                                                  │    │
+│  it│Make the CTA brand blue                                                                 │    │
+│    │                                                                                        │    │
+│    │Give button.cta var(--brand).                                                           │    │
+│    │                                                                                        │    │
+│    │In work: claude-code, 2 min ago                                                         │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    └─────────────────────────────────────────────────────────────────────────────────── Esc ┘    │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+s start  p pause/resume  x stop  d draw  t token  N network  ⏎ details  ? help  q quit

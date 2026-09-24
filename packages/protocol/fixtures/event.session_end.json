@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-47",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "id": "e1a4c1d2-0b6f-4d52-9d64-5e3a2f1b0c33",
+    "type": "session_end",
+    "t": 29000,
+    "reason": "stop",
+    "duration_ms": 29000
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-38",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "id": "e1a4c1d2-0b6f-4d52-9d64-5e3a2f1b0c26",
+    "type": "draft_item",
+    "t": 3000,
+    "draft_id": "d1",
+    "pass_id": "pass-1",
+    "model": "claude-haiku-4-5-20251001",
+    "title": "Move 'Get started' into the header",
+    "category": "layout",
+    "intent": "The primary CTA should sit in the site header.",
+    "transcript": "this button should go in the header",
+    "locations": [
+      {
+        "role": "subject",
+        "element": "button 'Get started'",
+        "selector": "main .hero button.cta",
+        "annotation": 1
+      },
+      {
+        "role": "destination",
+        "element": "site header",
+        "selector": null,
+        "annotation": null
+      }
+    ],
+    "annotation_ids": [
+      "a1"
+    ]
+  }
+}

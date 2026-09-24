@@ -1,0 +1,60 @@
+{
+  "a-move-here": {
+    "description": "\"this button\" at A (hero CTA), then \"should go here\" at B (header nav next to Docs): one layout item, subject A, destination B.",
+    "category": "layout",
+    "locations": {
+      "subject": [
+        "button.cta"
+      ],
+      "destination": [
+        "nav",
+        "a:nth-of-type(3)",
+        "header.site-header"
+      ]
+    }
+  },
+  "b-same-height": {
+    "description": "\"make this card the same height as that one\": subject the Basic plan card, reference the Pro plan card.",
+    "category": "layout",
+    "locations": {
+      "subject": [
+        "#plan-basic"
+      ],
+      "reference": [
+        "#plan-pro"
+      ]
+    }
+  },
+  "c-arrow-connector": {
+    "description": "An arrow Connector from A (hero CTA) to B (header nav next to Docs) and no speech: one layout item, subject A, destination B.",
+    "category": "layout",
+    "locations": {
+      "subject": [
+        "button.cta"
+      ],
+      "destination": [
+        "nav",
+        "a:nth-of-type(3)",
+        "header.site-header"
+      ]
+    }
+  },
+  "d-loose-circle-button": {
+    "description": "A loose circle around the hero card containing button.cta, with \"this button\": resolves to the button.",
+    "category": "style",
+    "locations": {
+      "subject": [
+        "button.cta"
+      ]
+    }
+  },
+  "d-loose-circle-card": {
+    "description": "The same loose circle, with \"this card\": resolves to the card.",
+    "category": "style",
+    "locations": {
+      "subject": [
+        "div.hero-card"
+      ]
+    }
+  }
+}

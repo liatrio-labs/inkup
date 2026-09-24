@@ -1,0 +1,864 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://inkup.dev/schema/protocol.schema.json",
+  "title": "inkup host protocol",
+  "description": "Wire protocol version 1. Generated from packages/protocol/src/index.ts by `pnpm schema`; do not edit.",
+  "definitions": {
+    "Envelope": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/HelloMessage"
+        },
+        {
+          "$ref": "#/definitions/EventMessage"
+        },
+        {
+          "$ref": "#/definitions/ItemsMessage"
+        },
+        {
+          "$ref": "#/definitions/SessionDiscardMessage"
+        },
+        {
+          "$ref": "#/definitions/ForgetMessage"
+        },
+        {
+          "$ref": "#/definitions/ScreenshotDiscardMessage"
+        },
+        {
+          "$ref": "#/definitions/PairedMessage"
+        },
+        {
+          "$ref": "#/definitions/WelcomeMessage"
+        },
+        {
+          "$ref": "#/definitions/AckMessage"
+        },
+        {
+          "$ref": "#/definitions/ErrorMessage"
+        },
+        {
+          "$ref": "#/definitions/ResolutionMessage"
+        },
+        {
+          "$ref": "#/definitions/CommandMessage"
+        },
+        {
+          "$ref": "#/definitions/CommandResultMessage"
+        }
+      ]
+    },
+    "ClientMessage": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/HelloMessage"
+        },
+        {
+          "$ref": "#/definitions/EventMessage"
+        },
+        {
+          "$ref": "#/definitions/ItemsMessage"
+        },
+        {
+          "$ref": "#/definitions/SessionDiscardMessage"
+        },
+        {
+          "$ref": "#/definitions/ScreenshotDiscardMessage"
+        },
+        {
+          "$ref": "#/definitions/ForgetMessage"
+        },
+        {
+          "$ref": "#/definitions/CommandResultMessage"
+        }
+      ]
+    },
+    "ServerMessage": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/PairedMessage"
+        },
+        {
+          "$ref": "#/definitions/WelcomeMessage"
+        },
+        {
+          "$ref": "#/definitions/AckMessage"
+        },
+        {
+          "$ref": "#/definitions/ErrorMessage"
+        },
+        {
+          "$ref": "#/definitions/ResolutionMessage"
+        },
+        {
+          "$ref": "#/definitions/CommandMessage"
+        }
+      ]
+    },
+    "HelloMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "hello"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "client_kind": {
+          "$ref": "#/definitions/ClientKind"
+        },
+        "client_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "shown to the user when the Client asks to pair"
+        },
+        "token": {
+          "description": "the token from `paired`; absent to ask for pairing",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "pairing_code": {
+          "description": "the 6-digit code the Host showed, when pairing from another machine (network mode)",
+          "type": "string",
+          "pattern": "^[0-9]{6}$"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "client_kind",
+        "client_name"
+      ],
+      "description": "Client → Host, the first message on every connection"
+    },
+    "PairedMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "paired"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "re": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "the `id` of the message this answers"
+        },
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "token": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "send it in every later hello, and as the Bearer token for HTTP"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "re",
+        "client_id",
+        "token"
+      ],
+      "description": "Host → Client: the user approved pairing. `welcome` follows on the same connection"
+    },
+    "WelcomeMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "welcome"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "re": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "the `id` of the message this answers"
+        },
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "host_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "what the Host can do; known values: events, blobs, items, resolutions, discard, forget, screenshot_discard"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "re",
+        "client_id",
+        "host_version",
+        "capabilities"
+      ],
+      "description": "Host → Client: the connection is authenticated"
+    },
+    "EventMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "event"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "event": {
+          "$ref": "#/definitions/WireTimelineEvent"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "session_id",
+        "event"
+      ],
+      "description": "Client → Host: append (or resend) one timeline event"
+    },
+    "ItemsMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "items"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "the Process run the items come from"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/WireChangeItem"
+          },
+          "description": "the run's items with the review edits applied, in review order"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "session_id",
+        "run_id",
+        "items"
+      ],
+      "description": "Client → Host: the Session's current Change Items, all of them. They replace what the Host held for the Session: an item left out (deleted, merged away, or from an earlier run) is withdrawn, never deleted"
+    },
+    "SessionDiscardMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "session_discard"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "session_id"
+      ],
+      "description": "Client → Host: the reviewer cancelled this Session and did not undo it. The Host deletes it with its events, blobs, Change Items, Resolutions and Signals; an unknown Session is acked too"
+    },
+    "ForgetMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "forget"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id"
+      ],
+      "description": "Client → Host: the reviewer chose Forget. The Host revokes this Client's token (its Sessions stay), answers `ack` and closes the connection"
+    },
+    "ScreenshotDiscardMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "screenshot_discard"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "screenshot_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "the `screenshot` event's screenshot_id, also its blob id"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "session_id",
+        "screenshot_id"
+      ],
+      "description": "Client → Host: a screenshot no Annotation uses (its pick was dropped, E7). The Host deletes its blob and its `screenshot` event; an unknown one is acked too"
+    },
+    "AckMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "ack"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "re": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "the `id` of the message this answers"
+        },
+        "event_id": {
+          "description": "the event stored, when `re` was an event",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "re"
+      ],
+      "description": "Host → Client: the message is stored; the outbox may drop it"
+    },
+    "ErrorMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "error"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "re": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "the `id` of the message this answers"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the message refused; null when it could not be read"
+        },
+        "code": {
+          "$ref": "#/definitions/ErrorCode"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "re",
+        "code",
+        "message"
+      ],
+      "description": "Host → Client: a refusal. After a handshake error the Host closes the connection"
+    },
+    "ResolutionMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "resolution"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "resolution_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "item_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "the Change Item id within its run"
+        },
+        "status": {
+          "$ref": "#/definitions/ResolutionStatus"
+        },
+        "note": {
+          "type": "string",
+          "description": "what the agent did, or what it needs to know"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "who resolved it: `mcp` (an agent) or `host` (the Host user)"
+        },
+        "agent": {
+          "description": "the agent's name as its MCP client reported it (clientInfo), when an agent sent it",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "created_at": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "epoch ms"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "resolution_id",
+        "session_id",
+        "run_id",
+        "item_id",
+        "status",
+        "note",
+        "source",
+        "created_at"
+      ],
+      "description": "Host → Client: an agent started on an item of one of its Sessions, or resolved it. The latest resolution of an item wins"
+    },
+    "CommandMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "command"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "command": {
+          "description": "start_session records audio, Strokes and screenshots, but no video (video needs a click in the browser)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/CommandName"
+            }
+          ]
+        },
+        "draw_mode": {
+          "description": "set_draw_mode only: on or off",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "command"
+      ],
+      "description": "Host → Client: drive the Session. The Client answers `command_result`"
+    },
+    "CommandResultMessage": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "integer",
+          "enum": [
+            1
+          ],
+          "description": "protocol version"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "command_result"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "unique per sender; a reply names it in `re`"
+        },
+        "re": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "the `id` of the message this answers"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the Session the command acted on, when there is one"
+        },
+        "message": {
+          "description": "why it failed, for the Host user",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "id",
+        "re",
+        "ok",
+        "session_id",
+        "message"
+      ],
+      "description": "Client → Host: what came of a `command`"
+    },
+    "ClientKind": {
+      "type": "string",
+      "enum": [
+        "chrome",
+        "firefox",
+        "safari",
+        "other"
+      ]
+    },
+    "CommandName": {
+      "type": "string",
+      "enum": [
+        "start_session",
+        "pause",
+        "resume",
+        "stop",
+        "set_draw_mode"
+      ]
+    },
+    "ErrorCode": {
+      "type": "string",
+      "enum": [
+        "bad_message",
+        "unsupported_version",
+        "unknown_token",
+        "pairing_denied",
+        "pairing_timeout",
+        "pairing_code_required",
+        "wrong_pairing_code",
+        "not_welcomed",
+        "conflict",
+        "internal"
+      ]
+    },
+    "ResolutionStatus": {
+      "type": "string",
+      "enum": [
+        "in_progress",
+        "resolved",
+        "wont_fix",
+        "needs_info"
+      ]
+    },
+    "WireTimelineEvent": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "the event UUID; the Host upserts on it, so a resend is harmless"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "t": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "ms since the Session t0"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "t"
+      ],
+      "additionalProperties": {},
+      "description": "a Session timeline event, stored verbatim"
+    },
+    "WireChangeItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "item_0001, …: unique within its Process run"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "additionalProperties": {},
+      "description": "a Change Item, stored verbatim"
+    },
+    "Health": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "inkup"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protocol_version": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "what the Host can do; known values: events, blobs, items, resolutions, discard, forget, screenshot_discard"
+        },
+        "hub_name": {
+          "description": "the name the Host goes by on the network, e.g. \"inkup on studio-mac\"",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "protocol_version",
+        "capabilities"
+      ],
+      "description": "GET /health: how a Client finds the Host and what it can do"
+    }
+  }
+}

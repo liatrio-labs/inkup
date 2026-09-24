@@ -1,0 +1,72 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-17",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "id": "a1b2c3d4-0003-4e5f-8a9b-0c1d2e3f4a53",
+    "type": "annotation",
+    "t": 6000,
+    "annotation_id": "a3",
+    "index": 3,
+    "t_end": 6000,
+    "stroke_ids": [],
+    "close_reason": "page_api",
+    "bbox": {
+      "x": 0,
+      "y": 200,
+      "width": 1280,
+      "height": 400
+    },
+    "url": "http://localhost:4401/pricing.html",
+    "scroll": {
+      "x": 0,
+      "y": 120
+    },
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "dpr": 2,
+    "resolution": "element",
+    "candidates": [
+      {
+        "selector": "main .hero",
+        "tag": "section",
+        "role": "region",
+        "name": "Pricing",
+        "text": "Pricing Get started",
+        "testid": null,
+        "id": null,
+        "classes": [
+          "hero"
+        ],
+        "bbox": {
+          "x": 0,
+          "y": 200,
+          "width": 1280,
+          "height": 400
+        },
+        "relation": "ancestor",
+        "coverage": 1,
+        "source": {
+          "file": "src/components/Hero.tsx",
+          "line": 42,
+          "components": [
+            "CallToAction",
+            "Hero",
+            "PricingPage"
+          ]
+        }
+      }
+    ],
+    "pick": 0,
+    "screenshot_id": "b7c1e2d3-4f5a-4b6c-8d7e-9f0a1b2c3d43",
+    "connector": null,
+    "comment": null,
+    "source": "page_api",
+    "page_api": {
+      "comment": "The hero needs more padding on small screens"
+    }
+  }
+}

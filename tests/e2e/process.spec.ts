@@ -1,0 +1,296 @@
+// Slice 2 proof (docs/PLAN.md): capture a real Session, then Process it from the review page through the real
+// service worker and Anthropic adapter, pointed at a local stub of the Anthropic API (the dev-only
+// `anthropicBaseUrl` override). No real key or network call is involved.
+import { readFileSync } from 'node:fs';
+import type { Page, Worker } from '@playwright/test';
+import { SessionDocumentSchema } from '../../packages/core/src/session-document.ts';
+import {
+  type AnthropicStub,
+  errorReply,
+  messageReply,
+  type StubRequest,
+  scriptOf,
+  startAnthropicStub,
+} from '../support/anthropic-stub';
+import { expect, grantMic, test, useScriptedTranscript } from './fixtures';
+import { circle } from './helpers/draw';
+
+test.use({ fakeAudio: 'review-two-notes.wav' });
+
+const MODEL = 'claude-sonnet-5';
+const FIRST_PASS_AMBIGUITY = 'First pass: "the header" could mean the nav links or the logo side.';
+const SECOND_PASS_AMBIGUITY = 'Second pass: the screenshot shows no mark in the header, so the exact spot is unclear.';
+
+/** A fixed, valid payload whose selectors match the captured Session (button.cta, Annotation #1, its screenshot). */
+function items(shot: string) {
+  const moveItem = {
+    id: 'item_0001',
+    title: "Move the 'Get started' button into the header",
+    category: 'layout',
+    intent: 'The primary CTA should sit in the site header instead of the hero card.',
+    locations: [
+      {
+        role: 'subject',
+        selector: 'button.cta',
+        element: "button 'Get started'",
+        url: '/pricing.html',
+        screenshot: shot,
+        annotation: 1,
+      },
+      {
+        role: 'destination',
+        selector: 'header.site-header',
+        element: 'site header',
+        url: '/pricing.html',
+        screenshot: null,
+        annotation: null,
+      },
+    ],
+    evidence: { video: { start: 2.5, end: 4.3 }, screenshots: [shot] },
+    transcript: 'this button should go in the header',
+    confidence: 0.88,
+    agent_prompt: `On /pricing.html move the 'Get started' button (button.cta) out of the hero card into header.site-header. See screenshots/${shot}.png for the circled button.`,
+    pinned: false,
+  };
+  const unsure = {
+    ...moveItem,
+    id: 'item_0002',
+    title: 'Check where in the header the button goes',
+    category: 'question',
+    intent: 'The reviewer did not mark a spot in the header.',
+    confidence: 0.42,
+    ambiguity: FIRST_PASS_AMBIGUITY,
+    agent_prompt: `Ask where in header.site-header the button should go. See screenshots/${shot}.png.`,
+  };
+  return { moveItem, unsure };
+}
+
+const isSecondPass = (r: StubRequest) =>
+  (r.body?.messages?.[0]?.content ?? []).some?.((b: { type: string }) => b.type === 'image');
+
+async function setDevOverrides(sw: Worker, extra: Record<string, unknown>) {
+  await sw.evaluate(async (more) => {
+    const { devOverrides } = await chrome.storage.local.get('devOverrides');
+    await chrome.storage.local.set({ devOverrides: { ...(devOverrides ?? {}), ...more } });
+  }, extra);
+}
+
+async function downloadSessionJson(review: Page, sw: Worker) {
+  await review.getByTestId('download-session').click();
+  await expect(review.getByRole('status').filter({ hasText: 'Downloading session.json' })).toBeVisible();
+  const id = Number(await review.evaluate(() => document.body.dataset.downloadId));
+  await expect
+    .poll(() => sw.evaluate(async (i) => (await chrome.downloads.search({ id: i }))[0]?.state, id))
+    .toBe('complete');
+  const file = await sw.evaluate(async (i) => (await chrome.downloads.search({ id: i }))[0]!.filename, id);
+  return JSON.parse(readFileSync(file, 'utf8'));
+}
+
+test('Process: estimate, confirm, Change Items with badges, overlay and agent prompt; failures keep the Session', async ({
+  context,
+  serviceWorker,
+  site,
+  openExtensionPage,
+}) => {
+  test.setTimeout(120_000);
+  let fail = true;
+  const stub: AnthropicStub = await startAnthropicStub({
+    inputTokens: () => 4321,
+    onMessage: (req) => {
+      if (fail) return errorReply(400, 'invalid_request_error', 'stub: simulated failure');
+      if (req.body.max_tokens === 1) return messageReply(req.body.model, 'OK', { input_tokens: 12, output_tokens: 1 });
+      const shot = /screenshot (s\d+)/.exec(scriptOf(req))?.[1] ?? 's1';
+      const { moveItem, unsure } = items(shot);
+      if (isSecondPass(req))
+        return messageReply(
+          MODEL,
+          JSON.stringify({ items: [{ ...unsure, confidence: 0.5, ambiguity: SECOND_PASS_AMBIGUITY }] }),
+        );
+      return messageReply(MODEL, JSON.stringify({ items: [moveItem, unsure] }));
+    },
+  });
+  try {
+    await useScriptedTranscript(serviceWorker, 'pricing-cta.json');
+    await setDevOverrides(serviceWorker, { anthropicBaseUrl: stub.baseURL });
+    await grantMic(openExtensionPage);
+
+    // Capture: circle the CTA while the scripted transcript says "this button should go in the header".
+    const pricing = await context.newPage();
+    await pricing.goto(`${site.primaryOrigin}/pricing.html`);
+    const panel = await openExtensionPage('sidepanel.html');
+    await panel.getByTestId('start').click();
+    await expect(panel.getByTestId('status')).toHaveText('Recording');
+    await panel.getByTestId('draw-toggle').click();
+    await pricing.bringToFront();
+    await circle(pricing, (await pricing.locator('button.cta').boundingBox())!);
+    await expect(panel.getByTestId('annotation-count')).toHaveText('1', { timeout: 10_000 });
+    await expect(panel.getByTestId('captions')).toContainText('this button should go in the header', {
+      timeout: 10_000,
+    });
+    const reviewPromise = context.waitForEvent('page', (p) => p.url().includes('/review.html'));
+    await panel.getByTestId('stop').click();
+    const review = await reviewPromise;
+    await expect(review.getByTestId('annotation')).toHaveCount(1);
+
+    // No key: Process builds the items in code (E11) and the page links to the options page for a key.
+    await expect(review.getByTestId('process-button')).toHaveText('Process without a model');
+    await expect(review.getByTestId('open-options')).toHaveAttribute('href', '/options.html');
+
+    // Options: saving a key shows the Anthropic notice once.
+    const options = await openExtensionPage('options.html');
+    await expect(options.getByTestId('process-model')).toHaveValue(MODEL);
+    await expect(options.getByTestId('draft-model')).toHaveValue('claude-haiku-4-5-20251001');
+    await options.getByTestId('anthropic-key').fill('sk-ant-e2e-stub-key');
+    await options.getByTestId('save-processing').click();
+    await expect(options.getByTestId('anthropic-notice')).toContainText(
+      'Screenshots are sent only for Change Items the model is unsure about',
+    );
+    await options.reload();
+    await options.getByTestId('anthropic-key').fill('sk-ant-e2e-stub-key-2');
+    await options.getByTestId('save-processing').click();
+    await expect(options.getByRole('status')).toHaveText('Saved.');
+    await expect(options.getByTestId('anthropic-notice')).toHaveCount(0);
+    // Test makes a free count_tokens call and a 1-token message; the stub is failing messages for now.
+    await options.getByTestId('test-anthropic').click();
+    await expect(options.getByTestId('test-result')).toContainText('Error: Anthropic API error 400');
+    fail = false;
+    await options.getByTestId('test-anthropic').click();
+    await expect(options.getByTestId('test-result')).toHaveText(
+      'OK: Key works with claude-sonnet-5 and claude-haiku-4-5-20251001.',
+    );
+    fail = true;
+    // The key is in storage.local, never storage.sync.
+    expect(
+      await serviceWorker.evaluate(async () => [
+        (await chrome.storage.local.get('anthropicKey')).anthropicKey,
+        await chrome.storage.sync.get(null),
+      ]),
+    ).toEqual(['sk-ant-e2e-stub-key-2', {}]);
+    await options.close();
+
+    // A failing Process leaves the Session intact and offers Retry.
+    await review.bringToFront();
+    await expect(review.getByTestId('process-button')).toBeEnabled();
+    await review.getByTestId('process-button').click();
+    await expect(review.getByTestId('process-estimate')).toContainText('4,321');
+    await review.getByTestId('process-confirm').click();
+    await expect(review.getByTestId('process-error')).toContainText('stub: simulated failure');
+    await expect(review.getByTestId('annotation')).toHaveCount(1);
+    await expect(review.getByTestId('transcript')).toContainText('this button should go in the header');
+    await expect(review.getByTestId('change-item')).toHaveCount(0);
+
+    // Retry succeeds.
+    fail = false;
+    const before = stub.messages().length;
+    const countsBefore = stub.requests.filter((r) => r.path === '/v1/messages/count_tokens').length;
+    await review.getByTestId('process-retry').click();
+    await expect(review.getByTestId('process-estimate')).toContainText(`with ${MODEL}`);
+    await expect(review.getByTestId('process-estimate')).toContainText('$');
+    await review.getByTestId('process-confirm').click();
+    await expect(review.getByTestId('change-item')).toHaveCount(2, { timeout: 20_000 });
+
+    // The request carried the section 7 script, and the unsure item went back with its screenshot.
+    const sent = stub.messages().slice(before);
+    expect(sent).toHaveLength(2);
+    const script = scriptOf(sent[0]!);
+    // A single window: the Annotations to account for, then the header; no WINDOW line.
+    expect(script).toMatch(
+      /^ANNOTATIONS TO ACCOUNT FOR: #1\. [^\n]*\nTIMESTAMP QUALITY: approximate\nPAIRING WINDOW: 4s/,
+    );
+    expect(script).not.toMatch(/^WINDOW /m);
+    expect(script).toMatch(
+      /ANNOTATION #1 .* screenshot s1 · closed by [a-z ]+\n {4}c0 button\.cta · <button role=button class="cta"> "Get started" · PICK/,
+    );
+    expect(script).toMatch(
+      /SPEECH "this button should go in the header" .* demonstratives: "this" near #1 · nouns: button, header/,
+    );
+    expect(sent[0]!.body).toMatchObject({ model: MODEL, output_config: { format: { type: 'json_schema' } } });
+    expect(sent[0]!.headers['x-api-key']).toBe('sk-ant-e2e-stub-key-2');
+    const secondContent = sent[1]!.body.messages[0].content;
+    const image = secondContent.find((b: { type: string }) => b.type === 'image');
+    expect(image.source.media_type).toBe('image/png');
+    expect(Buffer.from(image.source.data, 'base64').subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    expect(stub.requests.filter((r) => r.path === '/v1/messages/count_tokens').length - countsBefore).toBe(1);
+
+    // Low confidence sorts first with its badge and the second pass's ambiguity; no raw scores.
+    const cards = review.getByTestId('change-item');
+    await expect(cards.nth(0)).toHaveAttribute('data-item-id', 'item_0002');
+    await expect(cards.nth(0).getByTestId('check-me')).toHaveText('check me');
+    await expect(cards.nth(0).getByTestId('ambiguity')).toHaveText(SECOND_PASS_AMBIGUITY);
+    await expect(cards.nth(1)).toHaveAttribute('data-item-id', 'item_0001');
+    await expect(cards.nth(1).getByTestId('check-me')).toHaveCount(0);
+    await expect(review.getByTestId('change-items')).not.toContainText('0.88');
+    await expect(review.getByTestId('change-items')).not.toContainText('0.5');
+
+    const move = cards.nth(1);
+    await expect(move.getByTestId('item-title')).toHaveText("Move the 'Get started' button into the header");
+    await expect(move.getByTestId('item-category')).toHaveText('layout');
+    await expect(move.getByTestId('item-location').nth(0)).toHaveAttribute('data-role', 'subject');
+    await expect(move.getByTestId('item-location').nth(0)).toContainText('button.cta');
+    await expect(move.getByTestId('item-location').nth(1)).toHaveAttribute('data-role', 'destination');
+
+    // Each Location with a screenshot shows it inside the card, right under its row, with the cited Annotation's
+    // Stroke overlaid as SVG in the screenshot's viewport coordinates. The destination has no screenshot and no
+    // Annotation, so it shows none. The right pane holds only the recording.
+    await move.getByTestId('item-title').click();
+    await expect(move).toHaveAttribute('data-selected', 'true');
+    const shotFigure = move.getByTestId('item-location').nth(0).getByTestId('evidence-shot');
+    await expect(shotFigure.locator('img')).toBeVisible();
+    await expect(move.getByTestId('item-location').nth(1).getByTestId('evidence-shot')).toHaveCount(0);
+    await expect(review.getByRole('complementary', { name: 'Recording' }).getByTestId('evidence-shot')).toHaveCount(0);
+    for (const card of await cards.all()) {
+      for (const loc of await card.getByTestId('item-location').all()) {
+        const role = await loc.getAttribute('data-role');
+        if (role === 'subject') await expect(loc.getByTestId('evidence-shot')).toHaveCount(1);
+      }
+    }
+    const overlay = shotFigure.getByTestId('stroke-overlay');
+    const d = await overlay.locator('path').first().getAttribute('d');
+    expect(d).toMatch(/^M[\d.]+ [\d.]+ Q/);
+    const cta = await pricing.locator('button.cta').boundingBox();
+    const viewBox = await overlay.getAttribute('viewBox');
+    expect(viewBox).toBe(`0 0 ${pricing.viewportSize()!.width} ${pricing.viewportSize()!.height}`);
+    // The outline surrounds the CTA: its path's x range spans the button.
+    const xs = [...d!.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => Number(m[1]));
+    expect(Math.min(...xs)).toBeLessThan(cta!.x);
+    expect(Math.max(...xs)).toBeGreaterThan(cta!.x + cta!.width);
+    // Click to enlarge: a dialog with the same screenshot and Strokes, larger; Escape closes it.
+    const small = (await shotFigure.boundingBox())!.width;
+    await move.getByTestId('item-location').nth(0).getByTestId('location-shot-open').click();
+    const dialog = review.getByTestId('location-shot-dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading')).toHaveText("Subject: button 'Get started'");
+    const large = dialog.getByTestId('evidence-shot-large');
+    await expect(large.locator('img')).toBeVisible();
+    expect(await large.getByTestId('stroke-overlay').locator('path').first().getAttribute('d')).toBe(d);
+    expect((await large.boundingBox())!.width).toBeGreaterThan(small);
+    await review.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+
+    // Copy agent prompt: cites the screenshot by its export path.
+    const shotId = await shotFigure.getAttribute('data-screenshot-id');
+    // Playwright cannot grant clipboard permissions to chrome-extension:// origins, so record what the page writes.
+    await review.evaluate(() => {
+      const real = navigator.clipboard.writeText.bind(navigator.clipboard);
+      navigator.clipboard.writeText = async (text: string) => {
+        document.body.dataset.copied = text;
+        return real(text);
+      };
+    });
+    await review.bringToFront();
+    await move.getByTestId('copy-prompt').click();
+    await expect(move.getByTestId('copy-prompt')).toHaveText('Copied');
+    const clip = (await review.evaluate(() => document.body.dataset.copied)) ?? '';
+    expect(clip).toContain(`screenshots/${shotId}.png`);
+    expect(clip).toContain('button.cta');
+
+    // session.json now includes the Change Items, with stored screenshot ids.
+    const doc = SessionDocumentSchema.parse(await downloadSessionJson(review, serviceWorker));
+    // change_items are in review order (unsure first), as the review page shows them.
+    expect(doc.change_items?.map((i) => i.id)).toEqual(['item_0002', 'item_0001']);
+    expect(doc.change_items![1]!.evidence.screenshots).toEqual([shotId]);
+    expect(JSON.stringify(doc)).not.toContain('sk-ant-');
+  } finally {
+    await stub.close();
+  }
+});

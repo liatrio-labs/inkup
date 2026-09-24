@@ -1,0 +1,56 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-37",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "id": "e1a4c1d2-0b6f-4d52-9d64-5e3a2f1b0c25",
+    "type": "text_comment",
+    "t": 10000,
+    "comment_id": "c1",
+    "index": 1,
+    "t_end": 10800,
+    "selected_text": "Ship reviews",
+    "anchor": {
+      "exact": "Ship reviews",
+      "prefix": "Pricing ",
+      "suffix": " faster"
+    },
+    "element": {
+      "selector": "main .hero h1",
+      "tag": "h1",
+      "role": "heading",
+      "name": "Pricing Ship reviews faster",
+      "text": "Pricing Ship reviews faster",
+      "testid": "hero-title",
+      "id": "hero-title",
+      "classes": [
+        "title"
+      ],
+      "bbox": {
+        "x": 100,
+        "y": 220,
+        "width": 600,
+        "height": 60
+      }
+    },
+    "comment": "This should say Plans",
+    "bbox": {
+      "x": 180,
+      "y": 230,
+      "width": 140,
+      "height": 40
+    },
+    "url": "http://localhost:4401/pricing.html",
+    "scroll": {
+      "x": 0,
+      "y": 120
+    },
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "dpr": 2,
+    "screenshot_id": "b7c1e2d3-4f5a-4b6c-8d7e-9f0a1b2c3d44"
+  }
+}

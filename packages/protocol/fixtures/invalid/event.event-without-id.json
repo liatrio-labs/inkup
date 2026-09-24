@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-2",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "type": "session_start",
+    "t": 0,
+    "tab_id": 101737479,
+    "url": "http://localhost:4401/pricing.html",
+    "title": "Pricing Fixture",
+    "t0": 1790124349836,
+    "clicked_at": null,
+    "overlay": "page"
+  }
+}

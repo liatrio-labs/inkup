@@ -1,0 +1,6 @@
+{
+  "v": 1,
+  "type": "command",
+  "id": "h-20",
+  "command": "delete_everything"
+}

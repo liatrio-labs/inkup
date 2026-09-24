@@ -1,0 +1,2 @@
+# rustfmt and the generated-code check compare bytes; keep Rust sources LF on every OS.
+*.rs text eol=lf

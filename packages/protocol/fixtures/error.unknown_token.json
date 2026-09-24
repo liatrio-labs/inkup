@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "type": "error",
+  "id": "h-4",
+  "re": "m-1",
+  "code": "unknown_token",
+  "message": "this token is not paired with the host; pair again"
+}

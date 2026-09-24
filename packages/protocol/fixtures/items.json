@@ -1,0 +1,75 @@
+{
+  "v": 1,
+  "type": "items",
+  "id": "c-9",
+  "session_id": "0b5f7d4e-3f0e-4a8e-9a57-6e1f2d0c9b11",
+  "run_id": "5a1c9e2b-8d4f-4b7a-a3c6-2f9e0d1b7c44",
+  "items": [
+    {
+      "id": "item_0001",
+      "title": "Make the Get started button larger",
+      "category": "style",
+      "intent": "The primary call to action is too small to notice; make it the most prominent element in the hero.",
+      "locations": [
+        {
+          "role": "subject",
+          "selector": "main .hero a.cta",
+          "element": "link 'Get started'",
+          "url": "/",
+          "screenshot": "shot-1",
+          "annotation": 1,
+          "source": {
+            "file": "src/components/Hero.tsx",
+            "line": 42,
+            "components": [
+              "CallToAction",
+              "Hero"
+            ]
+          }
+        },
+        {
+          "role": "reference",
+          "selector": null,
+          "element": "the header links",
+          "url": "/",
+          "screenshot": null,
+          "annotation": null
+        }
+      ],
+      "evidence": {
+        "video": {
+          "start": 2.5,
+          "end": 7
+        },
+        "screenshots": [
+          "shot-1"
+        ],
+        "crops": [
+          "shot-1.crop"
+        ]
+      },
+      "transcript": "this button is way too small ... make it bigger",
+      "confidence": 0.55,
+      "ambiguity": "How much larger is not said.",
+      "agent_prompt": "On the home page, enlarge the hero link 'Get started' (main .hero a.cta) so it is the most prominent element. See screenshots/shot-1.png.",
+      "pinned": false,
+      "style_changes": [
+        {
+          "annotation": 1,
+          "selector": "main .hero a.cta",
+          "changes": {
+            "font-size": {
+              "from": "14px",
+              "to": "18px"
+            }
+          },
+          "text": {
+            "from": "Get started",
+            "to": "Start free"
+          }
+        }
+      ],
+      "source": "reviewer"
+    }
+  ]
+}

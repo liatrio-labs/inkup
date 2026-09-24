@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-4",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "id": "5b1e0c9a-2f4d-4a8e-9c3b-7d6e5f4a3b21",
+    "type": "voice_command",
+    "t": 5300,
+    "t_end": 5900,
+    "command": "scratch_that",
+    "phrase": "scratch that",
+    "segment_id": "seg-2",
+    "target": {
+      "kind": "annotation",
+      "id": "a2"
+    }
+  }
+}

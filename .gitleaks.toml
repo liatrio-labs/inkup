@@ -1,0 +1,13 @@
+# The default rules, plus an allowlist of the fake credentials the tests use. Add a value here only when it is a
+# fixture that no service accepts; never allowlist a path, so a real key pasted into a test still fails.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fake tokens and API keys in tests and protocol fixtures"
+regexes = [
+  '''^ink1_0123abcd$''',
+  '''^(inkc1|vr1)_4b9f0c2d7e8a1b3c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c$''',
+  '''^dg-privacy-key-0123456789abcdef$''',
+  '''^stub-key-0123456789abcdef$''',
+]

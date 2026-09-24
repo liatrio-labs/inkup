@@ -1,0 +1,9 @@
+packages:
+  - packages/*
+  - extensions/*
+
+# onnxruntime-node is a Node-only transitive dep of @huggingface/transformers; the extension never uses it.
+allowBuilds:
+  onnxruntime-node: false
+  protobufjs: false
+  esbuild: true

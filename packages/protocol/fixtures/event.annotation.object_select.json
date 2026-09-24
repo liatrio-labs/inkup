@@ -1,0 +1,80 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-16",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "id": "a1b2c3d4-0002-4e5f-8a9b-0c1d2e3f4a52",
+    "type": "annotation",
+    "t": 4000,
+    "annotation_id": "a2",
+    "index": 2,
+    "t_end": 5200,
+    "stroke_ids": [],
+    "close_reason": "object_select",
+    "bbox": {
+      "x": 820,
+      "y": 330,
+      "width": 160,
+      "height": 48
+    },
+    "url": "http://localhost:4401/pricing.html",
+    "scroll": {
+      "x": 0,
+      "y": 120
+    },
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "dpr": 2,
+    "resolution": "element",
+    "candidates": [
+      {
+        "selector": "main .hero button.cta",
+        "tag": "button",
+        "role": "button",
+        "name": "Get started",
+        "text": "Get started",
+        "testid": "cta",
+        "id": "get-started",
+        "classes": [
+          "cta",
+          "btn-primary"
+        ],
+        "bbox": {
+          "x": 820,
+          "y": 330,
+          "width": 160,
+          "height": 48
+        },
+        "relation": "pick",
+        "coverage": 0.92,
+        "source": {
+          "file": "src/components/Hero.tsx",
+          "line": 42,
+          "components": [
+            "CallToAction",
+            "Hero",
+            "PricingPage"
+          ]
+        }
+      }
+    ],
+    "pick": 0,
+    "screenshot_id": "b7c1e2d3-4f5a-4b6c-8d7e-9f0a1b2c3d42",
+    "connector": null,
+    "comment": "Make this roomier",
+    "crop": {
+      "blob_id": "b7c1e2d3-4f5a-4b6c-8d7e-9f0a1b2c3d42.crop",
+      "path": "screenshots/b7c1e2d3-4f5a-4b6c-8d7e-9f0a1b2c3d42.crop.png",
+      "rect": {
+        "x": 1624,
+        "y": 388,
+        "width": 384,
+        "height": 160
+      }
+    },
+    "source": "reviewer"
+  }
+}

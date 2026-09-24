@@ -1,0 +1,29 @@
+/* Design tokens. */
+:root { --brand: #3b5bdb; --accent: #e8590c; --ink: #1a1a1a; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #1a1a1a; background: #fafafa; }
+header.site-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 32px; background: #fff; border-bottom: 1px solid #ddd; }
+header.site-header .logo { font-weight: 700; }
+header.site-header nav a { margin-left: 20px; color: #333; text-decoration: none; }
+main { max-width: 1040px; margin: 0 auto; padding: 32px; }
+.hero { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; padding: 48px 0; }
+.hero h1 { font-size: 44px; line-height: 1.1; margin: 0 0 16px; }
+.card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 24px; }
+.hero .card { text-align: center; }
+button.cta { font-size: 18px; padding: 14px 28px; border: 0; border-radius: 8px; background: var(--brand); color: #fff; cursor: pointer; }
+.plans { display: flex; gap: 24px; align-items: flex-start; margin: 32px 0; }
+.plans .card { flex: 1; }
+#plan-basic { height: 220px; }
+#plan-pro { height: 320px; }
+.embed { margin: 32px 0; }
+.embed iframe { width: 100%; height: 180px; border: 1px dashed #999; border-radius: 8px; }
+footer { padding: 32px; text-align: center; color: #666; }
+.filler { height: 900px; }
+/* Responsive fixture (E6 viewport control, tests/e2e/viewport.spec.ts): the nav collapses into a Menu button under 600 px. */
+.nav-toggle { display: none; font: inherit; padding: 6px 12px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+@media (max-width: 600px) {
+  header.site-header { padding: 12px 16px; }
+  header.site-header nav { display: none; }
+  header.site-header .nav-toggle { display: inline-block; }
+  .hero { grid-template-columns: 1fr; }
+}

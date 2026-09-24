@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "type": "error",
+  "id": "h-1",
+  "re": "m-1",
+  "code": "wrong_pairing_code",
+  "message": "that is not the code inkup shows; 4 tries left"
+}

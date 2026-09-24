@@ -1,0 +1,995 @@
+{
+  "schema_version": 19,
+  "generated_at": "2026-09-22T12:00:00.000Z",
+  "session": {
+    "id": "fixture-b-same-height-word",
+    "tab_id": 101737479,
+    "t0": 1790124349836,
+    "started_at": "2026-09-23T00:45:49.836Z",
+    "ended_at": "2026-09-23T00:45:56.536Z",
+    "duration_ms": 6700,
+    "start_url": "http://localhost:4401/pricing.html",
+    "start_title": "Pricing Fixture",
+    "status": "ended",
+    "transcription": {
+      "engine": "elevenlabs",
+      "local": false,
+      "timestamp_quality": "word"
+    },
+    "video_off_reason": null,
+    "media_deleted_at": null
+  },
+  "media": {
+    "audio": null,
+    "video": null
+  },
+  "blobs": [
+    {
+      "id": "79979214-4de4-49af-8abc-efce141e418a",
+      "kind": "screenshot",
+      "mime": "image/png",
+      "size": 34243,
+      "path": "screenshots/79979214-4de4-49af-8abc-efce141e418a.png"
+    },
+    {
+      "id": "6e2945a3-f2c8-49d3-9b04-253a22206fd5",
+      "kind": "screenshot",
+      "mime": "image/png",
+      "size": 35066,
+      "path": "screenshots/6e2945a3-f2c8-49d3-9b04-253a22206fd5.png"
+    }
+  ],
+  "events": [
+    {
+      "id": "8d023b2f-7764-497f-841b-25da2c96a4d5",
+      "type": "session_start",
+      "t": 0,
+      "tab_id": 101737479,
+      "url": "http://localhost:4401/pricing.html",
+      "title": "Pricing Fixture",
+      "t0": 1790124349836,
+      "clicked_at": null,
+      "overlay": "page",
+      "voice": true
+    },
+    {
+      "id": "seg-b-same-height-1",
+      "type": "transcript_segment",
+      "t": 900,
+      "segment_id": "g1",
+      "t_end": 4150,
+      "text": "make this card the same height as that one",
+      "engine": "elevenlabs",
+      "local": false,
+      "timestamp_quality": "word",
+      "words": [
+        {
+          "text": "make",
+          "t": 900,
+          "t_end": 1100
+        },
+        {
+          "text": "this",
+          "t": 1150,
+          "t_end": 1350
+        },
+        {
+          "text": "card",
+          "t": 1400,
+          "t_end": 2550
+        },
+        {
+          "text": "the",
+          "t": 2600,
+          "t_end": 2700
+        },
+        {
+          "text": "same",
+          "t": 2750,
+          "t_end": 2950
+        },
+        {
+          "text": "height",
+          "t": 3000,
+          "t_end": 3300
+        },
+        {
+          "text": "as",
+          "t": 3350,
+          "t_end": 3450
+        },
+        {
+          "text": "that",
+          "t": 3500,
+          "t_end": 3700
+        },
+        {
+          "text": "one",
+          "t": 3750,
+          "t_end": 4150
+        }
+      ],
+      "confidence": null,
+      "run_id": null,
+      "target": null
+    },
+    {
+      "id": "b6a5911e-005a-4d9c-a017-c190781edd37",
+      "type": "stroke",
+      "t": 1000,
+      "stroke_id": "fb71c161-7059-4b76-8928-373b653f2059",
+      "t_end": 1799,
+      "points": [
+        {
+          "x": 642.3,
+          "y": 474,
+          "t": 1000
+        },
+        {
+          "x": 640.1,
+          "y": 489.2,
+          "t": 1013
+        },
+        {
+          "x": 633.7,
+          "y": 504.2,
+          "t": 1030
+        },
+        {
+          "x": 623.1,
+          "y": 518.6,
+          "t": 1047
+        },
+        {
+          "x": 608.5,
+          "y": 532.3,
+          "t": 1063
+        },
+        {
+          "x": 590.1,
+          "y": 545,
+          "t": 1080
+        },
+        {
+          "x": 568.4,
+          "y": 556.4,
+          "t": 1095
+        },
+        {
+          "x": 543.6,
+          "y": 566.5,
+          "t": 1112
+        },
+        {
+          "x": 516.1,
+          "y": 575,
+          "t": 1128
+        },
+        {
+          "x": 486.5,
+          "y": 581.7,
+          "t": 1147
+        },
+        {
+          "x": 455.3,
+          "y": 586.6,
+          "t": 1163
+        },
+        {
+          "x": 422.9,
+          "y": 589.6,
+          "t": 1180
+        },
+        {
+          "x": 390,
+          "y": 590.6,
+          "t": 1197
+        },
+        {
+          "x": 357.1,
+          "y": 589.6,
+          "t": 1213
+        },
+        {
+          "x": 324.7,
+          "y": 586.6,
+          "t": 1230
+        },
+        {
+          "x": 293.5,
+          "y": 581.7,
+          "t": 1247
+        },
+        {
+          "x": 263.9,
+          "y": 575,
+          "t": 1263
+        },
+        {
+          "x": 236.4,
+          "y": 566.5,
+          "t": 1280
+        },
+        {
+          "x": 211.6,
+          "y": 556.4,
+          "t": 1297
+        },
+        {
+          "x": 189.9,
+          "y": 545,
+          "t": 1313
+        },
+        {
+          "x": 171.5,
+          "y": 532.3,
+          "t": 1330
+        },
+        {
+          "x": 156.9,
+          "y": 518.6,
+          "t": 1347
+        },
+        {
+          "x": 146.3,
+          "y": 504.2,
+          "t": 1363
+        },
+        {
+          "x": 139.9,
+          "y": 489.2,
+          "t": 1380
+        },
+        {
+          "x": 137.7,
+          "y": 474,
+          "t": 1397
+        },
+        {
+          "x": 139.9,
+          "y": 458.8,
+          "t": 1413
+        },
+        {
+          "x": 146.3,
+          "y": 443.8,
+          "t": 1430
+        },
+        {
+          "x": 156.9,
+          "y": 429.4,
+          "t": 1447
+        },
+        {
+          "x": 171.5,
+          "y": 415.7,
+          "t": 1463
+        },
+        {
+          "x": 189.9,
+          "y": 403,
+          "t": 1480
+        },
+        {
+          "x": 211.6,
+          "y": 391.6,
+          "t": 1497
+        },
+        {
+          "x": 236.4,
+          "y": 381.5,
+          "t": 1513
+        },
+        {
+          "x": 263.9,
+          "y": 373,
+          "t": 1530
+        },
+        {
+          "x": 293.5,
+          "y": 366.3,
+          "t": 1547
+        },
+        {
+          "x": 324.7,
+          "y": 361.4,
+          "t": 1563
+        },
+        {
+          "x": 357.1,
+          "y": 358.4,
+          "t": 1580
+        },
+        {
+          "x": 390,
+          "y": 357.4,
+          "t": 1597
+        },
+        {
+          "x": 422.9,
+          "y": 358.4,
+          "t": 1613
+        },
+        {
+          "x": 455.3,
+          "y": 361.4,
+          "t": 1630
+        },
+        {
+          "x": 486.5,
+          "y": 366.3,
+          "t": 1647
+        },
+        {
+          "x": 516.1,
+          "y": 373,
+          "t": 1663
+        },
+        {
+          "x": 543.6,
+          "y": 381.5,
+          "t": 1680
+        },
+        {
+          "x": 568.4,
+          "y": 391.6,
+          "t": 1697
+        },
+        {
+          "x": 590.1,
+          "y": 403,
+          "t": 1713
+        },
+        {
+          "x": 608.5,
+          "y": 415.7,
+          "t": 1730
+        },
+        {
+          "x": 623.1,
+          "y": 429.4,
+          "t": 1747
+        },
+        {
+          "x": 633.7,
+          "y": 443.8,
+          "t": 1763
+        },
+        {
+          "x": 640.1,
+          "y": 458.8,
+          "t": 1780
+        },
+        {
+          "x": 642.3,
+          "y": 474,
+          "t": 1797
+        },
+        {
+          "x": 642.3,
+          "y": 474,
+          "t": 1799
+        }
+      ],
+      "bbox": {
+        "x": 137.72000122070312,
+        "y": 357.4000015258789,
+        "width": 504.5600280761719,
+        "height": 233.20000457763672
+      },
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 420
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1,
+      "shape": null
+    },
+    {
+      "id": "7806015d-5d0e-4c74-a657-dfbb1f77f501",
+      "type": "annotation",
+      "t": 1000,
+      "annotation_id": "802cf1ea-51c6-4ef3-892f-85f6f8b8f93c",
+      "index": 1,
+      "t_end": 1799,
+      "stroke_ids": [
+        "fb71c161-7059-4b76-8928-373b653f2059"
+      ],
+      "close_reason": "time_gap",
+      "bbox": {
+        "x": 137.72000122070312,
+        "y": 357.4000015258789,
+        "width": 504.5600280761719,
+        "height": 233.20000457763672
+      },
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 420
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1,
+      "resolution": "element",
+      "candidates": [
+        {
+          "selector": "#plan-basic",
+          "tag": "div",
+          "role": null,
+          "name": "",
+          "text": "Basic $9 / month For individuals.",
+          "testid": null,
+          "id": "plan-basic",
+          "classes": [
+            "card"
+          ],
+          "bbox": {
+            "x": 152,
+            "y": 364,
+            "width": 476,
+            "height": 220
+          },
+          "relation": "pick",
+          "coverage": 0.89
+        },
+        {
+          "selector": "section.plans",
+          "tag": "section",
+          "role": "region",
+          "name": "Plans",
+          "text": "Basic $9 / month For individuals. Pro $29 / month For teams that review every release. Includes video evidence and export.",
+          "testid": null,
+          "id": null,
+          "classes": [
+            "plans"
+          ],
+          "bbox": {
+            "x": 152,
+            "y": 364,
+            "width": 976,
+            "height": 320
+          },
+          "relation": "ancestor",
+          "coverage": 0.944
+        },
+        {
+          "selector": "main",
+          "tag": "main",
+          "role": "main",
+          "name": "",
+          "text": "Ship reviews in minutes Simple pricing for teams of every size. Start your free trial today. Get started Basic $9 / month For individuals. Pro $29 / month For teams that review every release. Includes",
+          "testid": null,
+          "id": null,
+          "classes": [],
+          "bbox": {
+            "x": 120,
+            "y": 49,
+            "width": 1040,
+            "height": 1912.90625
+          },
+          "relation": "ancestor",
+          "coverage": 1
+        },
+        {
+          "selector": "div:nth-of-type(1).card h2",
+          "tag": "h2",
+          "role": "heading",
+          "name": "Basic",
+          "text": "Basic",
+          "testid": null,
+          "id": null,
+          "classes": [],
+          "bbox": {
+            "x": 177,
+            "y": 408.90625,
+            "width": 426,
+            "height": 36
+          },
+          "relation": "descendant",
+          "coverage": 0.13
+        },
+        {
+          "selector": "div:nth-of-type(1).card p.price",
+          "tag": "p",
+          "role": null,
+          "name": "",
+          "text": "$9 / month",
+          "testid": null,
+          "id": null,
+          "classes": [
+            "price"
+          ],
+          "bbox": {
+            "x": 177,
+            "y": 464.8125,
+            "width": 426,
+            "height": 24
+          },
+          "relation": "descendant",
+          "coverage": 0.087
+        },
+        {
+          "selector": "div:nth-of-type(1).card p:nth-of-type(2)",
+          "tag": "p",
+          "role": null,
+          "name": "",
+          "text": "For individuals.",
+          "testid": null,
+          "id": null,
+          "classes": [],
+          "bbox": {
+            "x": 177,
+            "y": 504.8125,
+            "width": 426,
+            "height": 24
+          },
+          "relation": "descendant",
+          "coverage": 0.087
+        }
+      ],
+      "pick": 0,
+      "screenshot_id": "79979214-4de4-49af-8abc-efce141e418a",
+      "connector": null,
+      "comment": null
+    },
+    {
+      "id": "8ec8fce2-e2ea-462b-bb8f-36491b9905c4",
+      "type": "screenshot",
+      "t": 3299,
+      "screenshot_id": "79979214-4de4-49af-8abc-efce141e418a",
+      "path": "screenshots/79979214-4de4-49af-8abc-efce141e418a.png",
+      "mime": "image/png",
+      "trigger": "annotation",
+      "annotation_id": "802cf1ea-51c6-4ef3-892f-85f6f8b8f93c",
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 420
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1
+    },
+    {
+      "id": "26733483-28e4-4a68-84a6-154fbbf75c95",
+      "type": "stroke",
+      "t": 3400,
+      "stroke_id": "55b7adab-017c-47cf-b703-b0cb942982ed",
+      "t_end": 4200,
+      "points": [
+        {
+          "x": 1142.3,
+          "y": 524,
+          "t": 3400
+        },
+        {
+          "x": 1140.1,
+          "y": 546.1,
+          "t": 3415
+        },
+        {
+          "x": 1133.7,
+          "y": 567.9,
+          "t": 3431
+        },
+        {
+          "x": 1123.1,
+          "y": 588.9,
+          "t": 3448
+        },
+        {
+          "x": 1108.5,
+          "y": 608.8,
+          "t": 3464
+        },
+        {
+          "x": 1090.1,
+          "y": 627.2,
+          "t": 3481
+        },
+        {
+          "x": 1068.4,
+          "y": 643.9,
+          "t": 3498
+        },
+        {
+          "x": 1043.6,
+          "y": 658.6,
+          "t": 3514
+        },
+        {
+          "x": 1016.1,
+          "y": 670.9,
+          "t": 3531
+        },
+        {
+          "x": 986.5,
+          "y": 680.7,
+          "t": 3548
+        },
+        {
+          "x": 955.3,
+          "y": 687.8,
+          "t": 3564
+        },
+        {
+          "x": 922.9,
+          "y": 692.1,
+          "t": 3581
+        },
+        {
+          "x": 890,
+          "y": 693.6,
+          "t": 3598
+        },
+        {
+          "x": 857.1,
+          "y": 692.1,
+          "t": 3615
+        },
+        {
+          "x": 824.7,
+          "y": 687.8,
+          "t": 3631
+        },
+        {
+          "x": 793.5,
+          "y": 680.7,
+          "t": 3648
+        },
+        {
+          "x": 763.9,
+          "y": 670.9,
+          "t": 3665
+        },
+        {
+          "x": 736.4,
+          "y": 658.6,
+          "t": 3681
+        },
+        {
+          "x": 711.6,
+          "y": 643.9,
+          "t": 3698
+        },
+        {
+          "x": 689.9,
+          "y": 627.2,
+          "t": 3715
+        },
+        {
+          "x": 671.5,
+          "y": 608.8,
+          "t": 3731
+        },
+        {
+          "x": 656.9,
+          "y": 588.9,
+          "t": 3748
+        },
+        {
+          "x": 646.3,
+          "y": 567.9,
+          "t": 3764
+        },
+        {
+          "x": 639.9,
+          "y": 546.1,
+          "t": 3781
+        },
+        {
+          "x": 637.7,
+          "y": 524,
+          "t": 3798
+        },
+        {
+          "x": 639.9,
+          "y": 501.9,
+          "t": 3814
+        },
+        {
+          "x": 646.3,
+          "y": 480.1,
+          "t": 3831
+        },
+        {
+          "x": 656.9,
+          "y": 459.1,
+          "t": 3848
+        },
+        {
+          "x": 671.5,
+          "y": 439.2,
+          "t": 3865
+        },
+        {
+          "x": 689.9,
+          "y": 420.8,
+          "t": 3881
+        },
+        {
+          "x": 711.6,
+          "y": 404.1,
+          "t": 3898
+        },
+        {
+          "x": 736.4,
+          "y": 389.4,
+          "t": 3914
+        },
+        {
+          "x": 763.9,
+          "y": 377.1,
+          "t": 3931
+        },
+        {
+          "x": 793.5,
+          "y": 367.3,
+          "t": 3948
+        },
+        {
+          "x": 824.7,
+          "y": 360.2,
+          "t": 3965
+        },
+        {
+          "x": 857.1,
+          "y": 355.9,
+          "t": 3981
+        },
+        {
+          "x": 890,
+          "y": 354.4,
+          "t": 3998
+        },
+        {
+          "x": 922.9,
+          "y": 355.9,
+          "t": 4015
+        },
+        {
+          "x": 955.3,
+          "y": 360.2,
+          "t": 4031
+        },
+        {
+          "x": 986.5,
+          "y": 367.3,
+          "t": 4048
+        },
+        {
+          "x": 1016.1,
+          "y": 377.1,
+          "t": 4065
+        },
+        {
+          "x": 1043.6,
+          "y": 389.4,
+          "t": 4081
+        },
+        {
+          "x": 1068.4,
+          "y": 404.1,
+          "t": 4098
+        },
+        {
+          "x": 1090.1,
+          "y": 420.8,
+          "t": 4113
+        },
+        {
+          "x": 1108.5,
+          "y": 439.2,
+          "t": 4130
+        },
+        {
+          "x": 1123.1,
+          "y": 459.1,
+          "t": 4147
+        },
+        {
+          "x": 1133.7,
+          "y": 480.1,
+          "t": 4163
+        },
+        {
+          "x": 1140.1,
+          "y": 501.9,
+          "t": 4181
+        },
+        {
+          "x": 1142.3,
+          "y": 524,
+          "t": 4198
+        },
+        {
+          "x": 1142.3,
+          "y": 524,
+          "t": 4200
+        }
+      ],
+      "bbox": {
+        "x": 637.719970703125,
+        "y": 354.4000015258789,
+        "width": 504.56005859375,
+        "height": 339.2000045776367
+      },
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 420
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1,
+      "shape": null
+    },
+    {
+      "id": "bd16f1d6-0283-4d58-81f5-4f3448dc2e48",
+      "type": "annotation",
+      "t": 3400,
+      "annotation_id": "31a71d64-49f1-48f7-ad16-563ffec8b475",
+      "index": 2,
+      "t_end": 4200,
+      "stroke_ids": [
+        "55b7adab-017c-47cf-b703-b0cb942982ed"
+      ],
+      "close_reason": "time_gap",
+      "bbox": {
+        "x": 637.719970703125,
+        "y": 354.4000015258789,
+        "width": 504.56005859375,
+        "height": 339.2000045776367
+      },
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 420
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1,
+      "resolution": "element",
+      "candidates": [
+        {
+          "selector": "#plan-pro",
+          "tag": "div",
+          "role": null,
+          "name": "",
+          "text": "Pro $29 / month For teams that review every release. Includes video evidence and export.",
+          "testid": null,
+          "id": "plan-pro",
+          "classes": [
+            "card"
+          ],
+          "bbox": {
+            "x": 652,
+            "y": 364,
+            "width": 476,
+            "height": 320
+          },
+          "relation": "pick",
+          "coverage": 0.89
+        },
+        {
+          "selector": "section.plans",
+          "tag": "section",
+          "role": "region",
+          "name": "Plans",
+          "text": "Basic $9 / month For individuals. Pro $29 / month For teams that review every release. Includes video evidence and export.",
+          "testid": null,
+          "id": null,
+          "classes": [
+            "plans"
+          ],
+          "bbox": {
+            "x": 152,
+            "y": 364,
+            "width": 976,
+            "height": 320
+          },
+          "relation": "ancestor",
+          "coverage": 0.917
+        },
+        {
+          "selector": "main",
+          "tag": "main",
+          "role": "main",
+          "name": "",
+          "text": "Ship reviews in minutes Simple pricing for teams of every size. Start your free trial today. Get started Basic $9 / month For individuals. Pro $29 / month For teams that review every release. Includes",
+          "testid": null,
+          "id": null,
+          "classes": [],
+          "bbox": {
+            "x": 120,
+            "y": 49,
+            "width": 1040,
+            "height": 1912.90625
+          },
+          "relation": "ancestor",
+          "coverage": 1
+        },
+        {
+          "selector": "section.plans div:nth-of-type(2) h2",
+          "tag": "h2",
+          "role": "heading",
+          "name": "Pro",
+          "text": "Pro",
+          "testid": null,
+          "id": null,
+          "classes": [],
+          "bbox": {
+            "x": 677,
+            "y": 408.90625,
+            "width": 426,
+            "height": 36
+          },
+          "relation": "descendant",
+          "coverage": 0.09
+        },
+        {
+          "selector": "p:nth-of-type(3)",
+          "tag": "p",
+          "role": null,
+          "name": "",
+          "text": "Includes video evidence and export.",
+          "testid": null,
+          "id": null,
+          "classes": [],
+          "bbox": {
+            "x": 677,
+            "y": 544.8125,
+            "width": 426,
+            "height": 24
+          },
+          "relation": "descendant",
+          "coverage": 0.06
+        }
+      ],
+      "pick": 0,
+      "screenshot_id": "6e2945a3-f2c8-49d3-9b04-253a22206fd5",
+      "connector": null,
+      "comment": null
+    },
+    {
+      "id": "664a428e-4663-4d97-85a9-8bfa2738bf5f",
+      "type": "screenshot",
+      "t": 5700,
+      "screenshot_id": "6e2945a3-f2c8-49d3-9b04-253a22206fd5",
+      "path": "screenshots/6e2945a3-f2c8-49d3-9b04-253a22206fd5.png",
+      "mime": "image/png",
+      "trigger": "annotation",
+      "annotation_id": "31a71d64-49f1-48f7-ad16-563ffec8b475",
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 420
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1
+    },
+    {
+      "id": "end-b-same-height",
+      "type": "session_end",
+      "t": 6700,
+      "reason": "stop",
+      "duration_ms": 6700
+    }
+  ],
+  "process_runs": []
+}

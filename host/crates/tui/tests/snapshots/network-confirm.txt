@@ -1,0 +1,24 @@
+ 1 Clients │ 2 Sessions │ 3 Timeline │ 4 Items │ 5 Agents │ 6 Tokens           inkup 127.0.0.1:47823
+┌ Clients ─────────────────────────────────────────────────────────────────────────────────────────┐
+│  Name                                                Kind     State                  Last seen   │
+│› Chrome on macOS                                     chrome   connected, recording   2 s ago     │
+│  Firefox on Linux                                    firefox  paired                 2 h ago     │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│    ┌ Network mode ──────────────────────────────────────────────────────────────────────────┐    │
+│    │Listen on every interface so other machines on this LAN can pair and send Sessions?     │    │
+│    │Network mode: unencrypted on this LAN — trusted networks only                           │    │
+│    │Agents on other machines need a token (t). The server restarts; Clients reconnect.      │    │
+│    │                                                                                        │    │
+│    │y  turn it on   n  cancel                                                               │    │
+│    └─────────────────────────────────────────────────────────────────────────────────── Esc ┘    │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+s start  p pause/resume  x stop  d draw  t token  N network  ⏎ details  ? help  q quit

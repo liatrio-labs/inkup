@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-45",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "id": "e1a4c1d2-0b6f-4d52-9d64-5e3a2f1b0c3a",
+    "type": "item_edit",
+    "t": 30000,
+    "run_id": "5a1c9e2b-8d4f-4b7a-a3c6-2f9e0d1b7c44",
+    "edited_at": "2026-09-23T10:13:00.000Z",
+    "edit": {
+      "op": "undo"
+    }
+  }
+}

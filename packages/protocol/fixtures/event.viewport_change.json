@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-24",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "id": "e1a4c1d2-0b6f-4d52-9d64-5e3a2f1b0c12",
+    "type": "viewport_change",
+    "t": 9500,
+    "width": 390,
+    "height": 844,
+    "scale": 0.85,
+    "mechanism": "frame_host"
+  }
+}

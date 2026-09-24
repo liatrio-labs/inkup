@@ -1,0 +1,17 @@
+{
+  "v": 1,
+  "type": "welcome",
+  "id": "h-2",
+  "re": "m-1",
+  "client_id": "c-7a1e",
+  "host_version": "0.1.0",
+  "capabilities": [
+    "events",
+    "blobs",
+    "items",
+    "resolutions",
+    "discard",
+    "forget",
+    "screenshot_discard"
+  ]
+}

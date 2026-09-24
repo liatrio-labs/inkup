@@ -1,0 +1,6 @@
+{
+  "timestamp_quality": "approximate",
+  "cues": [
+    { "at_ms": 2500, "duration_ms": 1800, "text": "this button should go in the header" }
+  ]
+}

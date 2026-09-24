@@ -1,0 +1,500 @@
+{
+  "schema_version": 19,
+  "generated_at": "2026-09-22T12:00:00.000Z",
+  "session": {
+    "id": "fixture-d-loose-circle-button-approximate",
+    "tab_id": 101737479,
+    "t0": 1790124349836,
+    "started_at": "2026-09-23T00:45:49.836Z",
+    "ended_at": "2026-09-23T00:45:54.686Z",
+    "duration_ms": 4850,
+    "start_url": "http://localhost:4401/pricing.html",
+    "start_title": "Pricing Fixture",
+    "status": "ended",
+    "transcription": {
+      "engine": "webspeech",
+      "local": true,
+      "timestamp_quality": "approximate"
+    },
+    "video_off_reason": null,
+    "media_deleted_at": null
+  },
+  "media": {
+    "audio": null,
+    "video": null
+  },
+  "blobs": [
+    {
+      "id": "8811c12d-47ff-45da-ac35-8727196cbe94",
+      "kind": "screenshot",
+      "mime": "image/png",
+      "size": 42988,
+      "path": "screenshots/8811c12d-47ff-45da-ac35-8727196cbe94.png"
+    }
+  ],
+  "events": [
+    {
+      "id": "8d023b2f-7764-497f-841b-25da2c96a4d5",
+      "type": "session_start",
+      "t": 0,
+      "tab_id": 101737479,
+      "url": "http://localhost:4401/pricing.html",
+      "title": "Pricing Fixture",
+      "t0": 1790124349836,
+      "clicked_at": null,
+      "overlay": "page",
+      "voice": true
+    },
+    {
+      "id": "0c1f94f9-ded6-4ed3-823f-adfbbf22ca72",
+      "type": "stroke",
+      "t": 1000,
+      "stroke_id": "416abb9f-2ceb-47f9-a986-bd5ac019b98c",
+      "t_end": 1801,
+      "points": [
+        {
+          "x": 1156.3,
+          "y": 206.5,
+          "t": 1000
+        },
+        {
+          "x": 1154.1,
+          "y": 217.8,
+          "t": 1016
+        },
+        {
+          "x": 1147.3,
+          "y": 229,
+          "t": 1032
+        },
+        {
+          "x": 1136.2,
+          "y": 239.7,
+          "t": 1049
+        },
+        {
+          "x": 1120.9,
+          "y": 249.9,
+          "t": 1065
+        },
+        {
+          "x": 1101.7,
+          "y": 259.3,
+          "t": 1082
+        },
+        {
+          "x": 1078.9,
+          "y": 267.9,
+          "t": 1099
+        },
+        {
+          "x": 1052.9,
+          "y": 275.4,
+          "t": 1115
+        },
+        {
+          "x": 1024.2,
+          "y": 281.7,
+          "t": 1132
+        },
+        {
+          "x": 993.2,
+          "y": 286.7,
+          "t": 1149
+        },
+        {
+          "x": 960.4,
+          "y": 290.3,
+          "t": 1165
+        },
+        {
+          "x": 926.5,
+          "y": 292.6,
+          "t": 1182
+        },
+        {
+          "x": 892,
+          "y": 293.3,
+          "t": 1199
+        },
+        {
+          "x": 857.5,
+          "y": 292.6,
+          "t": 1215
+        },
+        {
+          "x": 823.6,
+          "y": 290.3,
+          "t": 1232
+        },
+        {
+          "x": 790.8,
+          "y": 286.7,
+          "t": 1249
+        },
+        {
+          "x": 759.8,
+          "y": 281.7,
+          "t": 1265
+        },
+        {
+          "x": 731.1,
+          "y": 275.4,
+          "t": 1282
+        },
+        {
+          "x": 705.1,
+          "y": 267.9,
+          "t": 1299
+        },
+        {
+          "x": 682.3,
+          "y": 259.3,
+          "t": 1315
+        },
+        {
+          "x": 663.1,
+          "y": 249.9,
+          "t": 1332
+        },
+        {
+          "x": 647.8,
+          "y": 239.7,
+          "t": 1349
+        },
+        {
+          "x": 636.7,
+          "y": 229,
+          "t": 1365
+        },
+        {
+          "x": 629.9,
+          "y": 217.8,
+          "t": 1382
+        },
+        {
+          "x": 627.7,
+          "y": 206.5,
+          "t": 1399
+        },
+        {
+          "x": 629.9,
+          "y": 195.2,
+          "t": 1416
+        },
+        {
+          "x": 636.7,
+          "y": 184,
+          "t": 1432
+        },
+        {
+          "x": 647.8,
+          "y": 173.3,
+          "t": 1449
+        },
+        {
+          "x": 663.1,
+          "y": 163.1,
+          "t": 1465
+        },
+        {
+          "x": 682.3,
+          "y": 153.7,
+          "t": 1482
+        },
+        {
+          "x": 705.1,
+          "y": 145.1,
+          "t": 1499
+        },
+        {
+          "x": 731.1,
+          "y": 137.6,
+          "t": 1515
+        },
+        {
+          "x": 759.8,
+          "y": 131.3,
+          "t": 1532
+        },
+        {
+          "x": 790.8,
+          "y": 126.3,
+          "t": 1549
+        },
+        {
+          "x": 823.6,
+          "y": 122.7,
+          "t": 1566
+        },
+        {
+          "x": 857.5,
+          "y": 120.4,
+          "t": 1583
+        },
+        {
+          "x": 892,
+          "y": 119.7,
+          "t": 1599
+        },
+        {
+          "x": 926.5,
+          "y": 120.4,
+          "t": 1616
+        },
+        {
+          "x": 960.4,
+          "y": 122.7,
+          "t": 1632
+        },
+        {
+          "x": 993.2,
+          "y": 126.3,
+          "t": 1649
+        },
+        {
+          "x": 1024.2,
+          "y": 131.3,
+          "t": 1665
+        },
+        {
+          "x": 1052.9,
+          "y": 137.6,
+          "t": 1681
+        },
+        {
+          "x": 1078.9,
+          "y": 145.1,
+          "t": 1698
+        },
+        {
+          "x": 1101.7,
+          "y": 153.7,
+          "t": 1716
+        },
+        {
+          "x": 1120.9,
+          "y": 163.1,
+          "t": 1732
+        },
+        {
+          "x": 1136.2,
+          "y": 173.3,
+          "t": 1749
+        },
+        {
+          "x": 1147.3,
+          "y": 184,
+          "t": 1766
+        },
+        {
+          "x": 1154.1,
+          "y": 195.2,
+          "t": 1782
+        },
+        {
+          "x": 1156.3,
+          "y": 206.5,
+          "t": 1799
+        },
+        {
+          "x": 1156.3,
+          "y": 206.5,
+          "t": 1801
+        }
+      ],
+      "bbox": {
+        "x": 627.6799926757812,
+        "y": 119.69999694824219,
+        "width": 528.6399536132812,
+        "height": 173.59999084472656
+      },
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1,
+      "shape": null
+    },
+    {
+      "id": "ad0b9fe3-a2e5-4161-8464-8897873903b6",
+      "type": "annotation",
+      "t": 1000,
+      "annotation_id": "0ed3d028-76c8-4641-b365-142289fb0b0d",
+      "index": 1,
+      "t_end": 1801,
+      "stroke_ids": [
+        "416abb9f-2ceb-47f9-a986-bd5ac019b98c"
+      ],
+      "close_reason": "time_gap",
+      "bbox": {
+        "x": 627.6799926757812,
+        "y": 119.69999694824219,
+        "width": 528.6399536132812,
+        "height": 173.59999084472656
+      },
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1,
+      "resolution": "element",
+      "candidates": [
+        {
+          "selector": "div.hero-card",
+          "tag": "div",
+          "role": null,
+          "name": "",
+          "text": "Start your free trial today. Get started",
+          "testid": null,
+          "id": null,
+          "classes": [
+            "card",
+            "hero-card"
+          ],
+          "bbox": {
+            "x": 656,
+            "y": 129,
+            "width": 472,
+            "height": 155
+          },
+          "relation": "pick",
+          "coverage": 0.797
+        },
+        {
+          "selector": "section.hero",
+          "tag": "section",
+          "role": "region",
+          "name": "Ship reviews in minutes",
+          "text": "Ship reviews in minutes Simple pricing for teams of every size. Start your free trial today. Get started",
+          "testid": null,
+          "id": null,
+          "classes": [
+            "hero"
+          ],
+          "bbox": {
+            "x": 152,
+            "y": 81,
+            "width": 976,
+            "height": 251
+          },
+          "relation": "ancestor",
+          "coverage": 0.946
+        },
+        {
+          "selector": "main",
+          "tag": "main",
+          "role": "main",
+          "name": "",
+          "text": "Ship reviews in minutes Simple pricing for teams of every size. Start your free trial today. Get started Basic $9 / month For individuals. Pro $29 / month For teams that review every release. Includes",
+          "testid": null,
+          "id": null,
+          "classes": [],
+          "bbox": {
+            "x": 120,
+            "y": 49,
+            "width": 1040,
+            "height": 1912.90625
+          },
+          "relation": "ancestor",
+          "coverage": 1
+        },
+        {
+          "selector": "div.hero-card p",
+          "tag": "p",
+          "role": null,
+          "name": "",
+          "text": "Start your free trial today.",
+          "testid": null,
+          "id": null,
+          "classes": [],
+          "bbox": {
+            "x": 681,
+            "y": 170,
+            "width": 422,
+            "height": 24
+          },
+          "relation": "descendant",
+          "coverage": 0.11
+        },
+        {
+          "selector": "button.cta",
+          "tag": "button",
+          "role": "button",
+          "name": "Get started",
+          "text": "Get started",
+          "testid": null,
+          "id": null,
+          "classes": [
+            "cta"
+          ],
+          "bbox": {
+            "x": 819.46875,
+            "y": 210,
+            "width": 145.046875,
+            "height": 49
+          },
+          "relation": "descendant",
+          "coverage": 0.077
+        }
+      ],
+      "pick": 0,
+      "screenshot_id": "8811c12d-47ff-45da-ac35-8727196cbe94",
+      "connector": null,
+      "comment": null
+    },
+    {
+      "id": "seg-d-loose-circle-button-1",
+      "type": "transcript_segment",
+      "t": 2100,
+      "segment_id": "g1",
+      "t_end": 3850,
+      "text": "this button should be a darker blue",
+      "engine": "webspeech",
+      "local": true,
+      "timestamp_quality": "approximate",
+      "words": null,
+      "confidence": null,
+      "run_id": null,
+      "target": null
+    },
+    {
+      "id": "9533344d-f82a-4f52-aac9-ec49b097c289",
+      "type": "screenshot",
+      "t": 3301,
+      "screenshot_id": "8811c12d-47ff-45da-ac35-8727196cbe94",
+      "path": "screenshots/8811c12d-47ff-45da-ac35-8727196cbe94.png",
+      "mime": "image/png",
+      "trigger": "annotation",
+      "annotation_id": "0ed3d028-76c8-4641-b365-142289fb0b0d",
+      "url": "http://localhost:4401/pricing.html",
+      "scroll": {
+        "x": 0,
+        "y": 0
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "dpr": 1
+    },
+    {
+      "id": "end-d-loose-circle-button",
+      "type": "session_end",
+      "t": 4850,
+      "reason": "stop",
+      "duration_ms": 4850
+    }
+  ],
+  "process_runs": []
+}

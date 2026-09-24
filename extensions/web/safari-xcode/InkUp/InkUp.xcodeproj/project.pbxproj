@@ -1,0 +1,641 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 110;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		16F3BB1530656A540061AABF /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16F3BB1430656A540061AABF /* AppDelegate.swift */; };
+		16F3BB1930656A540061AABF /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB1730656A540061AABF /* Main.html */; };
+		16F3BB1B30656A540061AABF /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB1A30656A540061AABF /* Icon.png */; };
+		16F3BB1D30656A540061AABF /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB1C30656A540061AABF /* Style.css */; };
+		16F3BB1F30656A540061AABF /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB1E30656A540061AABF /* Script.js */; };
+		16F3BB2130656A540061AABF /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16F3BB2030656A540061AABF /* ViewController.swift */; };
+		16F3BB2430656A540061AABF /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB2230656A540061AABF /* Main.storyboard */; };
+		16F3BB2630656A550061AABF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB2530656A550061AABF /* Assets.xcassets */; };
+		16F3BB2D30656A550061AABF /* InkUp Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 16F3BB2C30656A550061AABF /* InkUp Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		16F3BB3230656A550061AABF /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16F3BB3130656A550061AABF /* SafariWebExtensionHandler.swift */; };
+		16F3BB4F30656A550061AABF /* worklets in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB3E30656A550061AABF /* worklets */; };
+		16F3BB5030656A550061AABF /* review.html in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB3F30656A550061AABF /* review.html */; };
+		16F3BB5130656A550061AABF /* offscreen.html in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4030656A550061AABF /* offscreen.html */; };
+		16F3BB5230656A550061AABF /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4130656A550061AABF /* background.js */; };
+		16F3BB5330656A550061AABF /* ort in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4230656A550061AABF /* ort */; };
+		16F3BB5430656A550061AABF /* toolbar-start.html in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4330656A550061AABF /* toolbar-start.html */; };
+		16F3BB5530656A550061AABF /* chunks in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4430656A550061AABF /* chunks */; };
+		16F3BB5630656A550061AABF /* content-scripts in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4530656A550061AABF /* content-scripts */; };
+		16F3BB5730656A550061AABF /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4630656A550061AABF /* manifest.json */; };
+		16F3BB5830656A550061AABF /* viewport.html in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4730656A550061AABF /* viewport.html */; };
+		16F3BB5930656A550061AABF /* options.html in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4830656A550061AABF /* options.html */; };
+		16F3BB5A30656A550061AABF /* sidepanel.html in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4930656A550061AABF /* sidepanel.html */; };
+		16F3BB5B30656A550061AABF /* icon in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4A30656A550061AABF /* icon */; };
+		16F3BB5C30656A550061AABF /* sessions.html in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4B30656A550061AABF /* sessions.html */; };
+		16F3BB5D30656A550061AABF /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4C30656A550061AABF /* assets */; };
+		16F3BB5E30656A550061AABF /* vad in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4D30656A550061AABF /* vad */; };
+		16F3BB5F30656A550061AABF /* onboarding.html in Resources */ = {isa = PBXBuildFile; fileRef = 16F3BB4E30656A550061AABF /* onboarding.html */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		16F3BB2E30656A550061AABF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 16F3BB0930656A540061AABF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 16F3BB2B30656A550061AABF;
+			remoteInfo = "InkUp Extension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		16F3BB3930656A550061AABF /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				16F3BB2D30656A550061AABF /* InkUp Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		16F3BB1130656A540061AABF /* InkUp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InkUp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		16F3BB1430656A540061AABF /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		16F3BB1830656A540061AABF /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
+		16F3BB1A30656A540061AABF /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		16F3BB1C30656A540061AABF /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		16F3BB1E30656A540061AABF /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		16F3BB2030656A540061AABF /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		16F3BB2330656A540061AABF /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		16F3BB2530656A550061AABF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		16F3BB2730656A550061AABF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		16F3BB2C30656A550061AABF /* InkUp Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "InkUp Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		16F3BB3130656A550061AABF /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		16F3BB3330656A550061AABF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		16F3BB3E30656A550061AABF /* worklets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = worklets; path = "../../../.output/safari-mv3/worklets"; sourceTree = "<group>"; };
+		16F3BB3F30656A550061AABF /* review.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = review.html; path = "../../../.output/safari-mv3/review.html"; sourceTree = "<group>"; };
+		16F3BB4030656A550061AABF /* offscreen.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = offscreen.html; path = "../../../.output/safari-mv3/offscreen.html"; sourceTree = "<group>"; };
+		16F3BB4130656A550061AABF /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = background.js; path = "../../../.output/safari-mv3/background.js"; sourceTree = "<group>"; };
+		16F3BB4230656A550061AABF /* ort */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ort; path = "../../../.output/safari-mv3/ort"; sourceTree = "<group>"; };
+		16F3BB4330656A550061AABF /* toolbar-start.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = "toolbar-start.html"; path = "../../../.output/safari-mv3/toolbar-start.html"; sourceTree = "<group>"; };
+		16F3BB4430656A550061AABF /* chunks */ = {isa = PBXFileReference; lastKnownFileType = folder; name = chunks; path = "../../../.output/safari-mv3/chunks"; sourceTree = "<group>"; };
+		16F3BB4530656A550061AABF /* content-scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "content-scripts"; path = "../../../.output/safari-mv3/content-scripts"; sourceTree = "<group>"; };
+		16F3BB4630656A550061AABF /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = "../../../.output/safari-mv3/manifest.json"; sourceTree = "<group>"; };
+		16F3BB4730656A550061AABF /* viewport.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = viewport.html; path = "../../../.output/safari-mv3/viewport.html"; sourceTree = "<group>"; };
+		16F3BB4830656A550061AABF /* options.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = options.html; path = "../../../.output/safari-mv3/options.html"; sourceTree = "<group>"; };
+		16F3BB4930656A550061AABF /* sidepanel.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = sidepanel.html; path = "../../../.output/safari-mv3/sidepanel.html"; sourceTree = "<group>"; };
+		16F3BB4A30656A550061AABF /* icon */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icon; path = "../../../.output/safari-mv3/icon"; sourceTree = "<group>"; };
+		16F3BB4B30656A550061AABF /* sessions.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = sessions.html; path = "../../../.output/safari-mv3/sessions.html"; sourceTree = "<group>"; };
+		16F3BB4C30656A550061AABF /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = "../../../.output/safari-mv3/assets"; sourceTree = "<group>"; };
+		16F3BB4D30656A550061AABF /* vad */ = {isa = PBXFileReference; lastKnownFileType = folder; name = vad; path = "../../../.output/safari-mv3/vad"; sourceTree = "<group>"; };
+		16F3BB4E30656A550061AABF /* onboarding.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = onboarding.html; path = "../../../.output/safari-mv3/onboarding.html"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		16F3BB0E30656A540061AABF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		16F3BB2930656A550061AABF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		16F3BB0830656A540061AABF = {
+			isa = PBXGroup;
+			children = (
+				16F3BB1330656A540061AABF /* InkUp */,
+				16F3BB3030656A550061AABF /* InkUp Extension */,
+				16F3BB1230656A540061AABF /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		16F3BB1230656A540061AABF /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				16F3BB1130656A540061AABF /* InkUp.app */,
+				16F3BB2C30656A550061AABF /* InkUp Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		16F3BB1330656A540061AABF /* InkUp */ = {
+			isa = PBXGroup;
+			children = (
+				16F3BB1430656A540061AABF /* AppDelegate.swift */,
+				16F3BB2030656A540061AABF /* ViewController.swift */,
+				16F3BB2230656A540061AABF /* Main.storyboard */,
+				16F3BB2530656A550061AABF /* Assets.xcassets */,
+				16F3BB2730656A550061AABF /* Info.plist */,
+				16F3BB1630656A540061AABF /* Resources */,
+			);
+			path = InkUp;
+			sourceTree = "<group>";
+		};
+		16F3BB1630656A540061AABF /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				16F3BB1730656A540061AABF /* Main.html */,
+				16F3BB1A30656A540061AABF /* Icon.png */,
+				16F3BB1C30656A540061AABF /* Style.css */,
+				16F3BB1E30656A540061AABF /* Script.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		16F3BB3030656A550061AABF /* InkUp Extension */ = {
+			isa = PBXGroup;
+			children = (
+				16F3BB3D30656A550061AABF /* Resources */,
+				16F3BB3130656A550061AABF /* SafariWebExtensionHandler.swift */,
+				16F3BB3330656A550061AABF /* Info.plist */,
+			);
+			path = "InkUp Extension";
+			sourceTree = "<group>";
+		};
+		16F3BB3D30656A550061AABF /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				16F3BB3E30656A550061AABF /* worklets */,
+				16F3BB3F30656A550061AABF /* review.html */,
+				16F3BB4030656A550061AABF /* offscreen.html */,
+				16F3BB4130656A550061AABF /* background.js */,
+				16F3BB4230656A550061AABF /* ort */,
+				16F3BB4330656A550061AABF /* toolbar-start.html */,
+				16F3BB4430656A550061AABF /* chunks */,
+				16F3BB4530656A550061AABF /* content-scripts */,
+				16F3BB4630656A550061AABF /* manifest.json */,
+				16F3BB4730656A550061AABF /* viewport.html */,
+				16F3BB4830656A550061AABF /* options.html */,
+				16F3BB4930656A550061AABF /* sidepanel.html */,
+				16F3BB4A30656A550061AABF /* icon */,
+				16F3BB4B30656A550061AABF /* sessions.html */,
+				16F3BB4C30656A550061AABF /* assets */,
+				16F3BB4D30656A550061AABF /* vad */,
+				16F3BB4E30656A550061AABF /* onboarding.html */,
+			);
+			name = Resources;
+			path = "InkUp Extension";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		16F3BB1030656A540061AABF /* InkUp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 16F3BB3A30656A550061AABF /* Build configuration list for PBXNativeTarget "InkUp" */;
+			buildPhases = (
+				16F3BB0D30656A540061AABF /* Sources */,
+				16F3BB0E30656A540061AABF /* Frameworks */,
+				16F3BB0F30656A540061AABF /* Resources */,
+				16F3BB3930656A550061AABF /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				16F3BB2F30656A550061AABF /* PBXTargetDependency */,
+			);
+			name = InkUp;
+			productName = InkUp;
+			productReference = 16F3BB1130656A540061AABF /* InkUp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		16F3BB2B30656A550061AABF /* InkUp Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 16F3BB3630656A550061AABF /* Build configuration list for PBXNativeTarget "InkUp Extension" */;
+			buildPhases = (
+				16F3BB2830656A550061AABF /* Sources */,
+				16F3BB2930656A550061AABF /* Frameworks */,
+				16F3BB2A30656A550061AABF /* Resources */,
+			);
+			buildRules = (
+			);
+			name = "InkUp Extension";
+			productName = "InkUp Extension";
+			productReference = 16F3BB2C30656A550061AABF /* InkUp Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		16F3BB0930656A540061AABF /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					16F3BB1030656A540061AABF = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					16F3BB2B30656A550061AABF = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = 16F3BB0C30656A540061AABF /* Build configuration list for PBXProject "InkUp" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 16F3BB0830656A540061AABF;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 16F3BB1230656A540061AABF /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				16F3BB1030656A540061AABF /* InkUp */,
+				16F3BB2B30656A550061AABF /* InkUp Extension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		16F3BB0F30656A540061AABF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				16F3BB1B30656A540061AABF /* Icon.png in Resources */,
+				16F3BB2430656A540061AABF /* Main.storyboard in Resources */,
+				16F3BB1F30656A540061AABF /* Script.js in Resources */,
+				16F3BB1930656A540061AABF /* Main.html in Resources */,
+				16F3BB2630656A550061AABF /* Assets.xcassets in Resources */,
+				16F3BB1D30656A540061AABF /* Style.css in Resources */,
+			);
+		};
+		16F3BB2A30656A550061AABF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				16F3BB5D30656A550061AABF /* assets in Resources */,
+				16F3BB5230656A550061AABF /* background.js in Resources */,
+				16F3BB5F30656A550061AABF /* onboarding.html in Resources */,
+				16F3BB5C30656A550061AABF /* sessions.html in Resources */,
+				16F3BB5030656A550061AABF /* review.html in Resources */,
+				16F3BB5830656A550061AABF /* viewport.html in Resources */,
+				16F3BB5130656A550061AABF /* offscreen.html in Resources */,
+				16F3BB5930656A550061AABF /* options.html in Resources */,
+				16F3BB5430656A550061AABF /* toolbar-start.html in Resources */,
+				16F3BB5730656A550061AABF /* manifest.json in Resources */,
+				16F3BB5530656A550061AABF /* chunks in Resources */,
+				16F3BB5330656A550061AABF /* ort in Resources */,
+				16F3BB4F30656A550061AABF /* worklets in Resources */,
+				16F3BB5A30656A550061AABF /* sidepanel.html in Resources */,
+				16F3BB5B30656A550061AABF /* icon in Resources */,
+				16F3BB5E30656A550061AABF /* vad in Resources */,
+				16F3BB5630656A550061AABF /* content-scripts in Resources */,
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		16F3BB0D30656A540061AABF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				16F3BB2130656A540061AABF /* ViewController.swift in Sources */,
+				16F3BB1530656A540061AABF /* AppDelegate.swift in Sources */,
+			);
+		};
+		16F3BB2830656A550061AABF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				16F3BB3230656A550061AABF /* SafariWebExtensionHandler.swift in Sources */,
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		16F3BB2F30656A550061AABF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 16F3BB2B30656A550061AABF /* InkUp Extension */;
+			targetProxy = 16F3BB2E30656A550061AABF /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		16F3BB1730656A540061AABF /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				16F3BB1830656A540061AABF /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		16F3BB2230656A540061AABF /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				16F3BB2330656A540061AABF /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		16F3BB3430656A550061AABF /* Debug configuration for PBXProject "InkUp" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		16F3BB3530656A550061AABF /* Release configuration for PBXProject "InkUp" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		16F3BB3730656A550061AABF /* Debug configuration for PBXNativeTarget "InkUp Extension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "InkUp Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "InkUp Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.InkUp.Extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		16F3BB3830656A550061AABF /* Release configuration for PBXNativeTarget "InkUp Extension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "InkUp Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "InkUp Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.InkUp.Extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		16F3BB3B30656A550061AABF /* Debug configuration for PBXNativeTarget "InkUp" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = InkUp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = InkUp;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_KEY_NSViewGestureRecognizerIsExclusive = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.InkUp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		16F3BB3C30656A550061AABF /* Release configuration for PBXNativeTarget "InkUp" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = InkUp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = InkUp;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_KEY_NSViewGestureRecognizerIsExclusive = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.InkUp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		16F3BB0C30656A540061AABF /* Build configuration list for PBXProject "InkUp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				16F3BB3430656A550061AABF /* Debug configuration for PBXProject "InkUp" */,
+				16F3BB3530656A550061AABF /* Release configuration for PBXProject "InkUp" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		16F3BB3630656A550061AABF /* Build configuration list for PBXNativeTarget "InkUp Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				16F3BB3730656A550061AABF /* Debug configuration for PBXNativeTarget "InkUp Extension" */,
+				16F3BB3830656A550061AABF /* Release configuration for PBXNativeTarget "InkUp Extension" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		16F3BB3A30656A550061AABF /* Build configuration list for PBXNativeTarget "InkUp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				16F3BB3B30656A550061AABF /* Debug configuration for PBXNativeTarget "InkUp" */,
+				16F3BB3C30656A550061AABF /* Release configuration for PBXNativeTarget "InkUp" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 16F3BB0930656A540061AABF /* Project object */;
+	validationLevel = 1;
+}

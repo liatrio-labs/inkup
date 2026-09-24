@@ -1,0 +1,26 @@
+{
+  "name": "@inkup/protocol",
+  "version": "0.0.1",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "description": "The host wire protocol: Zod schemas, the generated JSON Schema, and the fixture corpus both sides decode.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "schema": "node scripts/gen-schema.ts",
+    "fixtures:events": "node scripts/gen-event-fixtures.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@inkup/core": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}

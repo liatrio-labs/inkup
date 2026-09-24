@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Contrast Fixture</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    /* Four full-viewport sections (plan E8): the toolbar and the ink must stand out on each. */
+    body { background: #f8f9fa; }
+    section { height: 100vh; margin: 0; padding: 48px; box-sizing: border-box; position: relative; overflow: hidden; }
+    #light { background: #f8f9fa; color: #1a1a1a; }
+    #dark { background: #1a1b1e; color: #e9ecef; }
+    #red { background: #c92a2a; color: #fff; }
+    #hero { padding: 0; }
+    #hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #hero h2 { position: relative; margin: 48px; color: #fff; }
+  </style>
+</head>
+<body>
+  <section id="light"><h2>A light section</h2><p>Dark text on an almost white page.</p></section>
+  <section id="dark"><h2>A dark section</h2><p>Light text on an almost black page.</p></section>
+  <section id="red"><h2>A red section</h2><p>The default red ink would vanish here.</p></section>
+  <section id="hero"><img src="/hero-dark.svg" alt="A dark night sky over hills"><h2>A dark hero image</h2></section>
+</body>
+</html>

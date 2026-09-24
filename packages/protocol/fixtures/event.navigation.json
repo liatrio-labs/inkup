@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "type": "event",
+  "id": "m-20",
+  "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+  "event": {
+    "id": "e1a4c1d2-0b6f-4d52-9d64-5e3a2f1b0c08",
+    "type": "navigation",
+    "t": 7200,
+    "url": "http://localhost:4401/signup.html",
+    "title": "Sign up",
+    "overlay": "page"
+  }
+}

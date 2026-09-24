@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "type": "error",
+  "id": "h-1",
+  "re": "m-1",
+  "code": "pairing_code_required",
+  "message": "enter the 6-digit code inkup shows, then connect again"
+}

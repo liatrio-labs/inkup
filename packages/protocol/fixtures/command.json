@@ -1,0 +1,7 @@
+{
+  "v": 1,
+  "type": "command",
+  "id": "h-20",
+  "command": "set_draw_mode",
+  "draw_mode": true
+}
