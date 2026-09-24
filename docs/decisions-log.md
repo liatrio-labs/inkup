@@ -24,6 +24,10 @@ the PCM clock and were only read by the draft trigger.
   make the Session approximate. The script header says `approximate, VAD-aligned`; when only some speech was
   aligned, the rest is marked `late`, and the system prompt keeps "prefer the Annotation just before" for late
   speech only.
+- **"that" refers back.** A tighter window drops hints for pointing words that mean what the previous sentence
+  named: in a real Session a "that" began 2.9 s after the scribble it meant. Rather than widen the window, "that"
+  is marked like "it" in the demonstratives table (`refers_back`), and in the script a word like that with no mark
+  near reads `near none (refers back: #n)`, naming what the latest speech near any Annotation pointed at.
 - **Speech Boundary.** An approximate segment's boundary is the latest VAD speech start at or before its `t`, within
   2.5 s, so an Annotation begun while the sentence was said is not closed by it. The offscreen document judges
   comment-box routing and Mute by the same VAD-aligned span (`VoiceCommands.spoken`).

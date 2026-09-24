@@ -8,6 +8,7 @@ import { alignmentRows, alignmentTable, loadEvents, VAD_FIXTURES_DIR } from '../
 import {
   alignSegments,
   buildProcessPrompt,
+  buildSystemPrompt,
   isVadAligned,
   MIN_SPEECH_MS,
   PAIRING_WINDOW_MS,
@@ -251,5 +252,41 @@ describe('real Sessions (fixtures/vad-alignment: Web Speech with Silero VAD span
 
   it.each(files)('%s: before/after pairing table', (file) => {
     expect(alignmentTable(alignmentRows(loadEvents(join(VAD_FIXTURES_DIR, file))))).toMatchSnapshot();
+  });
+});
+
+describe('a "that" with no mark near refers back (fixtures/vad-alignment/session-header.json, segment 5)', () => {
+  // The fixture keeps only each Annotation's number and times: give them the rest from a captured one.
+  const doc = (): SessionDocument => {
+    const base = SessionDocumentSchema.parse(
+      JSON.parse(readFileSync(fixtureFile('a-move-here', 'approximate'), 'utf8')),
+    );
+    const template = base.events.find((e) => e.type === 'annotation')!;
+    const events = loadEvents(join(VAD_FIXTURES_DIR, 'session-header.json')).map((e) =>
+      e.type === 'annotation' ? { ...template, ...e, stroke_ids: [], screenshot_id: null } : e,
+    );
+    return { ...base, events: [base.events[0]!, ...events] };
+  };
+
+  it('the aligned "that", 2.9 s after the title scribble #3, points back to what the sentence before pointed at', () => {
+    const { script } = buildProcessPrompt(doc());
+    const line = script.split('\n').find((l) => l.includes('SPEECH') && l.includes('00:29.1–00:35.8'));
+    expect(line).toContain('"that" near none (refers back: #3, #2)');
+    // The sentence before it, still stamped on arrival, pointed at the scribble.
+    expect(script).toMatch(/SPEECH [^\n]*00:20\.8–00:29\.1 · late · demonstratives: "this" near #3, #2/);
+  });
+
+  it('the system prompt explains the hint, and the table says "that" refers back', () => {
+    const system = buildSystemPrompt();
+    expect(system).toContain('"(refers back: #n)"');
+    expect(system).toMatch(
+      /- "that": [^\n]*with no new mark near it refers back to what the previous speech pointed at/,
+    );
+  });
+
+  it('a "that" with a mark near gets no hint', () => {
+    const { script } = buildProcessPrompt(doc());
+    expect(script).toMatch(/"that" near #3, #2$/m);
+    expect(script).not.toMatch(/near #\d+(, #\d+)* \(refers back/);
   });
 });

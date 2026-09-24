@@ -8,16 +8,24 @@ export interface Demonstrative {
   /** Role this word usually gives its Location. */
   usual_role: 'subject' | 'reference' | 'destination';
   note: string;
+  /** With no mark near, it usually means what the speech before it pointed at (the script says so). */
+  refers_back?: true;
 }
 
 export const DEMONSTRATIVES: readonly Demonstrative[] = [
   { word: 'this', usual_role: 'subject', note: 'the thing being changed' },
   { word: 'these', usual_role: 'subject', note: 'several things being changed' },
-  { word: 'it', usual_role: 'subject', note: 'refers back to the last subject when no new mark is near' },
+  {
+    word: 'it',
+    usual_role: 'subject',
+    note: 'refers back to the last subject when no new mark is near',
+    refers_back: true,
+  },
   {
     word: 'that',
     usual_role: 'reference',
-    note: 'in a comparison ("same … as that", "like that") it is the reference; alone it can be a subject',
+    note: 'in a comparison ("same … as that", "like that") it is the reference; alone it can be a subject, and with no new mark near it refers back to what the previous speech pointed at',
+    refers_back: true,
   },
   { word: 'those', usual_role: 'reference', note: 'as "that", plural' },
   {
@@ -175,6 +183,10 @@ export function demonstrativesInText(text: string): SpokenDemonstrative[] {
   const words = new Set(DEMONSTRATIVES.map((d) => d.word));
   return tokens(text).flatMap((w, index) => (words.has(w) ? [{ word: w, index }] : []));
 }
+
+/** A demonstrative that, with no mark near, refers back to what the speech before it pointed at. */
+export const refersBack = (word: string | null): boolean =>
+  word !== null && DEMONSTRATIVES.some((d) => d.word === word && d.refers_back);
 
 export const isDemonstrative = (word: string) =>
   DEMONSTRATIVES.some((d) => d.word === word.toLowerCase().replace(/[^a-z']/g, ''));

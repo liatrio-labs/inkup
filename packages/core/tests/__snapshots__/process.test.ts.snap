@@ -188,7 +188,7 @@ A time-ordered script. Times are [mm:ss.s] from the start of the Session.
 - STYLE CHANGES (under an Annotation): exact changes for that element, as property: before → after (and text: before → after). An item for them is category style (copy when only the text changes); its agent_prompt states every change exactly as given. Where a new value matches one of the project's design tokens (a CSS custom property, theme or Tailwind value), use the token rather than the raw value; a value written as var(--name) names the token to use.
 - CONNECTOR: the Annotation contains an arrow. The "tail" Candidates are what it starts at (the subject), the "head" Candidates are where it points (the destination), each with its own PICK. The "whole drawing" Candidates follow.
 - DISCARDED: the reviewer took that Annotation back by saying "scratch that". Produce no item from it, nor from speech that only refers to it.
-- SPEECH: a transcript segment. "demonstratives" lists the pointing words with the Annotations inside the pairing window ("near"); nouns spoken are listed too. These are hints computed by rules: use them, but read the words.
+- SPEECH: a transcript segment. "demonstratives" lists the pointing words with the Annotations inside the pairing window ("near"); nouns spoken are listed too. "(refers back: #n)" on a word with no mark near ("that", "it") names what the speech before it pointed at: it usually means the same thing. These are hints computed by rules: use them, but read the words.
 - SCROLL, NAVIGATION, CLICK, TAB SWITCH, SCREENSHOT: what the page did.
 - VIEWPORT: the reviewer resized the page's viewport (e.g. to a phone width) or gave it back to the tab. An Annotation drawn at a resized viewport says "viewport W×H"; an item from it is about the page at that size: say so in its intent and agent_prompt (e.g. "at 375 px wide").
 - NO DRAWING: a page marked (no drawing: URL and screenshots only) belongs to Chrome or to another extension; the reviewer could not draw there and no elements were read. Items about it have Locations with "selector": null, element "page", its URL and the screenshot taken there (if any).
@@ -207,7 +207,7 @@ Demonstratives (English):
 - "this": usually subject; the thing being changed
 - "these": usually subject; several things being changed
 - "it": usually subject; refers back to the last subject when no new mark is near
-- "that": usually reference; in a comparison ("same … as that", "like that") it is the reference; alone it can be a subject
+- "that": usually reference; in a comparison ("same … as that", "like that") it is the reference; alone it can be a subject, and with no new mark near it refers back to what the previous speech pointed at
 - "those": usually reference; as "that", plural
 - "here": usually destination; after a motion verb ("should go here", "move it here") it is the destination
 - "there": usually destination; as "here"

@@ -14,9 +14,11 @@ import { isVadAligned, processEvents } from './align.ts';
 import { type ChangeItem, LOW_CONFIDENCE, screenshotCitation } from './change-item.ts';
 import { COMPARISON_CUES, DEMONSTRATIVES, MOTION_CUES, NOUNS, nounsForCandidate, nounsInText } from './locale/en.ts';
 import {
+  nearAny,
   PAIRING_WINDOW_MS,
   type PairingQuality,
   pairSegment,
+  referredBack,
   segmentQuality,
   sessionTimestampQuality,
 } from './pairing.ts';
@@ -37,6 +39,8 @@ export interface ProcessPrompt {
   script: string;
   context: ScriptContext;
 }
+
+const backLabel = (back: number[] | null) => (back ? ` (refers back: ${back.map((i) => `#${i}`).join(', ')})` : '');
 
 /** [mm:ss.s] */
 export function stamp(ms: number): string {
@@ -214,6 +218,8 @@ export function renderEvents(
 
   const textComments = events.filter((e): e is Ev<'text_comment'> => e.type === 'text_comment');
   const markLate = partlyAligned(quality, events);
+  /** What the latest speech near any Annotation pointed at, for words that refer back. */
+  let previousNear: number[] = [];
 
   const lines: string[] = [];
   const rendered = { annotations: 0, speech: 0 };
@@ -305,12 +311,14 @@ export function renderEvents(
         const words = pairs.filter((p) => p.anchor.word !== null);
         if (words.length) {
           parts.push(
-            `demonstratives: ${words.map((p) => `"${p.anchor.word}"${own === 'word' ? `@${stamp(p.anchor.t)}` : ''} near ${p.annotations.length ? p.annotations.map((i) => `#${i}`).join(', ') : 'none'}`).join('; ')}`,
+            `demonstratives: ${words.map((p) => `"${p.anchor.word}"${own === 'word' ? `@${stamp(p.anchor.t)}` : ''} near ${p.annotations.length ? p.annotations.map((i) => `#${i}`).join(', ') : 'none'}${backLabel(referredBack(p, previousNear))}`).join('; ')}`,
           );
         } else {
           const near = pairs[0]?.annotations ?? [];
           parts.push(`near ${near.length ? near.map((i) => `#${i}`).join(', ') : 'none'}`);
         }
+        const pointed = nearAny(pairs);
+        if (pointed.length) previousNear = pointed;
         const nouns = nounsInText(text);
         if (nouns.length) parts.push(`nouns: ${nouns.join(', ')}`);
         const during = textComments.filter((c) => e.t <= c.t_end && e.t_end >= c.t);
@@ -432,7 +440,7 @@ A time-ordered script. Times are [mm:ss.s] from the start of the Session.
 - STYLE CHANGES (under an Annotation): exact changes for that element, as property: before → after (and text: before → after). An item for them is category style (copy when only the text changes); its agent_prompt states every change exactly as given. ${TOKEN_RULE}
 - CONNECTOR: the Annotation contains an arrow. The "tail" Candidates are what it starts at (the subject), the "head" Candidates are where it points (the destination), each with its own PICK. The "whole drawing" Candidates follow.
 - DISCARDED: the reviewer took that Annotation back by saying "scratch that". Produce no item from it, nor from speech that only refers to it.
-- SPEECH: a transcript segment. "demonstratives" lists the pointing words with the Annotations inside the pairing window ("near"); nouns spoken are listed too. These are hints computed by rules: use them, but read the words.
+- SPEECH: a transcript segment. "demonstratives" lists the pointing words with the Annotations inside the pairing window ("near"); nouns spoken are listed too. "(refers back: #n)" on a word with no mark near ("that", "it") names what the speech before it pointed at: it usually means the same thing. These are hints computed by rules: use them, but read the words.
 - SCROLL, NAVIGATION, CLICK, TAB SWITCH, SCREENSHOT: what the page did.
 - VIEWPORT: the reviewer resized the page's viewport (e.g. to a phone width) or gave it back to the tab. An Annotation drawn at a resized viewport says "viewport W×H"; an item from it is about the page at that size: say so in its intent and agent_prompt (e.g. "at 375 px wide").
 - NO DRAWING: a page marked ${NO_DRAWING} belongs to Chrome or to another extension; the reviewer could not draw there and no elements were read. Items about it have Locations with "selector": null, element "page", its URL and the screenshot taken there (if any).

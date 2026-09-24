@@ -4,7 +4,7 @@
 // model makes the final call.
 import type { EventOf, TimestampQuality } from '../timeline.ts';
 import { isVadAligned, type VadAlignment } from './align.ts';
-import { demonstrativesInText, isDemonstrative } from './locale/en.ts';
+import { demonstrativesInText, isDemonstrative, refersBack } from './locale/en.ts';
 
 /** How precise speech times are when pairing: the recorded quality, or `vad` for a VAD-aligned segment. */
 export type PairingQuality = TimestampQuality | 'vad';
@@ -78,4 +78,16 @@ export function pairSegment(
       .sort((x, y) => x.gap - y.gap || x.index - y.index)
       .map((x) => x.index),
   }));
+}
+
+/** Every Annotation a segment's anchors are near, nearest first, each once. */
+export const nearAny = (pairs: readonly AnchorPairing[]): number[] => [...new Set(pairs.flatMap((p) => p.annotations))];
+
+/**
+ * The Annotations a pointing word with no mark near refers back to ("that", "it"): what the latest speech before it
+ * that was near any Annotation pointed at. Null when the word does not refer back, has a mark near, or nothing came
+ * before.
+ */
+export function referredBack(pair: AnchorPairing, previous: readonly number[]): number[] | null {
+  return refersBack(pair.anchor.word) && pair.annotations.length === 0 && previous.length > 0 ? [...previous] : null;
 }
