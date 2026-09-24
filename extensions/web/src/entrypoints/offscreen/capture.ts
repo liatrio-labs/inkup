@@ -141,9 +141,6 @@ async function startMic(r: Running, transcription: AdapterConfig): Promise<Trans
     adapterPaused: false,
   };
 
-  recorder.onstart = () => {
-    m.startedAt = Date.now();
-  };
   recorder.ondataavailable = (e) => {
     if (e.data.size === 0) return;
     const seq = m.chunkSeq++;
@@ -160,6 +157,9 @@ async function startMic(r: Running, transcription: AdapterConfig): Promise<Trans
       }),
     );
   };
+  // The file's time 0 is when start() is called, as for the tab video (media/tab-video.ts), not when the start event
+  // fires: on a loaded machine that comes seconds later, and the audio then plays early against the timeline.
+  m.startedAt = Date.now();
   recorder.start(config.chunk_ms);
   // A Session paused before its voice came on records nothing until it resumes.
   if (r.paused) recorder.pause();
