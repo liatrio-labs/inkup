@@ -339,7 +339,8 @@ both recorded (`MediaRecorder`, WebM/Opus) and transcribed live. Three configura
   `tabs`. Rationale in Decision Log D3.
 - [ ] Transcription: tier selector with engine, key field, and Test button per tier; Free tier shows Web Speech vs local
   Whisper and the Whisper model picker with download status.
-- [ ] Processing: Anthropic key, Process model ID, Draft model ID, Test button.
+- [ ] Processing: an Anthropic key and a Vercel AI Gateway key, each with its Test button; per model role (Process,
+  Draft, Merge) a provider, a model from that provider's list (a model ID field when there is no list) and an effort.
 - [ ] Capture: fade duration, video quality preset, keyboard shortcuts.
 - [ ] Keys stored with `chrome.storage.local` (never `sync`), never logged, never exported.
 - [ ] Session list: grouped by starting origin, showing date, length, item count, size; per-Session delete; total
