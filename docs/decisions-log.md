@@ -2,6 +2,37 @@
 
 Calls made during implementation that the PRD, PLAN and ADRs leave open. Newest slice first.
 
+## #37: late Web Speech segments are aligned to the VAD before pairing (2026-09-24)
+
+Process paired speech with the wrong Annotation. Strokes are stamped at the pointer event, but Web Speech, the
+default transcription, stamps a segment's `t` when its first interim result arrives and `t_end` when its final
+does: both late by the recognizer's latency, 0.3–2 s and variable. The Silero VAD's `speech_activity` spans are on
+the PCM clock and were only read by the draft trigger.
+
+- **Aligned at processing time, never logged.** `alignSegments` (`packages/core/src/process/align.ts`) moves each
+  approximate segment onto the VAD speech that explains it; `processEvents` (the active, edited transcript, then
+  aligned) is what Process, its windows and chunks, Process without a model and the Draft Item pass all read. The
+  log keeps the arrival times, and an aligned segment carries them in memory as `vad`. No schema change: the
+  timeline records what the recognizer reported, and a better aligner later re-reads the same log.
+- **The rule.** The start is the latest VAD span that began by `t`, joined back across pauses of up to 1 s, and
+  no earlier than 2.5 s before `t` (`SPEECH_LEAD_MS`): on the two real Sessions measured, the first interim came
+  0.3–1.3 s after speech began, rarely 2 s. The end is the last span ending by `t_end` (a final arrives after its
+  speech), or `t_end` when the final came mid-span. Segments are taken in log order and each starts where the
+  previous one ended, so the recognizer splitting one VAD span into two finals gives two segments that share it
+  in order. A segment nothing explains keeps its times, and the ones after it start after it.
+- **Pairing window.** VAD-aligned segments pair within 2.5 s (word-level 2 s, stamped-on-arrival 4 s) and no longer
+  make the Session approximate. The script header says `approximate, VAD-aligned`; when only some speech was
+  aligned, the rest is marked `late`, and the system prompt keeps "prefer the Annotation just before" for late
+  speech only.
+- **Speech Boundary.** An approximate segment's boundary is the latest VAD speech start at or before its `t`, within
+  2.5 s, so an Annotation begun while the sentence was said is not closed by it. The offscreen document judges
+  comment-box routing and Mute by the same VAD-aligned span (`VoiceCommands.spoken`).
+- **Audio start.** The mic recorder's start is taken when `start()` is called, as the tab video already did; the
+  `start` event can fire seconds late on a loaded machine.
+- **Evidence.** `node scripts/vad-alignment-report.ts` prints, per segment of the trimmed real Sessions in
+  `fixtures/vad-alignment`, the stamped and aligned times and the Annotations each pairs with before and after
+  (snapshot-tested). 41 of 48 segments align; starts move 0.1–2.4 s earlier (median about 0.8 s).
+
 ## #35: one contract between the extension and the host (2026-09-24)
 
 The extension and the Host are about to release on their own tags, so an installed pair will be out of step. ADR 0007
