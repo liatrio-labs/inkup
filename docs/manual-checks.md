@@ -245,7 +245,7 @@ check it on real sites, with a real sign-in, in installed Chrome.
 | 1 | Click "Sessions" at the foot of the side panel. The options page has a "Stored Sessions" link too. | A Sessions tab opens. Sessions are grouped under the origin each one started on, `http://localhost:4401` and `http://127.0.0.1:4402`, with the most recent group first. |
 | 2 | Read a row. | It shows the start page's title, date and time, length in mm:ss, the Change Item count or "not processed", and the size of its recordings and screenshots. The header shows the total and the extension's share of the quota. |
 | 3 | Start a Session, then look at its row on the Sessions page. | Its length reads "recording" and its Delete button is disabled. Stop it. |
-| 4 | Click "Open review" on a row. | Its review page opens in a new tab. |
+| 4 | Click "Open review" on a row. Go back to the Sessions tab and click it again, then Cmd- or Ctrl-click it. | The first click opens its review page in a new tab. The second brings that same tab to the front, with no second copy. The modified click opens a second copy on purpose. |
 | 5 | Click Delete on a Session you no longer need, then Cancel. Click Delete again, then confirm. | Cancel keeps it. Confirm removes the row, and the totals drop by its size. Its review page now says there is no Session with that id. |
 | 6 | Fill the disk until the quota ratio passes 80%, or skip this step: `tests/e2e/sessions.spec.ts` covers it with a stubbed estimate. | The Sessions page and the panel both show "Storage is N% full" with a link to delete old Sessions. |
 
@@ -302,9 +302,9 @@ panel opened as a tab. This run checks the docked side panel, real file pickers 
 | 1 | Start a Session. At about 00:10 click Pause and wait 20 seconds. | The timer holds its value the whole time, and the status reads Paused. |
 | 2 | Click Resume. With the pack installed, also say "pause", wait, and say "resume". | The timer continues from where it stopped, with no jump by the paused time, both for the button and for voice. Stop. |
 | 3 | Look at the idle side panel. | "Previous Sessions" lists your Sessions, newest first, each with its title, origin, date and time, length and Change Item count. |
-| 4 | Click "Open review" on a row, then Delete on another row, then confirm. | The review opens in a new tab. Delete asks first, then the row disappears here and on the Sessions page. |
+| 4 | Click "Open review" on a row, then Delete on another row, then confirm. | The review opens in a new tab, or comes to the front if it is open already. Delete asks first, then the row disappears here and on the Sessions page. |
 | 5 | In a second Chrome profile with the extension loaded and no Sessions, click "Restore from file" in the side panel and pick the zip C7 exported. | "Restored …" appears, with an Open review link. The review page shows the same Change Items, Annotation screenshots, transcript edits and the video, and the video seeks. |
-| 6 | Restore the same zip again. | A dialog says the Session is already stored. Open existing opens its review. Doing it again and choosing Replace restores the file's copy and drops edits made since. |
+| 6 | Restore the same zip again. | A dialog says the Session is already stored. Open existing opens its review, or brings its open review tab to the front. Doing it again and choosing Replace restores the file's copy and drops edits made since. |
 | 7 | Unzip the export and restore its `session.json` alone from the Sessions page. | "Restored … without screenshots or media". The review shows the items and transcript, and no screenshots or player. |
 | 8 | Restore a text file renamed to `.zip`, and a `session.json` whose `schema_version` you set to 99. | Each shows a red message that says why, and no Session is added. The options page still holds your keys. |
 
