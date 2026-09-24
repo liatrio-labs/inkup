@@ -30,7 +30,8 @@ Tick each line when its section passes. Each line names what it needs beyond the
 17. [ ] **C14** A long Session: the 45 and 60 minute warnings and windowed Process. Needs the C3 key and an hour.
 18. [ ] **C9** Paid tiers. Needs a Deepgram and an ElevenLabs key.
 19. [ ] **C10** Local Whisper, including large-v3 turbo on WebGPU. Needs WebGPU and a model download.
-20. [ ] **C19** The floating toolbar: the icon, drag, Start with tab video, the shortcut, the panel button. Needs nothing.
+20. [ ] **C19** The floating toolbar: the icon, drag, Start with tab video, the picker window, the shortcut, the panel
+    button. Needs nothing.
 21. [ ] **C20** Viewport sizes through the frame host: presets, drag, Reset, a signed-in site, a site that refuses
     framing. Needs a site you are signed in to.
 22. [ ] **C21** Object Select and Select Text with real speech and the real shortcuts. Needs the pack.
@@ -182,11 +183,14 @@ panel first.
 | 7 | Click Stop on the toolbar. | The review tab opens. Its screenshots show your ink and never the toolbar. The video plays both pages, including after the navigation. |
 | 8 | Collapse the toolbar with –, then click the pill. | A small pill with the timer, then the full toolbar again, in the same place. |
 | 9 | On the Pricing tab, press Alt+Shift+R. | A Session starts on that tab with video, without clicking the icon first. Press Alt+Shift+R again: it stops and the review opens. |
-| 10 | Reload the Pricing tab (no icon click since), then Start on the toolbar. | The Session starts and the toolbar says "No video": Chrome allows tab capture only after the icon or a shortcut on the page. Stop. |
-| 11 | Press Alt+Shift+P. | The side panel opens. |
-| 12 | Open `chrome://settings` and click the extension's icon. | The side panel opens there instead (no toolbar can run on Chrome's own pages). |
-| 13 | Pair a host (Settings → Host), then show the toolbar. | A green dot sits next to Panel ("Host connected"). Quit the host: it turns grey ("Host offline, will sync"). Unpaired, there is no dot. |
-| 14 | Stop, then click Start once and, the moment the timer appears, press Alt+Shift+O. (F1) | One click starts it: at most a brief "Starting…", then the timer. Object Select comes on at once; the page's elements outline on hover. |
+| 10 | Reload the Pricing tab (no icon click since), then Start on the toolbar. | The Session starts at once. Chrome allows tab capture only after the icon or a shortcut on the page, so a small "InkUp: choose what to record" window opens at the top right of the browser window, naming the page and its address. |
+| 11 | Click "Choose what to record" and pick the Pricing tab in Chrome's picker. | The window says "Recording video — keep this window open" and the browser window comes back to the front. The toolbar shows no "No video" label. |
+| 12 | Stop from the toolbar. | The picker window closes. The review tab plays the video from the moment of the pick. |
+| 13 | Reload, Start on the toolbar, and click "Record without video" in the window. | The window closes and the toolbar says "No video". Start again and Stop before choosing: the window closes with the Session. |
+| 14 | Press Alt+Shift+P. | The side panel opens. |
+| 15 | Open `chrome://settings` and click the extension's icon. | The side panel opens there instead (no toolbar can run on Chrome's own pages). |
+| 16 | Pair a host (Settings → Host), then show the toolbar. | A green dot sits next to Panel ("Host connected"). Quit the host: it turns grey ("Host offline, will sync"). Unpaired, there is no dot. |
+| 17 | Stop, then click Start once and, the moment the timer appears, press Alt+Shift+O. (F1) | One click starts it: at most a brief "Starting…", then the timer. Object Select comes on at once; the page's elements outline on hover. |
 
 ## C21: Object Select and Select Text (E7)
 
