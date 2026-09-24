@@ -41,6 +41,7 @@ import {
   sweepInterruptedRuns,
   testProvider,
 } from '@/background/process';
+import { openReview } from '@/background/review-tab';
 import { sampleBackground } from '@/background/screenshots';
 import {
   clearModes,
@@ -131,6 +132,7 @@ export default defineBackground(() => {
   });
   onMessage('videoStatus', ({ data }) => onVideoStatus(data));
   onMessage('stopSession', () => stopSession('stop'));
+  onMessage('openReview', ({ data, sender }) => openReview(data, sender.tab?.windowId));
   onMessage('cancelSession', () => cancelSession());
   onMessage('undoDiscard', ({ data }) => undoDiscard(data));
   onMessage('setMuted', ({ data }) => setMuted(data.on, data.via));

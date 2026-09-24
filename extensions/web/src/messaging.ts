@@ -228,6 +228,8 @@ export interface ProtocolMap {
   /** Side panel → service worker: its video recorder started, or sharing ended. */
   videoStatus(input: VideoStatusInput): void;
   stopSession(): { ok: boolean; session_id: string | null };
+  /** "Open review" (a plain click): focus the tab already showing this Session's review, else open one. */
+  openReview(sessionId: string): { tab_id: number | null; reused: boolean };
   /** Cancel (E10): stop at once and discard the Session unless undone within the window. */
   cancelSession(): { ok: boolean; session_id: string | null };
   /** Keep a cancelled Session after all, as if it had been stopped. */
