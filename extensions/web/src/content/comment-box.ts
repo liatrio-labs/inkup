@@ -10,6 +10,7 @@
 import type { DictationTarget } from '@inkup/core/timeline';
 import type { DictationText } from '@/messaging';
 import type { BoxDictation } from '@/settings';
+import { nextPaint } from './paint';
 import { themeFor } from './theme';
 
 export interface CommentBoxOptions {
@@ -226,16 +227,9 @@ export class CommentBox {
   /** Off screen for a screenshot (resolves once a frame without it has been painted), or back. */
   async hideForCapture(hidden: boolean): Promise<void> {
     this.box.style.visibility = hidden ? 'hidden' : '';
-    if (!hidden || this.box.hidden) return;
-    await new Promise<void>((resolve) => {
-      const done = setTimeout(resolve, 150);
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          clearTimeout(done);
-          resolve();
-        }),
-      );
-    });
+    // Even a box that is already closed waits: it may have closed a moment ago (a save), and the last painted frame,
+    // the one the screenshot grabs, can still show it.
+    if (hidden) await nextPaint();
   }
 
   destroy(): void {

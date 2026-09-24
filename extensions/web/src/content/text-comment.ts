@@ -18,6 +18,7 @@ import { computeAccessibleName, getRole } from 'dom-accessibility-api';
 import type { ContentSessionState, TextCommentInput } from '@/messaging';
 import { CommentBox } from './comment-box';
 import { pageContext } from './overlay';
+import { nextPaint } from './paint';
 import { CLASS_BLACKLIST, selectorFor } from './selector';
 
 export interface TextCommentCallbacks {
@@ -173,6 +174,8 @@ export class TextCommentUi {
       const sel = document.getSelection();
       sel?.removeAllRanges();
       sel?.addRange(picked.range);
+      // Shot from the last painted frame: wait for one with the selection back and the box gone.
+      await nextPaint();
       // Neither may hold the selection on the page for good (E9).
       await withTimeout(this.cb.closeAnnotation(t_end), CLOSE_TIMEOUT_MS, undefined);
       await withTimeout(

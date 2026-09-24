@@ -32,6 +32,7 @@ import { maxOverlayMs } from './lifetime';
 import { ObjectSelect } from './object-select';
 import { DrawingOverlay, type OverlayCallbacks, pageContext } from './overlay';
 import { connectPageApi } from './page-api';
+import { nextPaint } from './paint';
 import { snapshotElementSourced } from './snapshot';
 import { TextCommentUi } from './text-comment';
 import { nextSetting, ToolbarThemer } from './theme';
@@ -391,6 +392,8 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
   onMessage('toolbarCapture', async ({ data }) => {
     await applying;
     await Promise.all([
+      // A frame is painted before the shot even when none of these is on the page.
+      data ? nextPaint() : undefined,
       toolbar?.hideForCapture(data),
       comments?.hideForCapture(data),
       objects?.hideForCapture(data),
