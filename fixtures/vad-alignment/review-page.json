@@ -1,0 +1,706 @@
+{
+ "session_id": "c351e3c1-b8f1-4a69-8b77-b9db6b6b2b91",
+ "events": [
+  {
+   "id": "16209630-31d2-4912-8d9c-460a9e690821",
+   "type": "speech_activity",
+   "t": 3189,
+   "t_end": 3669
+  },
+  {
+   "id": "ea0136f4-3d7d-4d16-a65c-f810ed3d4402",
+   "type": "speech_activity",
+   "t": 3829,
+   "t_end": 4341
+  },
+  {
+   "id": "fac63110-df0e-47d1-8da0-4586530b11bc",
+   "type": "transcript_segment",
+   "t": 3598,
+   "t_end": 4747,
+   "segment_id": "8cdfe79e-a863-4f00-8720-5141664e4c85",
+   "text": "word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "33e9f67e-c302-4890-afce-b9f9e47f574f",
+   "type": "speech_activity",
+   "t": 4565,
+   "t_end": 5333
+  },
+  {
+   "id": "b33aa25c-a10f-460c-bc19-0a725e50a37f",
+   "type": "speech_activity",
+   "t": 5557,
+   "t_end": 6197
+  },
+  {
+   "id": "fccac588-0b37-41cb-9539-653d282e3099",
+   "type": "transcript_segment",
+   "t": 4979,
+   "t_end": 6809,
+   "segment_id": "2e4ac9a4-534f-4a18-ad34-28dbe689aaf4",
+   "text": "word word word here word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "b52439ae-fa38-443d-92bb-9c052415d24a",
+   "type": "speech_activity",
+   "t": 6421,
+   "t_end": 9205
+  },
+  {
+   "id": "d12b615d-2fe3-4c72-8ac6-930ae1d2ed8e",
+   "type": "transcript_segment",
+   "t": 7742,
+   "t_end": 9909,
+   "segment_id": "41b4f0eb-90fe-4ce6-a845-48306d0afdf4",
+   "text": "word word word here word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "06bdf884-c869-4399-93b3-42bed569ecb0",
+   "type": "speech_activity",
+   "t": 9941,
+   "t_end": 10965
+  },
+  {
+   "id": "f0112729-f96a-4416-bcb6-6de7f2889e94",
+   "type": "transcript_segment",
+   "t": 10504,
+   "t_end": 11608,
+   "segment_id": "6f548b20-3655-4162-a5d2-520ff5c0e8f0",
+   "text": "word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "31fae200-284b-4445-921e-8d84691674e4",
+   "type": "speech_activity",
+   "t": 11605,
+   "t_end": 12597
+  },
+  {
+   "id": "fba46185-8134-418c-b829-369ec7672cb3",
+   "type": "speech_activity",
+   "t": 12789,
+   "t_end": 15157
+  },
+  {
+   "id": "b09fcc66-1441-43e0-9c69-03b34c09c2e9",
+   "type": "transcript_segment",
+   "t": 12486,
+   "t_end": 15750,
+   "segment_id": "f1733da1-65a6-421e-b4a6-c1e771936bb8",
+   "text": "word that word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "c9ef94d8-26c5-4f2f-b46f-79b6ab94630a",
+   "type": "speech_activity",
+   "t": 15733,
+   "t_end": 19445
+  },
+  {
+   "id": "411ad415-052d-4452-89ea-ccbff36576e5",
+   "type": "speech_activity",
+   "t": 19957,
+   "t_end": 20405
+  },
+  {
+   "id": "662b7533-b061-438a-8ab5-4a11fb7aabb9",
+   "type": "speech_activity",
+   "t": 21141,
+   "t_end": 24053
+  },
+  {
+   "id": "8d16a2cd-df72-48c2-9696-261e185cf934",
+   "type": "speech_activity",
+   "t": 24501,
+   "t_end": 28629
+  },
+  {
+   "id": "e0a057a7-1b9f-497a-8be4-414be37db166",
+   "type": "transcript_segment",
+   "t": 16548,
+   "t_end": 29363,
+   "segment_id": "5101d135-fee6-4aa8-b0d3-99b617ee67bd",
+   "text": "word word word word word there word word word word word word word word word word word word word word word word it word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "53bfdbef-b80b-4f19-a5d8-8e3d8c3442b1",
+   "type": "speech_activity",
+   "t": 29141,
+   "t_end": 35829
+  },
+  {
+   "id": "65f6714d-7e30-4880-87a4-7cf7651cf1a0",
+   "type": "transcript_segment",
+   "t": 29753,
+   "t_end": 36694,
+   "segment_id": "96014e78-ae01-46b6-b624-924086d583b8",
+   "text": "word word word there word word word word word word word word word word that word word word word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "3fc8a88e-e4c2-4068-93eb-80eee1e7606c",
+   "type": "speech_activity",
+   "t": 36309,
+   "t_end": 36469
+  },
+  {
+   "id": "125f8a10-ed21-4996-8c6d-ab96c89c577f",
+   "type": "speech_activity",
+   "t": 36725,
+   "t_end": 41749
+  },
+  {
+   "id": "475c2bd3-b26f-4dc2-8a33-3f62ba85875b",
+   "type": "speech_activity",
+   "t": 42037,
+   "t_end": 42997
+  },
+  {
+   "id": "ddb4fa5f-d524-43c8-b50e-c1b31cd947ed",
+   "type": "transcript_segment",
+   "t": 37327,
+   "t_end": 43772,
+   "segment_id": "d2a66787-2343-47bf-b4d0-36e47441747c",
+   "text": "word word word word word word word word word word word word word word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "4c86616a-b615-458c-aae2-91d77c4e331f",
+   "type": "speech_activity",
+   "t": 44757,
+   "t_end": 47541
+  },
+  {
+   "id": "a2b0ad8d-f22e-4eb5-9bbc-f1dc6093d65c",
+   "type": "transcript_segment",
+   "t": 45068,
+   "t_end": 48254,
+   "segment_id": "a6eacf3c-726e-402a-b6a0-f67d6969b296",
+   "text": "word word word word word word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "f9e6ba9e-7884-42e2-8151-28d6e472de28",
+   "type": "speech_activity",
+   "t": 48053,
+   "t_end": 48565
+  },
+  {
+   "id": "a3ab7e29-5c49-4133-93d0-7326ceb35c71",
+   "type": "speech_activity",
+   "t": 48757,
+   "t_end": 50453
+  },
+  {
+   "id": "73ca201d-83cd-460f-a5c7-10ffab3c3c4e",
+   "type": "transcript_segment",
+   "t": 49029,
+   "t_end": 51192,
+   "segment_id": "4d866a7b-579b-4ad0-92b0-0c6e72f2ae13",
+   "text": "word word that word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "a789cea6-6aa4-4d2f-b2cf-ef60a927d07c",
+   "type": "annotation",
+   "t": 51305,
+   "t_end": 51952,
+   "index": 1,
+   "annotation_id": "1da09971-3125-41b6-9fd8-72bfb9cbbfad"
+  },
+  {
+   "id": "772d8779-7b2b-4495-b181-5b9ac86125fe",
+   "type": "speech_activity",
+   "t": 51125,
+   "t_end": 55733
+  },
+  {
+   "id": "c8b20a99-d569-4b70-a30f-6eb948b9dad4",
+   "type": "transcript_segment",
+   "t": 51789,
+   "t_end": 56432,
+   "segment_id": "ef1a1209-8cba-4477-95af-21b6bc9085d1",
+   "text": "word word word word there word word word word word word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "a2399308-3acd-499e-ad11-2c5f43065e63",
+   "type": "annotation",
+   "t": 53513,
+   "t_end": 56870,
+   "index": 2,
+   "annotation_id": "d8538570-d914-48d2-8bfd-478d9154cb00"
+  },
+  {
+   "id": "21226e6b-bda0-4238-92b8-9a471c76807a",
+   "type": "speech_activity",
+   "t": 56437,
+   "t_end": 59317
+  },
+  {
+   "id": "4c9fd1be-a17c-496f-861f-4f1a291b45c0",
+   "type": "transcript_segment",
+   "t": 57129,
+   "t_end": 59972,
+   "segment_id": "f45bc9da-cf5c-4ac0-a434-5ca69ec84aba",
+   "text": "word that word word word word word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "9a527f3c-a88c-4575-8528-dcf1a92c9cb6",
+   "type": "speech_activity",
+   "t": 59893,
+   "t_end": 60565
+  },
+  {
+   "id": "d80cbf60-845a-4473-87f1-65414dc0eacf",
+   "type": "speech_activity",
+   "t": 60949,
+   "t_end": 62037
+  },
+  {
+   "id": "b6fa8bf7-ce57-45b7-8dde-264b56f9bf6a",
+   "type": "transcript_segment",
+   "t": 60549,
+   "t_end": 62773,
+   "segment_id": "173838dc-24e0-46ea-b6bc-35f0a58405e7",
+   "text": "word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "622ee637-fe11-432b-a1c1-4feec4434bb3",
+   "type": "speech_activity",
+   "t": 62805,
+   "t_end": 63413
+  },
+  {
+   "id": "4e6fb234-25d3-43f3-b6ae-ec058a4fe4b1",
+   "type": "transcript_segment",
+   "t": 63550,
+   "t_end": 63974,
+   "segment_id": "3c6f794a-a5e1-4d84-b324-4ecfcffa55df",
+   "text": "word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "7ab65310-0ebf-41fd-93fd-f6dda16d91c2",
+   "type": "speech_activity",
+   "t": 64949,
+   "t_end": 66709
+  },
+  {
+   "id": "2ea5f16f-125b-4aa2-ae8b-a563347a83e7",
+   "type": "speech_activity",
+   "t": 66965,
+   "t_end": 69429
+  },
+  {
+   "id": "a949a843-73b3-47c6-be41-6c2ebe531764",
+   "type": "transcript_segment",
+   "t": 65670,
+   "t_end": 70134,
+   "segment_id": "966bf551-ff75-4608-b723-c0419455d247",
+   "text": "word word word word word word here",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "e675da61-0135-4015-9ae1-145eafd62915",
+   "type": "speech_activity",
+   "t": 70261,
+   "t_end": 72885
+  },
+  {
+   "id": "ab03131f-5976-41a9-b607-46aecdf800df",
+   "type": "annotation",
+   "t": 68598,
+   "t_end": 71936,
+   "index": 3,
+   "annotation_id": "af817652-4686-43ed-add2-886cfafee13f"
+  },
+  {
+   "id": "d34bb7ed-cfe8-4b6b-8e1a-26cc638cb65a",
+   "type": "transcript_segment",
+   "t": 70711,
+   "t_end": 73553,
+   "segment_id": "c18d4e84-2694-40be-b7a4-b6bd6de85743",
+   "text": "word word word word word here",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "808543ad-e37e-46d6-8f45-9d6ccc67b011",
+   "type": "speech_activity",
+   "t": 73717,
+   "t_end": 81653
+  },
+  {
+   "id": "57abfea2-a376-4564-8b33-a518b0212bd1",
+   "type": "annotation",
+   "t": 77871,
+   "t_end": 81754,
+   "index": 4,
+   "annotation_id": "04035b95-b395-4ee5-a01b-df544af76501"
+  },
+  {
+   "id": "e756f5d1-5f78-4e8d-b166-a58e203db759",
+   "type": "transcript_segment",
+   "t": 74490,
+   "t_end": 83716,
+   "segment_id": "48dcee01-b5bd-44f7-8a37-aaf3859a2124",
+   "text": "word word word word word word word word word word word this word word word word word word these word word word word word here",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "c03aec7d-99e5-4a3d-b75a-4a1c4c533198",
+   "type": "annotation",
+   "t": 83853,
+   "t_end": 85387,
+   "index": 5,
+   "annotation_id": "4158800b-052d-4e55-a395-356726b9651d"
+  },
+  {
+   "id": "244c4d06-3867-45e7-aadb-48749153f65c",
+   "type": "speech_activity",
+   "t": 82229,
+   "t_end": 89717
+  },
+  {
+   "id": "50f2ec7f-6157-446e-ba0a-1fe9aced662e",
+   "type": "speech_activity",
+   "t": 90101,
+   "t_end": 91125
+  },
+  {
+   "id": "6c7587fe-1016-4cf4-8d72-439fb0815afd",
+   "type": "transcript_segment",
+   "t": 84390,
+   "t_end": 92042,
+   "segment_id": "8e003e39-9f8a-4b0f-a7a8-57d5728e461f",
+   "text": "these word word word word word word word word word word word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "87d33e42-78c0-4c32-b5c1-da7651be6ec3",
+   "type": "annotation",
+   "t": 89071,
+   "t_end": 92020,
+   "index": 6,
+   "annotation_id": "8881b7e8-8bb9-4057-9600-26b458264229"
+  },
+  {
+   "id": "121541a4-bfdf-4967-95e9-3055a00aff44",
+   "type": "transcript_segment",
+   "t": 92943,
+   "t_end": 95507,
+   "segment_id": "ac457089-be6f-4fde-ab35-fb1411932d03",
+   "text": "word word word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "98b5e4f1-5cc5-4919-b4fc-5749d4582fa3",
+   "type": "transcript_segment",
+   "t": 96183,
+   "t_end": 96949,
+   "segment_id": "da14b0b8-6312-4621-a7d1-550a210b2273",
+   "text": "word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "78a4513d-8888-49ea-a1d6-102bce3cb0b0",
+   "type": "speech_activity",
+   "t": 97173,
+   "t_end": 97365
+  },
+  {
+   "id": "d5544fed-4103-41c8-9f7a-37ae042c54eb",
+   "type": "speech_activity",
+   "t": 99413,
+   "t_end": 101141
+  },
+  {
+   "id": "3dfbef85-9c81-4e56-ae44-8bc405c1ac31",
+   "type": "transcript_segment",
+   "t": 97263,
+   "t_end": 101807,
+   "segment_id": "f8ee6346-8175-4dee-a66b-e89a30e6dcdc",
+   "text": "word word word word word word that word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "3066dee1-bc15-46a2-b147-07d1000854d8",
+   "type": "annotation",
+   "t": 100156,
+   "t_end": 105439,
+   "index": 7,
+   "annotation_id": "a86c78b4-e6f1-4d5e-af5b-a26e4820d848"
+  },
+  {
+   "id": "df3d4657-9ac2-4acb-8085-0d62bf91addf",
+   "type": "speech_activity",
+   "t": 101781,
+   "t_end": 106773
+  },
+  {
+   "id": "ace90821-608a-4a19-8edc-fd7c21053696",
+   "type": "transcript_segment",
+   "t": 102483,
+   "t_end": 107479,
+   "segment_id": "23550617-ba3b-4cc1-9d79-899f6da200fa",
+   "text": "word word word word word word word word word word word word that word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "19dc22a0-016a-49ab-a6d7-edb74a677bda",
+   "type": "speech_activity",
+   "t": 108085,
+   "t_end": 108341
+  },
+  {
+   "id": "9cda9507-32ee-495e-9146-6075fd83815e",
+   "type": "transcript_segment",
+   "t": 108844,
+   "t_end": 109412,
+   "segment_id": "1d0aef9c-e59b-41eb-91bc-dd18ea65ba60",
+   "text": "word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "8c7c873d-dd96-4c1c-b3ec-32357f83605a",
+   "type": "speech_activity",
+   "t": 110101,
+   "t_end": 110933
+  },
+  {
+   "id": "3af47614-26ea-47a3-9d5f-752f022b21b8",
+   "type": "transcript_segment",
+   "t": 110824,
+   "t_end": 111687,
+   "segment_id": "41498a32-69e1-4680-8809-5cb6e31b29d6",
+   "text": "word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "7b137e51-623e-4c92-9b99-56621e497f22",
+   "type": "speech_activity",
+   "t": 112373,
+   "t_end": 115253
+  },
+  {
+   "id": "9ea466a7-9734-4310-9e93-0b24c7d37936",
+   "type": "transcript_segment",
+   "t": 112984,
+   "t_end": 115827,
+   "segment_id": "a49b45e0-1dab-4bc8-842c-052660890ee0",
+   "text": "word word word word word word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "51b3ad51-80e3-4a97-ac8c-0814ec9a8260",
+   "type": "speech_activity",
+   "t": 115573,
+   "t_end": 115989
+  },
+  {
+   "id": "38e764bb-8bb0-42c0-942f-d9744e8b8c1e",
+   "type": "speech_activity",
+   "t": 117621,
+   "t_end": 118389
+  },
+  {
+   "id": "cb60d071-2fb5-4e15-918e-73ea21d883ee",
+   "type": "transcript_segment",
+   "t": 118911,
+   "t_end": 120694,
+   "segment_id": "865ddada-2119-4b46-b20d-df36a1f4480a",
+   "text": "word word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  },
+  {
+   "id": "c50cf156-fd3b-4e0f-9a00-7e430bcf37f8",
+   "type": "speech_activity",
+   "t": 119253,
+   "t_end": 120533
+  },
+  {
+   "id": "b674fb98-4377-49ca-aa89-9c6b842aa92b",
+   "type": "speech_activity",
+   "t": 120693,
+   "t_end": 121429
+  },
+  {
+   "id": "232ef602-9248-4c31-9193-56defa27d376",
+   "type": "transcript_segment",
+   "t": 121251,
+   "t_end": 121973,
+   "segment_id": "2ba4f295-7746-4a55-9a44-69a15149985e",
+   "text": "word",
+   "engine": "webspeech",
+   "local": true,
+   "timestamp_quality": "approximate",
+   "words": null,
+   "confidence": 1,
+   "run_id": null,
+   "target": null
+  }
+ ]
+}

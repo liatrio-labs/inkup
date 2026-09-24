@@ -1,15 +1,19 @@
 // VAD alignment of late speech (src/process/align.ts): approximate segments are moved onto the VAD's speech spans
 // before pairing, so pairing compares when the reviewer spoke with when they drew.
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { fixtureFile } from '../../../scripts/gen-session-fixtures.ts';
+import { alignmentRows, alignmentTable, loadEvents, VAD_FIXTURES_DIR } from '../../../scripts/vad-alignment-report.ts';
 import {
   alignSegments,
   buildProcessPrompt,
   isVadAligned,
+  MIN_SPEECH_MS,
   PAIRING_WINDOW_MS,
   type ProcessSegment,
   pairSegment,
+  SPEECH_LEAD_MS,
   segmentQuality,
   sessionTimestampQuality,
   spokenSpan,
@@ -222,5 +226,30 @@ describe('Speech Boundary with VAD speech starts', () => {
     expect(speechBoundaryAt({ t: 1000, text: 'this', words: [{ text: 'this', t: 1000, t_end: 1200 }] }, [900])).toBe(
       1000,
     );
+  });
+});
+
+describe('real Sessions (fixtures/vad-alignment: Web Speech with Silero VAD spans)', () => {
+  const files = readdirSync(VAD_FIXTURES_DIR).filter((f) => f.endsWith('.json'));
+
+  it.each(files)('%s: every aligned segment moved earlier, within the lead, in order', (file) => {
+    const events = loadEvents(join(VAD_FIXTURES_DIR, file));
+    const aligned = segments(alignSegments(events));
+    expect(aligned.filter(isVadAligned).length).toBeGreaterThan(aligned.length / 2);
+    let prevEnd = -Infinity;
+    for (const s of aligned) {
+      if (s.vad) {
+        expect(s.t).toBeLessThanOrEqual(s.vad.t_arrived);
+        expect(s.t).toBeGreaterThanOrEqual(s.vad.t_arrived - SPEECH_LEAD_MS);
+        expect(s.t_end).toBeLessThanOrEqual(s.vad.t_end_arrived);
+        expect(s.t_end - s.t).toBeGreaterThanOrEqual(MIN_SPEECH_MS);
+        expect(s.t).toBeGreaterThanOrEqual(prevEnd);
+      }
+      prevEnd = s.t_end;
+    }
+  });
+
+  it.each(files)('%s: before/after pairing table', (file) => {
+    expect(alignmentTable(alignmentRows(loadEvents(join(VAD_FIXTURES_DIR, file))))).toMatchSnapshot();
   });
 });
