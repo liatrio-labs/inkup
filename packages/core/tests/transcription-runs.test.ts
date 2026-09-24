@@ -135,6 +135,8 @@ describe('groupWords and joinWords', () => {
   });
   it('attaches punctuation tokens', () => {
     expect(joinWords(['Hello', ',', 'world', '.'])).toBe('Hello, world.');
+    expect(joinWords(['a  \t b', '(', 'c', ')', ' , '])).toBe('a b (c),');
+    expect(joinWords([`x${' '.repeat(50_000)}y`])).toBe('x y');
   });
 });
 
