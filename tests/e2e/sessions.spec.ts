@@ -1,6 +1,7 @@
 // Slice 7: the Session list (PRD P0-14), the 80% storage warning, and the 45/60-minute soft cap (P0-1).
 import type { Page, Worker } from '@playwright/test';
 import { expect, grantMic, test } from './fixtures';
+import { putRows } from './helpers/seed';
 import { activeSessionId } from './helpers/session';
 
 /** Starts a Session on `page` from the panel, records for a moment, stops, and closes the review tab it opens. */
@@ -113,6 +114,118 @@ test('the Session list groups by starting origin, shows date, length, items and 
   // The options page links here too.
   const options = await openExtensionPage('options.html');
   await expect(options.getByTestId('open-sessions')).toHaveAttribute('href', '/sessions.html');
+});
+
+/** A processed Session as stored: its row, a done Process run with `ids` as its Change Items, and no media. */
+function processedSession(id: string, ids: string[], startedAt: string) {
+  const runId = `${id}-run`;
+  return {
+    runId,
+    session: {
+      id,
+      tab_id: 1,
+      t0: 0,
+      started_at: startedAt,
+      ended_at: startedAt,
+      duration_ms: 5000,
+      start_url: 'https://app.example/pricing',
+      start_title: `Seeded ${id}`,
+      status: 'ended',
+      transcription: null,
+      video_off_reason: null,
+      media_deleted_at: null,
+      audio: null,
+      video: null,
+    },
+    run: {
+      id: runId,
+      session_id: id,
+      created_at: 1,
+      finished_at: 2,
+      status: 'done',
+      model: 'seeded',
+      estimate: null,
+      items: ids.map((item) => ({
+        id: item,
+        title: `Change ${item}`,
+        category: 'copy',
+        intent: 'Seeded.',
+        locations: [],
+        evidence: { video: null, screenshots: [] },
+        transcript: '',
+        confidence: 0.9,
+        agent_prompt: 'Seeded.',
+        pinned: false,
+      })),
+      calls: [],
+      second_pass: [],
+      error: null,
+      error_code: null,
+    },
+  };
+}
+
+test('a Session row counts its current Change Items by their latest Resolution, on the list and in the side panel', async ({
+  openExtensionPage,
+}) => {
+  const list = await openExtensionPage('sessions.html');
+  await expect(list.getByTestId('no-sessions')).toBeVisible();
+  const acted = processedSession(
+    'acted',
+    ['item_0001', 'item_0002', 'item_0003', 'item_0004', 'item_0005', 'item_0006'],
+    '2026-09-20T10:00:00.000Z',
+  );
+  const untouched = processedSession('untouched', ['item_0001', 'item_0002'], '2026-09-21T10:00:00.000Z');
+  const res = (id: string, item_id: string, status: string, created_at: number, run_id = acted.runId) => ({
+    id,
+    session_id: 'acted',
+    run_id,
+    item_id,
+    status,
+    note: '',
+    source: 'mcp',
+    created_at,
+  });
+  await putRows(list, {
+    sessions: [acted.session, untouched.session],
+    processRuns: [acted.run, untouched.run],
+    // The reviewer deleted item_0006; its Resolution no longer counts.
+    events: [
+      {
+        type: 'item_edit',
+        id: 'edit-1',
+        t: 5000,
+        edited_at: '2026-09-20T10:01:00.000Z',
+        run_id: acted.runId,
+        edit: { op: 'delete', item_id: 'item_0006' },
+        session_id: 'acted',
+      },
+    ],
+    resolutions: [
+      res('r1', 'item_0001', 'in_progress', 100),
+      // Started, then resolved in the same millisecond: the later id wins.
+      res('r2a', 'item_0002', 'in_progress', 200),
+      res('r2b', 'item_0002', 'resolved', 200),
+      res('r3', 'item_0003', 'wont_fix', 300),
+      res('r4', 'item_0004', 'needs_info', 400),
+      res('r6', 'item_0006', 'resolved', 600),
+      // A Resolution of an earlier run's item is not this run's.
+      res('r5', 'item_0005', 'resolved', 700, 'acted-older-run'),
+    ],
+  });
+
+  for (const page of [list, await openExtensionPage('sidepanel.html')]) {
+    await page.reload();
+    const items = page.locator('[data-session="acted"]').getByTestId('session-items');
+    await expect(items).toHaveText('5 Change Items: 1 open · 1 in work · 2 done · 1 needs info');
+    await expect(items).toHaveAttribute('data-total', '5');
+    await expect(items).toHaveAttribute('data-open', '1');
+    await expect(items).toHaveAttribute('data-in-progress', '1');
+    await expect(items).toHaveAttribute('data-done', '2');
+    await expect(items).toHaveAttribute('data-needs-info', '1');
+    // Nothing acted on: the plain count, as before any agent.
+    await expect(page.locator('[data-session="untouched"]').getByTestId('session-items')).toHaveText('2 Change Items');
+  }
 });
 
 test('at 80% of the storage quota the Session list and the panel warn', async ({ context, openExtensionPage }) => {

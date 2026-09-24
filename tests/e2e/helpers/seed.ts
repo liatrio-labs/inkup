@@ -57,3 +57,21 @@ export async function storeRows<T = unknown>(page: Page, store: string): Promise
     return rows;
   }, store) as Promise<T[]>;
 }
+
+/** Puts rows straight into IndexedDB stores, in one transaction, from an extension page. */
+export async function putRows(page: Page, rows: Record<string, unknown[]>): Promise<void> {
+  await page.evaluate(async (rows) => {
+    const idb = await new Promise<IDBDatabase>((res, rej) => {
+      const r = indexedDB.open('inkup');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const tx = idb.transaction(Object.keys(rows), 'readwrite');
+    for (const [store, list] of Object.entries(rows)) for (const row of list) tx.objectStore(store).put(row);
+    await new Promise<void>((res, rej) => {
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+    idb.close();
+  }, rows);
+}

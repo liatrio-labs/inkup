@@ -4,8 +4,10 @@
 import { formatElapsed } from '@inkup/core/clock';
 import { formatBytes, originOf } from '@inkup/core/session-list';
 import { useState } from 'react';
+import { RESOLUTION_TEXT } from '@/components/resolution-style';
 import { Button } from '@/components/ui/button';
 import { db } from '@/db';
+import type { ItemStatusCounts } from '@/db/resolutions';
 import { deleteSession, type SessionSummary } from '@/db/sessions';
 import { useOriginLabel } from '@/lib/use-origin-label';
 import { cn } from '@/lib/utils';
@@ -42,10 +44,7 @@ export function SessionRow({
         {compact && <p className="truncate text-xs text-muted-foreground">{label(originOf(s.start_url))}</p>}
         <p className={cn('text-muted-foreground', compact && 'text-xs')}>
           <span data-testid="session-date">{dateFmt.format(new Date(s.started_at))}</span> ·{' '}
-          <span data-testid="session-length">{length}</span> ·{' '}
-          <span data-testid="session-items">
-            {s.items === null ? 'not processed' : `${s.items} ${s.items === 1 ? 'Change Item' : 'Change Items'}`}
-          </span>
+          <span data-testid="session-length">{length}</span> · <ItemCounts items={s.items} />
           {!compact && (
             <>
               {' '}
@@ -91,5 +90,37 @@ export function SessionRow({
         </Button>
       )}
     </li>
+  );
+}
+
+/** "7 Change Items", then how they stand once an agent has acted on any: open, in work, done, needs info. */
+function ItemCounts({ items }: { items: ItemStatusCounts | null }) {
+  if (items === null) return <span data-testid="session-items">not processed</span>;
+  const total = `${items.total} ${items.total === 1 ? 'Change Item' : 'Change Items'}`;
+  const acted = items.open < items.total;
+  return (
+    <span
+      data-testid="session-items"
+      data-total={items.total}
+      data-open={items.open}
+      data-in-progress={items.in_progress}
+      data-done={items.done}
+      data-needs-info={items.needs_info}
+    >
+      {acted ? (
+        <>
+          {total}: {items.open} open · <span className={RESOLUTION_TEXT.in_progress}>{items.in_progress} in work</span>{' '}
+          · <span className={RESOLUTION_TEXT.resolved}>{items.done} done</span>
+          {items.needs_info > 0 && (
+            <>
+              {' '}
+              · <span className={RESOLUTION_TEXT.needs_info}>{items.needs_info} needs info</span>
+            </>
+          )}
+        </>
+      ) : (
+        total
+      )}
+    </span>
   );
 }
