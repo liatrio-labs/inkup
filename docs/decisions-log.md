@@ -2,7 +2,7 @@
 
 Calls made during implementation that the PRD, PLAN and ADRs leave open. Newest slice first.
 
-## #6: one contract between the extension and the host (2026-09-24)
+## #7: one contract between the extension and the host (2026-09-24)
 
 The extension and the Host are about to release on their own tags, so an installed pair will be out of step. ADR 0007
 moves what they share into `contract/` and makes CI route on it.
