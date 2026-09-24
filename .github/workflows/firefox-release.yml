@@ -1,10 +1,10 @@
-name: Chrome extension release
+name: Firefox extension release
 
-# Push a tag like inkup-chrome-v0.2.0 on a commit that is already on main.
-# The tag must equal inkup-chrome-v + extensions/web/package.json "version" (which becomes the manifest version).
+# Push a tag like inkup-firefox-v0.2.0 on a commit that is already on main.
+# The tag must equal inkup-firefox-v + extensions/web/package.json "version" (which becomes the manifest version).
 on:
   push:
-    tags: ["inkup-chrome-v*.*.*"]
+    tags: ["inkup-firefox-v*.*.*"]
 
 permissions:
   contents: read
@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 20
     outputs:
       zip: ${{ steps.zip.outputs.name }}
+      sources: ${{ steps.zip.outputs.sources }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -36,7 +37,7 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME is not on main. Release only commits that passed CI on main."
             exit 1
           fi
-          pkg="inkup-chrome-v$(node -p 'require("./extensions/web/package.json").version')"
+          pkg="inkup-firefox-v$(node -p 'require("./extensions/web/package.json").version')"
           if [ "$pkg" != "$GITHUB_REF_NAME" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $pkg."
             exit 1
@@ -51,13 +52,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm zip
+      - run: pnpm zip:firefox
       - id: zip
-        run: echo "name=$(basename extensions/web/.output/*-chrome.zip)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "name=$(basename extensions/web/.output/*-firefox.zip)" >> "$GITHUB_OUTPUT"
+          echo "sources=$(basename extensions/web/.output/*-sources.zip)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: chrome-zip
-          path: extensions/web/.output/*-chrome.zip
+          name: firefox-zips
+          path: |
+            extensions/web/.output/*-firefox.zip
+            extensions/web/.output/*-sources.zip
           # .output is a dot directory, which upload-artifact skips unless told otherwise.
           include-hidden-files: true
           if-no-files-found: error
@@ -71,8 +76,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: chrome-zip
-      - name: Create GitHub Release with the Chrome zip
+          name: firefox-zips
+      - name: Create GitHub Release with the Firefox zip
         env:
           GH_TOKEN: ${{ github.token }}
           ZIP: ${{ needs.build.outputs.zip }}
@@ -83,27 +88,26 @@ jobs:
             --generate-notes \
             --verify-tag
 
-  chrome-web-store:
-    name: chrome-web-store
+  firefox-amo:
+    name: firefox-amo
     needs: build
     runs-on: ubuntu-latest
-    # Environment is restricted to inkup-chrome-v* tags. Required reviewers need a paid
-    # plan on private repos; see docs/releasing.md.
-    environment: chrome-web-store
+    # Environment is restricted to inkup-firefox-v* tags; see docs/releasing.md.
+    environment: firefox-amo
     env:
-      CHROME_API_VERSION: v2
-      CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-      CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
-      CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
-      CHROME_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
-      CHROME_SKIP_SUBMIT_REVIEW: ${{ vars.CHROME_SKIP_SUBMIT_REVIEW || 'false' }}
+      # The add-on's gecko id from extensions/web/wxt.config.ts. It is public, so it is not a secret.
+      FIREFOX_EXTENSION_ID: "{a8ef2c28-c5c9-44cb-af98-84c05d0a66c7}"
+      FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+      FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+      FIREFOX_CHANNEL: ${{ vars.FIREFOX_CHANNEL || 'listed' }}
+      FIREFOX_SKIP_SUBMIT_REVIEW: ${{ vars.FIREFOX_SKIP_SUBMIT_REVIEW || 'false' }}
     steps:
-      - name: Skip when store credentials are not configured
+      - name: Skip when AMO credentials are not configured
         id: creds
         run: |
-          for v in CHROME_EXTENSION_ID CHROME_PUBLISHER_ID CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL CHROME_SERVICE_ACCOUNT_PRIVATE_KEY; do
+          for v in FIREFOX_JWT_ISSUER FIREFOX_JWT_SECRET; do
             if [ -z "${!v}" ]; then
-              echo "::notice::$v is not set; skipping Chrome Web Store upload. See docs/releasing.md."
+              echo "::notice::$v is not set; skipping addons.mozilla.org upload. See docs/releasing.md."
               echo "ready=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -127,11 +131,12 @@ jobs:
       - if: steps.creds.outputs.ready == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: chrome-zip
+          name: firefox-zips
           path: extensions/web/dist-release
       - if: steps.creds.outputs.ready == 'true'
-        name: Upload to the Chrome Web Store and submit for review
+        name: Upload to addons.mozilla.org and submit for review
         working-directory: extensions/web
         env:
           ZIP: ${{ needs.build.outputs.zip }}
-        run: pnpm exec wxt submit --chrome-zip "dist-release/$ZIP"
+          SOURCES: ${{ needs.build.outputs.sources }}
+        run: pnpm exec wxt submit --firefox-zip "dist-release/$ZIP" --firefox-sources-zip "dist-release/$SOURCES"

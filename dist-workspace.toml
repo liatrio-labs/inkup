@@ -1,6 +1,6 @@
-# cargo-dist (`dist`) config for the host release train. The host is released by pushing a `host-v<version>` tag;
+# cargo-dist (`dist`) config for the host release train. The host is released by pushing an `inkup-v<version>` tag;
 # see docs/releasing.md and docs/adr/0008-independent-releases-and-host-updates.md.
-# .github/workflows/host-release.yml is generated from this file: change settings here, then run `dist generate`.
+# .github/workflows/inkup-v-release.yml is generated from this file: change settings here, then run `dist generate`.
 [workspace]
 members = ["cargo:host/"]
 
@@ -16,9 +16,9 @@ targets = [
   "x86_64-pc-windows-msvc",
 ]
 checksum = "sha256"
-# Tags must start with `host`, so the extension's `extension-v*` tags never trigger this workflow; the workflow is
-# named host-release.yml.
-tag-namespace = "host"
+# The workflow triggers only on tags starting `inkup-v`, so `inkup-chrome-v*` and `inkup-firefox-v*` never start it.
+# dist names the workflow after this: inkup-v-release.yml.
+tag-namespace = "inkup-v"
 # Ship `inkup-update` next to `inkup` from the shell and PowerShell installers. The installers also write the install
 # receipt that an in-binary axoupdater reads.
 install-updater = true
