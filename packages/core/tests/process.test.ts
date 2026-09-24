@@ -277,7 +277,9 @@ describe('prompt builder', () => {
     expect(system).toMatchSnapshot();
     for (const s of [
       '2s',
+      '2.5s',
       '4s',
+      'VAD-aligned',
       '- button: said as "button"',
       'subject',
       'reference',

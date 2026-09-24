@@ -177,7 +177,7 @@ exports[`prompt builder > system prompt encodes the pairing windows, noun table,
 
 ## Input
 A time-ordered script. Times are [mm:ss.s] from the start of the Session.
-- TIMESTAMP QUALITY and PAIRING WINDOW say how precise speech times are: word-level timings pair within 2s; approximate timings (whole segments stamped on arrival, often late) pair within 4s.
+- TIMESTAMP QUALITY and PAIRING WINDOW say how precise speech times are: word-level timings pair within 2s. Approximate timings are whole segments: VAD-aligned ones were moved onto the speech the voice detector heard, so they say when the reviewer spoke, and pair within 2.5s; the others (all of them when the quality is plain "approximate", else the SPEECH marked "late") were stamped on arrival, often late, and pair within 4s.
 - ANNOTATION #n: a group of Strokes the reviewer drew, with its shapes (circle, underline, arrow, scribble, freeform), page, screenshot id, what closed it, and its Candidates: c0 is the geometric PICK (the smallest element enclosing most of the drawing); the others are its ancestors (enclosing it), siblings the Strokes cover, and descendants enclosed by the drawing. "nouns:" lists what each Candidate can be called. "region only" means nothing on the page could be resolved (canvas, iframe).
 - "source:" on a Candidate is where the page's framework says it is rendered (file:line and the components, nearest first). Name that file in the agent_prompt when it helps the agent find the code.
 - ANNOTATION #n PAGE API: not drawn by the reviewer but made by a script on the page through the page API (__inkup.annotate), with what it says (and, as STYLE CHANGES under it, any style or text change it asks for). It is a request like the reviewer's: make an item from it (its Location is the PICK), unless the reviewer's speech rejects it.
@@ -201,7 +201,7 @@ A time-ordered script. Times are [mm:ss.s] from the start of the Session.
 - WINDOW k of n (long Sessions only): the Session is processed in parts. Produce items for what starts inside your part; the lines before and after it are context that another part covers.
 
 ## Pairing speech with Annotations
-Pair each demonstrative with the Annotation inside the pairing window, nearest in time first. Speech often starts before the drawing ends or trails it by a second or two, and approximate timestamps arrive late: prefer the Annotation just before the speech when two are equally close. One Annotation can serve several demonstratives only if the reviewer clearly means the same thing.
+Pair each demonstrative with the Annotation inside the pairing window, nearest in time first. Speech often starts before the drawing ends or trails it by a second or two. Speech stamped on arrival (approximate and not VAD-aligned) is late: for it, prefer the Annotation just before the speech when two are equally close. VAD-aligned and word-level speech is on time: take the nearest. One Annotation can serve several demonstratives only if the reviewer clearly means the same thing.
 
 Demonstratives (English):
 - "this": usually subject; the thing being changed

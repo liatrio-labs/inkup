@@ -14,7 +14,7 @@
 // - Chunks are ProcessWindows (./windows.ts): the overlap, ownership, prompt, coverage and merge rules stay the same.
 import type { EventOf, TimelineEvent } from '../timeline.ts';
 import { estimateOutputTokens } from './cost.ts';
-import { gapMs, PAIRING_WINDOW_MS, sessionTimestampQuality } from './pairing.ts';
+import { gapMs, PAIRING_WINDOW_MS, segmentQuality } from './pairing.ts';
 import { liveAnnotations, OVERLAP_MS, type ProcessWindow, SINGLE_WINDOW_MAX_MS } from './windows.ts';
 
 /** A pause in speech this long is a natural place to cut. */
@@ -52,10 +52,9 @@ interface Span {
 /** Spans a cut must not fall strictly inside: each Annotation with its pairable speech, and each segment. */
 function blockedSpans(events: readonly TimelineEvent[]): Span[] {
   const segments = segmentsOf(events);
-  const window = PAIRING_WINDOW_MS[sessionTimestampQuality(segments)];
   const spans: Span[] = segments.map((s) => ({ t: s.t, t_end: s.t_end }));
   for (const a of events.filter((e): e is EventOf<'annotation'> => e.type === 'annotation')) {
-    const paired = segments.filter((s) => gapMs(s, a) <= window);
+    const paired = segments.filter((s) => gapMs(s, a) <= PAIRING_WINDOW_MS[segmentQuality(s)]);
     spans.push({
       t: Math.min(a.t, ...paired.map((s) => s.t)),
       t_end: Math.max(a.t_end, ...paired.map((s) => s.t_end)),

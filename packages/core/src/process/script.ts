@@ -5,26 +5,26 @@
 // checks them against the ScriptContext and restores the stored ids before saving.
 
 import { draftLocationSummary, draftViews } from '../drafts.ts';
-import { applyTranscriptEdits } from '../review-edits.ts';
 import type { SessionDocument } from '../session-document.ts';
 import { describeSource } from '../source-path.ts';
-import {
-  type Candidate,
-  type EventOf,
-  isObjectSelectPick,
-  type TimelineEvent,
-  type TimestampQuality,
-} from '../timeline.ts';
+import { type Candidate, type EventOf, isObjectSelectPick, type TimelineEvent } from '../timeline.ts';
 import { sizeLabel, viewportAt } from '../viewport.ts';
 import { stripCommandPhrase } from '../voice-command-effects.ts';
+import { isVadAligned, processEvents } from './align.ts';
 import { type ChangeItem, LOW_CONFIDENCE, screenshotCitation } from './change-item.ts';
 import { COMPARISON_CUES, DEMONSTRATIVES, MOTION_CUES, NOUNS, nounsForCandidate, nounsInText } from './locale/en.ts';
-import { PAIRING_WINDOW_MS, pairSegment, sessionTimestampQuality } from './pairing.ts';
+import {
+  PAIRING_WINDOW_MS,
+  type PairingQuality,
+  pairSegment,
+  segmentQuality,
+  sessionTimestampQuality,
+} from './pairing.ts';
 import { latestStyleEdits, styleChangeLines, TOKEN_RULE } from './style-changes.ts';
 import { detectReplacement, textCommentSpeech } from './text-comments.ts';
 
 export interface ScriptContext {
-  quality: TimestampQuality;
+  quality: PairingQuality;
   /** alias (s1) → stored screenshot id. */
   aliases: Record<string, string>;
   /** Annotation index → its Candidate selectors. */
@@ -93,8 +93,8 @@ export function buildProcessPrompt(
     pinnedDraft?: (d: Ev<'draft_item'>) => boolean;
   } = {},
 ): ProcessPrompt {
-  // Process runs on the transcript as edited on the review page (PRD P0-11).
-  const events = applyTranscriptEdits(doc.events);
+  // Process runs on the transcript as edited on the review page (PRD P0-11), with late speech VAD-aligned.
+  const events = processEvents(doc.events);
   const startUrl = doc.session.start_url;
   const quality = scriptQuality(events, doc.session.transcription?.timestamp_quality);
   const segments = events.filter((e) => e.type === 'transcript_segment').length;
@@ -103,7 +103,7 @@ export function buildProcessPrompt(
   const start = events.find((e): e is Ev<'session_start'> => e.type === 'session_start');
   const { lines, context } = renderEvents(events, startUrl, quality, opts.include);
   const script = [
-    ...scriptHeader(quality),
+    ...scriptHeader(quality, events),
     `SESSION: starts at ${startUrl}${start?.overlay === 'none' ? ` ${NO_DRAWING}` : ''}${end ? ` · length ${stamp(end.duration_ms)}` : ''} · ${annotations} Annotations · ${segments} speech segments`,
     '',
     ...lines,
@@ -112,19 +112,32 @@ export function buildProcessPrompt(
   return { system: buildSystemPrompt(), script: script.join('\n'), context };
 }
 
-/** The Session's timestamp quality from its segments; with no speech, what the transcription reported. */
-export function scriptQuality(
-  events: readonly TimelineEvent[],
-  fallback: TimestampQuality | undefined,
-): TimestampQuality {
-  const segments = events.filter((e): e is Ev<'transcript_segment'> => e.type === 'transcript_segment');
+const segmentsOf = (events: readonly TimelineEvent[]) =>
+  events.filter((e): e is Ev<'transcript_segment'> => e.type === 'transcript_segment');
+
+/** The Session's pairing quality from its segments; with no speech, what the transcription reported. */
+export function scriptQuality(events: readonly TimelineEvent[], fallback: PairingQuality | undefined): PairingQuality {
+  const segments = segmentsOf(events);
   return segments.length ? sessionTimestampQuality(segments) : (fallback ?? 'word');
 }
 
-export const scriptHeader = (quality: TimestampQuality) => [
-  `TIMESTAMP QUALITY: ${quality === 'word' ? 'word-level' : 'approximate'}`,
-  `PAIRING WINDOW: ${PAIRING_WINDOW_MS[quality] / 1000}s`,
-];
+/** Some speech is VAD-aligned and some still stamped on arrival: the late SPEECH lines are marked. */
+const partlyAligned = (quality: PairingQuality, events: readonly TimelineEvent[]) =>
+  quality === 'approximate' && segmentsOf(events).some(isVadAligned);
+
+const seconds = (q: PairingQuality) => `${PAIRING_WINDOW_MS[q] / 1000}s`;
+
+/** `events` as rendered (processEvents): they say whether some late speech was VAD-aligned. */
+export const scriptHeader = (quality: PairingQuality, events: readonly TimelineEvent[] = []) =>
+  partlyAligned(quality, events)
+    ? [
+        'TIMESTAMP QUALITY: approximate, VAD-aligned except SPEECH marked "late"',
+        `PAIRING WINDOW: ${seconds('vad')} (${seconds('approximate')} for late speech)`,
+      ]
+    : [
+        `TIMESTAMP QUALITY: ${quality === 'word' ? 'word-level' : quality === 'vad' ? 'approximate, VAD-aligned' : 'approximate'}`,
+        `PAIRING WINDOW: ${seconds(quality)}`,
+      ];
 
 /**
  * Pinned Draft Items are fixed items the model may not rewrite; discarded ones are negative examples (PRD P0-10,
@@ -168,7 +181,7 @@ function draftSections(
 export function renderEvents(
   events: readonly TimelineEvent[],
   startUrl: string,
-  quality: TimestampQuality,
+  quality: PairingQuality,
   include: (e: TimelineEvent) => boolean = () => true,
 ): { lines: string[]; context: ScriptContext; rendered: { annotations: number; speech: number } } {
   const annotations = events.filter((e): e is Ev<'annotation'> => e.type === 'annotation');
@@ -200,6 +213,7 @@ export function renderEvents(
     `region only: x=${Math.round(b.x)} y=${Math.round(b.y)} ${Math.round(b.width)}×${Math.round(b.height)} (no element resolved)`;
 
   const textComments = events.filter((e): e is Ev<'text_comment'> => e.type === 'text_comment');
+  const markLate = partlyAligned(quality, events);
 
   const lines: string[] = [];
   const rendered = { annotations: 0, speech: 0 };
@@ -284,12 +298,14 @@ export function renderEvents(
       case 'transcript_segment': {
         const text = (commandPhrases.get(e.segment_id) ?? []).reduce(stripCommandPhrase, e.text);
         if (!text) break;
+        const own = segmentQuality(e);
         const parts = [`${at} SPEECH ${quote(text, 400)}`, `${stamp(e.t)}–${stamp(e.t_end)}`];
-        const pairs = pairSegment({ ...e, text }, live, quality);
+        if (markLate && own === 'approximate') parts.push('late');
+        const pairs = pairSegment({ ...e, text }, live, own);
         const words = pairs.filter((p) => p.anchor.word !== null);
         if (words.length) {
           parts.push(
-            `demonstratives: ${words.map((p) => `"${p.anchor.word}"${quality === 'word' ? `@${stamp(p.anchor.t)}` : ''} near ${p.annotations.length ? p.annotations.map((i) => `#${i}`).join(', ') : 'none'}`).join('; ')}`,
+            `demonstratives: ${words.map((p) => `"${p.anchor.word}"${own === 'word' ? `@${stamp(p.anchor.t)}` : ''} near ${p.annotations.length ? p.annotations.map((i) => `#${i}`).join(', ') : 'none'}`).join('; ')}`,
           );
         } else {
           const near = pairs[0]?.annotations ?? [];
@@ -405,7 +421,7 @@ export function buildSystemPrompt(): string {
 
 ## Input
 A time-ordered script. Times are [mm:ss.s] from the start of the Session.
-- TIMESTAMP QUALITY and PAIRING WINDOW say how precise speech times are: word-level timings pair within 2s; approximate timings (whole segments stamped on arrival, often late) pair within 4s.
+- TIMESTAMP QUALITY and PAIRING WINDOW say how precise speech times are: word-level timings pair within 2s. Approximate timings are whole segments: VAD-aligned ones were moved onto the speech the voice detector heard, so they say when the reviewer spoke, and pair within 2.5s; the others (all of them when the quality is plain "approximate", else the SPEECH marked "late") were stamped on arrival, often late, and pair within 4s.
 - ANNOTATION #n: a group of Strokes the reviewer drew, with its shapes (circle, underline, arrow, scribble, freeform), page, screenshot id, what closed it, and its Candidates: c0 is the geometric PICK (the smallest element enclosing most of the drawing); the others are its ancestors (enclosing it), siblings the Strokes cover, and descendants enclosed by the drawing. "nouns:" lists what each Candidate can be called. "region only" means nothing on the page could be resolved (canvas, iframe).
 - "source:" on a Candidate is where the page's framework says it is rendered (file:line and the components, nearest first). Name that file in the agent_prompt when it helps the agent find the code.
 - ANNOTATION #n PAGE API: not drawn by the reviewer but made by a script on the page through the page API (__inkup.annotate), with what it says (and, as STYLE CHANGES under it, any style or text change it asks for). It is a request like the reviewer's: make an item from it (its Location is the PICK), unless the reviewer's speech rejects it.
@@ -429,7 +445,7 @@ A time-ordered script. Times are [mm:ss.s] from the start of the Session.
 - WINDOW k of n (long Sessions only): the Session is processed in parts. Produce items for what starts inside your part; the lines before and after it are context that another part covers.
 
 ## Pairing speech with Annotations
-Pair each demonstrative with the Annotation inside the pairing window, nearest in time first. Speech often starts before the drawing ends or trails it by a second or two, and approximate timestamps arrive late: prefer the Annotation just before the speech when two are equally close. One Annotation can serve several demonstratives only if the reviewer clearly means the same thing.
+Pair each demonstrative with the Annotation inside the pairing window, nearest in time first. Speech often starts before the drawing ends or trails it by a second or two. Speech stamped on arrival (approximate and not VAD-aligned) is late: for it, prefer the Annotation just before the speech when two are equally close. VAD-aligned and word-level speech is on time: take the nearest. One Annotation can serve several demonstratives only if the reviewer clearly means the same thing.
 
 Demonstratives (English):
 ${demonstratives}

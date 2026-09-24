@@ -1,7 +1,20 @@
 // VAD alignment of late speech (src/process/align.ts): approximate segments are moved onto the VAD's speech spans
 // before pairing, so pairing compares when the reviewer spoke with when they drew.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { alignSegments, isVadAligned, type ProcessSegment, spokenSpan } from '../src/process';
+import { fixtureFile } from '../../../scripts/gen-session-fixtures.ts';
+import {
+  alignSegments,
+  buildProcessPrompt,
+  isVadAligned,
+  PAIRING_WINDOW_MS,
+  type ProcessSegment,
+  pairSegment,
+  segmentQuality,
+  sessionTimestampQuality,
+  spokenSpan,
+} from '../src/process';
+import { type SessionDocument, SessionDocumentSchema } from '../src/session-document';
 import { type TimelineEvent, TimelineEventSchema } from '../src/timeline';
 
 let n = 0;
@@ -123,5 +136,73 @@ describe('alignSegments', () => {
         { t: 2400, t_end: 3500 },
       ]),
     ).toEqual({ t: 1000, t_end: 5000 });
+  });
+});
+
+describe('pairing with VAD-aligned speech', () => {
+  const ann = (index: number, t: number, t_end: number) => ({ index, t, t_end });
+
+  it('aligned segments pair within 2.5 s and do not make the Session approximate', () => {
+    const [aligned, late] = segments(alignSegments([vad(1000, 2000), seg(1600, 2700), seg(8000, 9000)]));
+    expect(PAIRING_WINDOW_MS.vad).toBe(2500);
+    expect(segmentQuality(aligned!)).toBe('vad');
+    expect(sessionTimestampQuality([aligned!])).toBe('vad');
+    expect(sessionTimestampQuality([aligned!, late!])).toBe('approximate');
+  });
+
+  it('pairs "this" with the Annotation drawn while it was said, not the next one', () => {
+    // Said 1.2–2.4 s while circling #1 (1.0–2.0 s); Web Speech stamped it 3.2–4.4 s. #2 was drawn at 5.0–6.0 s.
+    const annotations = [ann(1, 1000, 2000), ann(2, 5000, 6000)];
+    const raw = seg(3200, 4400);
+    const before = pairSegment(raw as ProcessSegment, annotations, 'approximate');
+    expect(before[0]!.annotations).toEqual([2, 1]);
+
+    const [aligned] = segments(alignSegments([vad(1200, 2400), raw]));
+    const after = pairSegment(aligned!, annotations, segmentQuality(aligned!));
+    expect(after[0]!.annotations).toEqual([1]);
+  });
+});
+
+describe('script with VAD-aligned speech', () => {
+  const load = (): SessionDocument =>
+    SessionDocumentSchema.parse(JSON.parse(readFileSync(fixtureFile('a-move-here', 'approximate'), 'utf8')));
+  // a-move-here: #1 drawn 1.0–1.8 s, "okay so this button" stamped 1.6–2.7 s; #2 drawn 7.0–7.8 s, "should go here…"
+  // stamped 8.1–10.1 s.
+  const withSpans = (doc: SessionDocument, spans: [number, number][]): SessionDocument => ({
+    ...doc,
+    events: [...doc.events, ...spans.map(([t, t_end]) => vad(t, t_end))],
+  });
+
+  it('says the speech is VAD-aligned and uses its times', () => {
+    const { script, context } = buildProcessPrompt(
+      withSpans(load(), [
+        [800, 1900],
+        [7300, 9300],
+      ]),
+    );
+    expect(script.split('\n').slice(0, 2)).toEqual([
+      'TIMESTAMP QUALITY: approximate, VAD-aligned',
+      'PAIRING WINDOW: 2.5s',
+    ]);
+    expect(context.quality).toBe('vad');
+    expect(script).toContain('SPEECH "okay so this button" · 00:00.8–00:01.9 · demonstratives: "this" near #1');
+    expect(script).toContain('00:07.3–00:09.3 · demonstratives: "here" near #2');
+    expect(script).not.toContain(' · late');
+  });
+
+  it('marks the speech still stamped on arrival when only some was aligned', () => {
+    const { script } = buildProcessPrompt(withSpans(load(), [[800, 1900]]));
+    expect(script.split('\n').slice(0, 2)).toEqual([
+      'TIMESTAMP QUALITY: approximate, VAD-aligned except SPEECH marked "late"',
+      'PAIRING WINDOW: 2.5s (4s for late speech)',
+    ]);
+    expect(script).toMatch(/SPEECH "okay so this button" · 00:00\.8–00:01\.9 · demonstratives/);
+    expect(script).toMatch(/SPEECH "should go here in the header next to docs" · 00:08\.1–00:10\.1 · late · /);
+  });
+
+  it('without spans the script is as before', () => {
+    const doc = load();
+    expect(buildProcessPrompt(withSpans(doc, [])).script).toBe(buildProcessPrompt(doc).script);
+    expect(buildProcessPrompt(doc).script.split('\n')[0]).toBe('TIMESTAMP QUALITY: approximate');
   });
 });

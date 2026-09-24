@@ -14,9 +14,9 @@
 // - Pinned Draft Items are listed only in the window that owns them and are left out of the dedupe; the pin merge
 //   (./pins.ts) runs once over the merged list, so each pinned draft ends up as exactly one unchanged item.
 
-import { applyTranscriptEdits } from '../review-edits.ts';
 import type { SessionDocument } from '../session-document.ts';
 import type { EventOf, TimelineEvent } from '../timeline.ts';
+import { processEvents } from './align.ts';
 import type { ChangeItem } from './change-item.ts';
 import { buildProcessPrompt, type ProcessPrompt, stamp } from './script.ts';
 
@@ -79,7 +79,7 @@ export interface WindowPrompt extends ProcessPrompt {
  * Process prompt plus the coverage line.
  */
 export function buildWindowPrompt(doc: SessionDocument, w: ProcessWindow): WindowPrompt {
-  const events = applyTranscriptEdits(doc.events);
+  const events = processEvents(doc.events);
   const owned = ownedAnnotations(events, w);
   const draftOwned = (e: EventOf<'draft_item'>) => owns(w, e.t);
   const base = buildProcessPrompt(doc, w.count === 1 ? {} : { include: (e) => shownIn(w, e), pinnedDraft: draftOwned });

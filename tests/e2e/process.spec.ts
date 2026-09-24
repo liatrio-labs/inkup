@@ -193,9 +193,10 @@ test('Process: estimate, confirm, Change Items with badges, overlay and agent pr
     const sent = stub.messages().slice(before);
     expect(sent).toHaveLength(2);
     const script = scriptOf(sent[0]!);
-    // A single window: the Annotations to account for, then the header; no WINDOW line.
+    // A single window: the Annotations to account for, then the header; no WINDOW line. The scripted speech is
+    // approximate; it is VAD-aligned when the detector heard the fixture audio by Stop (it may not, on a slow runner).
     expect(script).toMatch(
-      /^ANNOTATIONS TO ACCOUNT FOR: #1\. [^\n]*\nTIMESTAMP QUALITY: approximate\nPAIRING WINDOW: 4s/,
+      /^ANNOTATIONS TO ACCOUNT FOR: #1\. [^\n]*\nTIMESTAMP QUALITY: approximate(, VAD-aligned\nPAIRING WINDOW: 2\.5s|\nPAIRING WINDOW: 4s)\n/,
     );
     expect(script).not.toMatch(/^WINDOW /m);
     expect(script).toMatch(
