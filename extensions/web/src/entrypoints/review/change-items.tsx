@@ -23,12 +23,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { GripVertical } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { EvidenceShot, locationShot, type ShotIndex } from '@/components/evidence-shot';
+import { RESOLUTION_LABEL, RESOLUTION_STYLE } from '@/components/resolution-style';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { db, type ProcessProgressRow, type ProcessRunRow, type ResolutionRow } from '@/db';
+import { latestResolutions } from '@/db/resolutions';
 import { appendReviewEvent } from '@/db/review';
 import { timeAgo, useNow } from '@/lib/time-ago';
 import { useStorageItem } from '@/lib/use-storage-item';
@@ -44,18 +46,6 @@ type Phase =
   | { kind: 'error'; message: string };
 
 const ROLE_LABEL = { subject: 'Subject', reference: 'Reference', destination: 'Destination' } as const;
-const RESOLUTION_LABEL = {
-  in_progress: 'In work',
-  resolved: 'Done',
-  wont_fix: "Won't fix",
-  needs_info: 'Needs info',
-} as const;
-const RESOLUTION_STYLE = {
-  in_progress: 'border-sky-300 bg-sky-50 text-sky-950',
-  resolved: 'border-emerald-300 bg-emerald-50 text-emerald-950',
-  wont_fix: 'bg-muted',
-  needs_info: 'border-amber-400 bg-amber-50 text-amber-950',
-} as const;
 
 export function ProcessSection({
   sessionId,
@@ -327,8 +317,7 @@ export function ChangeItemList({
   const shown = order ? order.flatMap((id) => byId.get(id) ?? []) : items;
   // The latest Resolution of each item of this run (only with a paired Host).
   const resolutions = useLiveQuery(async () => {
-    const rows = await db.resolutions.where('run_id').equals(run.id).sortBy('created_at');
-    return new Map(rows.map((r) => [r.item_id, r]));
+    return latestResolutions(await db.resolutions.where('run_id').equals(run.id).toArray());
   }, [run.id]);
 
   async function log(edit: ItemEditOp) {
