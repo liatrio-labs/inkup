@@ -11,6 +11,9 @@ export class Rdp {
   private pending = new Map<string, { resolve: (p: Packet) => void; reject: (e: Error) => void }[]>();
   private listeners = new Set<(p: Packet) => void>();
   private recent: Packet[] = [];
+  /** Evaluation results by resultID, kept until claimed: closing a tab can send more than `recent` holds. */
+  private results = new Map<string, Packet>();
+  private resultWaiters = new Map<string, (p: Packet) => void>();
   private readonly sock: Socket;
   private constructor(sock: Socket) {
     this.sock = sock;
@@ -44,6 +47,14 @@ export class Rdp {
       if (this.buf.length < colon + 1 + len) return;
       const packet = JSON.parse(this.buf.subarray(colon + 1, colon + 1 + len).toString()) as Packet;
       this.buf = this.buf.subarray(colon + 1 + len);
+      if (packet.type === 'evaluationResult' && typeof packet.resultID === 'string') {
+        const waiter = this.resultWaiters.get(packet.resultID);
+        if (waiter) {
+          this.resultWaiters.delete(packet.resultID);
+          waiter(packet);
+        } else this.results.set(packet.resultID, packet);
+        continue;
+      }
       // Events carry a `type`; replies do not (or carry the error). Recent packets are kept for next(): an event can
       // arrive in the same chunk as the reply that lets the caller know what to wait for.
       this.recent.push(packet);
@@ -85,6 +96,25 @@ export class Rdp {
         resolve(p);
       };
       this.listeners.add(l);
+    });
+  }
+
+  /** The `evaluationResult` event of an `evaluateJSAsync` call, which may have arrived before its reply was read. */
+  evaluationResult(resultID: string, timeoutMs = 30_000): Promise<Packet> {
+    const got = this.results.get(resultID);
+    if (got) {
+      this.results.delete(resultID);
+      return Promise.resolve(got);
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.resultWaiters.delete(resultID);
+        reject(new Error(`RDP: no evaluation result ${resultID}`));
+      }, timeoutMs);
+      this.resultWaiters.set(resultID, (p) => {
+        clearTimeout(timer);
+        resolve(p);
+      });
     });
   }
 
