@@ -3,19 +3,26 @@ import { describe, expect, it } from 'vitest';
 import { build, fixtureFile, loadCaptured, SCENARIOS } from '../../../scripts/gen-session-fixtures.ts';
 import {
   aliasScreenshotIds,
+  anthropicId,
   buildProcessPrompt,
   buildSystemPrompt,
   type ChangeItem,
   ChangeItemSchema,
   ChangeItemsOutputSchema,
   checkAgainstSession,
+  contextWindowFor,
+  DEFAULT_OUTPUT_CAP,
   estimateCost,
   estimateOutputTokens,
   formatUsd,
   gapMs,
+  type ModelCatalog,
+  outputCapFor,
   PAIRING_WINDOW_MS,
   PRICES,
+  PRICES_AS_OF,
   pairSegment,
+  priceFor,
   restoreScreenshotIds,
   sortForReview,
   speechAnchors,
@@ -364,6 +371,40 @@ describe('cost', () => {
   });
   it('returns null cost for unknown models', () => {
     expect(estimateCost('my-custom-model', 1000, 1000).usd).toBeNull();
+  });
+  it('prices and caps an Anthropic model behind the Gateway prefix, dots or dashes', () => {
+    expect(anthropicId('anthropic/claude-haiku-4.5')).toBe('claude-haiku-4-5');
+    expect(anthropicId('openai/gpt-6.1')).toBe('openai/gpt-6.1');
+    expect(priceFor('anthropic/claude-sonnet-5')).toEqual(PRICES['claude-sonnet-5']);
+    expect(priceFor('anthropic/claude-haiku-4.5')).toEqual({ input: 1, output: 5 });
+    expect(outputCapFor('anthropic/claude-opus-4.7')).toBe(128_000);
+    expect(estimateCost('anthropic/claude-sonnet-5', 10_000, 2_000).usd).toBeCloseTo(0.04, 10);
+  });
+  it("prices other Gateway models from the cached model list, dated by the list's fetch", () => {
+    const catalog: ModelCatalog = {
+      as_of: '2026-09-24',
+      models: {
+        'google/gemini-3.1-pro-preview': {
+          id: 'google/gemini-3.1-pro-preview',
+          price: { input: 2, output: 12 },
+          context_window: 1_000_000,
+          max_tokens: 64_000,
+        },
+        'claude-sonnet-5': { id: 'claude-sonnet-5', price: null, context_window: 1_000_000, max_tokens: 128_000 },
+      },
+    };
+    const e = estimateCost('google/gemini-3.1-pro-preview', 1_000_000, 100_000, catalog);
+    expect(e.usd).toBeCloseTo(2 + 1.2, 10);
+    expect(e.prices_as_of).toBe('2026-09-24');
+    expect(outputCapFor('google/gemini-3.1-pro-preview', catalog)).toBe(64_000);
+    expect(contextWindowFor('google/gemini-3.1-pro-preview', catalog)).toBe(1_000_000);
+    // The dated table wins for Anthropic models; the list still gives their context window.
+    expect(estimateCost('claude-sonnet-5', 1000, 0, catalog).prices_as_of).toBe(PRICES_AS_OF);
+    expect(contextWindowFor('anthropic/claude-sonnet-5', catalog)).toBe(1_000_000);
+    // Not listed anywhere: no price, the default cap, no context window.
+    expect(estimateCost('mistral/unknown', 1000, 1000, catalog).usd).toBeNull();
+    expect(outputCapFor('mistral/unknown', catalog)).toBe(DEFAULT_OUTPUT_CAP);
+    expect(contextWindowFor('mistral/unknown', catalog)).toBeNull();
   });
   it('scales the output estimate with Annotations and speech', () => {
     expect(estimateOutputTokens(0, 0)).toBe(1300);
