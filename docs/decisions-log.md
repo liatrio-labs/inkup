@@ -2,6 +2,42 @@
 
 Calls made during implementation that the PRD, PLAN and ADRs leave open. Newest slice first.
 
+## #34: a painted frame before every screenshot, and Firefox CI on a desktop-like Linux (2026-09-24)
+
+**The Text Comment screenshot sometimes showed the comment box** (about 1 run in 4 of the standalone e2e).
+
+- **Cause.** Saving closes the box, puts the page's selection back and asks for the screenshot at once. The service
+  worker hides the overlay's UI for the shot and captures the last painted frame, but the comment box skipped its
+  frame wait when it was already hidden, and with no toolbar on the page nothing else waited: the shot could be the
+  frame that still had the box.
+- **Fix.** Hiding for a screenshot always waits for a painted frame (`content/paint.ts`, `nextPaint()`: two
+  animation frames, or 150 ms in a tab that is not painting), whether or not any overlay UI is on the page, and
+  `save()` waits for one after putting the selection back. The toolbar's copy of the wait uses the same helper.
+
+**The Firefox e2e failed 10 of 26 on ubuntu CI** while passing on macOS. A Linux runner has no sound server and no
+display, which a real Firefox user has.
+
+- **No host.** The job never built `inkup`, so `network-host.spec.ts` could not spawn it. It now builds the host
+  like the Chrome e2e job.
+- **No sound server.** Without one, the media context's `AudioContext.resume()` does not settle until the context
+  is closed, and `close()` then takes about ten seconds, so every Stop waited out the service worker's 15 s
+  backstop (`__inkup` still present, the discard toast still up after Undo, no `audio.webm` in the export). The job
+  now runs PulseAudio with a null sink. The product no longer waits on either call for more than 2 s
+  (`AUDIO_DEVICE_TIMEOUT_MS` in `offscreen/pcm.ts`): a reviewer whose machine has no working audio output gets a
+  Stop in about two seconds, and the recording still runs; only the PCM graph's frames are missing.
+- **No display.** Headless, `getDisplayMedia` has no source and Sessions started from the Start frame recorded no
+  video. The job runs Firefox headed under `xvfb-run`.
+- **Hangs with no name.** `ExtPage.evaluate` could poll forever, so the frame host test ran into the 150 s test
+  timeout. Evaluations now have a deadline that names the call, and the firefox project sets `actionTimeout`. Named,
+  the hangs had two causes in the harness. The RDP client kept the last 200 packets for callers to claim, and an
+  evaluation whose page opened or closed a tab could see its `evaluationResult` pushed out by the packets that
+  followed; results are now kept by id until claimed (headed, `start-path.spec.ts` closing its review tabs hit this
+  on every run).
+  And a click on the frame host's Reset navigated the page away before the evaluation's answer was read:
+  `ExtPage.click(id, { navigates: true })` clicks just after answering.
+- The fixture also sets `media.autoplay.default` 0 and `media.autoplay.block-webaudio` false, so Web Audio starts
+  without a gesture, as it does for the add-on in a real profile.
+
 ## #33: pre-commit, Biome and Conventional Commits (2026-09-24)
 
 Before the repo opens to outside contributors, the checks CI runs now also run on the contributor's machine, from
