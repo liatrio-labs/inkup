@@ -68,15 +68,17 @@ the PCM clock and were only read by the draft trigger.
   `fixtures/vad-alignment`, the stamped and aligned times and the Annotations each pairs with before and after
   (snapshot-tested). 41 of 48 segments align; starts move 0.1–2.4 s earlier (median about 0.8 s).
 
-## #36: the extension and the host release on separate tags (2026-09-24)
+## #36: the host, Chrome and Firefox release on separate tags (2026-09-24)
 
-ADR 0008. `extension-v*` tags release the extension (`release.yml`, renamed "Extension release"); `host/v*` tags
-release the host through cargo-dist (`host-release.yml`, generated from `dist-workspace.toml`). Calls made while
-wiring it:
+ADR 0008. `inkup-v*` tags release the host through cargo-dist (`inkup-v-release.yml`, generated from
+`dist-workspace.toml`); `inkup-chrome-v*` tags run `release.yml` (renamed "Chrome extension release"); and
+`inkup-firefox-v*` tags run the new `firefox-release.yml`. Calls made while wiring it:
 
-- **`host/v0.1.0`, not `host-v0.1.0`.** dist 0.33 cannot parse a `host-` prefix; it strips a `<prefix>/` one.
-  `tag-namespace = "host"` limits the workflow trigger to tags starting with `host`, so a mistaken `host-v…` tag
-  still starts the workflow and fails at plan.
+- **Lowercase `inkup-v`.** It is dist's `<package>-v<version>` form, and the package is the `inkup` crate; dist 0.33
+  and axotag cannot parse `InkUp-v0.1.0`. The extension tags follow the same lowercase pattern.
+- **`tag-namespace = "inkup-v"`, not `"inkup"`.** dist turns the namespace into the trigger `<namespace>**[0-9]+…`;
+  with `inkup` that glob would also catch `inkup-chrome-v…` and `inkup-firefox-v…` and fail their runs at plan. The
+  price is the generated file's name, `inkup-v-release.yml`.
 - **dist-workspace.toml at the repo root**, with `members = ["cargo:host/"]`, because dist writes workflows under the
   repo's `.github/`. dist builds in `host/`, so `host/rust-toolchain.toml` pins the compiler in CI too. The `inkup`
   crate sets `[package.metadata.dist] dist = true`, since `publish = false` would otherwise hide it from dist.
@@ -86,8 +88,13 @@ wiring it:
   and the planned in-binary updater needs the receipt.
 - **No dist run on every PR.** `pr-run-mode = "skip"`; `host-dist-check.yml` runs `dist generate --check` and
   `dist plan` only when the release config changes, and is not part of `ci-ok`.
-- **zizmor.** Findings from dist's template are ignored per rule for `host-release.yml` only (`.github/zizmor.yml`).
-  The pre-commit hook passes `--config` because config discovery fails in a git worktree nested under another repo.
+- **Firefox mirrors Chrome.** Same tag-on-main and tag-equals-version checks, `pnpm zip:firefox`, a GitHub Release
+  with the add-on zip, and an AMO upload with the sources zip behind a `firefox-amo` environment that skips when
+  `FIREFOX_JWT_ISSUER` or `FIREFOX_JWT_SECRET` is unset. The gecko id is public and set in the workflow. The channel
+  defaults to `listed` (`FIREFOX_CHANNEL` overrides).
+- **zizmor.** Findings from dist's template are ignored per rule for `inkup-v-release.yml` only
+  (`.github/zizmor.yml`). The pre-commit hook passes `--config` because config discovery fails in a git worktree
+  nested under another repo.
 
 ## #35: one contract between the extension and the host (2026-09-24)
 
