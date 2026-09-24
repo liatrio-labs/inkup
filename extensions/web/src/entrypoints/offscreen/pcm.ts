@@ -8,10 +8,17 @@
 // spaced even when messages arrive in bursts. The anchor subtracts how far the context's clock had run past the
 // frame's last sample when the message arrived: a message delayed by a busy main thread would otherwise make every
 // word late, up to past the end of the Session.
+//
+// With no working audio output (Firefox on a Linux box with no sound server) the context's resume() and close() can
+// take ten seconds or never settle. Neither is waited on for longer than AUDIO_DEVICE_TIMEOUT_MS: the graph starts
+// suspended (it posts no frames, the recording still runs) and Stop finishes without the 15 s backstop.
+import { withTimeout } from '@inkup/core/overlay-lifetime';
 import type { PcmFrame, PcmSource } from '@/adapters/transcription/types';
 
 export const PCM_RATE = 16000;
 export const FRAME_SAMPLES = 1600;
+/** How long resume() and close() on the context are waited for. */
+export const AUDIO_DEVICE_TIMEOUT_MS = 2_000;
 
 export interface PcmGraph extends PcmSource {
   close(): Promise<void>;
@@ -29,7 +36,7 @@ export async function startPcmGraph(stream: MediaStream, now: () => number): Pro
   });
   // The worklet writes nothing to its output; the connection to the destination only keeps it rendering.
   source.connect(node).connect(ctx.destination);
-  if (ctx.state !== 'running') await ctx.resume().catch(() => {});
+  if (ctx.state !== 'running') await withTimeout(ctx.resume(), AUDIO_DEVICE_TIMEOUT_MS, undefined);
 
   const listeners = new Set<(f: PcmFrame) => void>();
   let anchor: { frame: number; t: number } | null = null;
@@ -53,7 +60,7 @@ export async function startPcmGraph(stream: MediaStream, now: () => number): Pro
       node.port.onmessage = null;
       source.disconnect();
       node.disconnect();
-      await ctx.close().catch(() => {});
+      await withTimeout(ctx.close(), AUDIO_DEVICE_TIMEOUT_MS, undefined);
     },
   };
 }

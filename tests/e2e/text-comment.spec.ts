@@ -20,7 +20,7 @@ const SPEECH = 'the headline sells the wrong thing';
 type Box = { x: number; y: number; width: number; height: number };
 
 /** A mouse drag across the heading's text, from before its first character to after its last. */
-async function selectHeading(pricing: Page) {
+async function dragAcrossHeading(pricing: Page) {
   const ends = await pricing.evaluate(() => {
     const range = document.createRange();
     range.selectNodeContents(document.querySelector('#hero-title')!);
@@ -36,9 +36,16 @@ async function selectHeading(pricing: Page) {
   await pricing.mouse.down();
   await pricing.mouse.move(ends.to.x, ends.to.y, { steps: 10 });
   await pricing.mouse.up();
-  await expect
-    .poll(() => pricing.evaluate(() => document.getSelection()?.toString().trim()))
-    .toBe('Ship reviews in minutes');
+}
+
+/**
+ * Selecting the heading with Select Text on: the comment box opens and takes focus. Focusing it takes the page's
+ * selection away, so the box, not the selection, says the heading was selected.
+ */
+async function selectHeading(pricing: Page) {
+  await dragAcrossHeading(pricing);
+  await expect(pricing.getByTestId('text-comment-box')).toBeVisible();
+  await expect(pricing.getByTestId('text-comment-input')).toBeFocused();
 }
 
 const selectMode = (sw: Worker) =>
@@ -66,7 +73,10 @@ const selectTextOn = (pricing: Page, sw: Worker) => shortcut(pricing, sw, 'Alt+S
 /** Selecting the heading with Select Text off: after a moment, still no comment box. */
 async function expectNoBox(pricing: Page) {
   await pricing.evaluate(() => document.getSelection()?.removeAllRanges());
-  await selectHeading(pricing);
+  await dragAcrossHeading(pricing);
+  await expect
+    .poll(() => pricing.evaluate(() => document.getSelection()?.toString().trim()))
+    .toBe('Ship reviews in minutes');
   await pricing.waitForTimeout(500);
   await expect(pricing.getByTestId('text-comment-box')).toBeHidden();
   await pricing.evaluate(() => document.getSelection()?.removeAllRanges());
@@ -100,8 +110,6 @@ async function record(
 async function comment(pricing: Page, panel: Page, text: string): Promise<{ box: Box }> {
   await selectHeading(pricing);
   const box = pricing.getByTestId('text-comment-box');
-  await expect(box).toBeVisible();
-  await expect(pricing.getByTestId('text-comment-input')).toBeFocused();
   await pricing.getByTestId('text-comment-input').pressSequentially(text);
   // The scripted speech lands while the text is selected (the box is open).
   await expect(panel.getByTestId('captions')).toContainText(SPEECH, { timeout: 20_000 });

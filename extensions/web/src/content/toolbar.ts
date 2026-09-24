@@ -23,6 +23,7 @@ import type { Theme, ThemeSetting } from '@inkup/core/contrast';
 import { activeElapsed } from '@inkup/core/media-time';
 import type { StartResult, ToolbarState } from '@/messaging';
 import type { SelectMode, ToolbarPosition } from '@/settings';
+import { nextPaint } from './paint';
 import type { ThemeSource } from './theme';
 import { clampPosition, defaultPosition, type Pos } from './toolbar-position';
 import { VIEWPORT_CSS, type ViewportActions, ViewportControl } from './viewport-control';
@@ -341,16 +342,7 @@ export class FloatingToolbar {
     for (const el of [this.bar, this.pill, this.toastEl]) el.style.visibility = hidden ? 'hidden' : '';
     this.viewportCtl?.hideForCapture(hidden);
     this.container.toggleAttribute('data-capturing', hidden);
-    if (!hidden) return;
-    await new Promise<void>((resolve) => {
-      const done = setTimeout(resolve, 150);
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          clearTimeout(done);
-          resolve();
-        }),
-      );
-    });
+    if (hidden) await nextPaint();
   }
 
   /** The Start frame may be recording the Session's video: the overlay host must not move (it would reload it). */

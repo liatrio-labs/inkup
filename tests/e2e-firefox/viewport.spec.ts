@@ -120,7 +120,8 @@ test('Firefox: the frame host resizes the page to 375; a Snap there is the 375 f
     what: 'the 900 px frame',
   });
 
-  await host.click('viewport-host-reset');
+  // Reset reloads the tab with the page: the frame host goes away.
+  await host.click('viewport-host-reset', { navigates: true });
   await onboarding.waitFor(
     async (id) => (await chrome.tabs.get(id)).url?.endsWith('/responsive.html') ?? false,
     tabId,

@@ -108,6 +108,8 @@ test('Firefox: Start, draw on the fixture site, Stop, Process, Export: the zip i
 
     await panel.click('stop');
     const review = await extPage('/review.html', 20_000);
+    // The page renders before it has read the key, with "Process without a model" under the same test id.
+    await review.waitForText('process-button', /^Process$/);
     await review.click('process-button');
     await review.click('process-confirm');
     await review.waitFor(() => document.querySelectorAll('[data-testid="change-item"]').length === 1, undefined, {

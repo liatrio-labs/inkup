@@ -15,6 +15,7 @@ export default defineConfig({
   use: { trace: 'retain-on-failure' },
   projects: [
     { name: 'chrome', testDir: 'tests/e2e' },
-    { name: 'firefox', testDir: 'tests/e2e-firefox' },
+    // A step that hangs fails on its own, by name, instead of running into the test's timeout.
+    { name: 'firefox', testDir: 'tests/e2e-firefox', use: { actionTimeout: 15_000 } },
   ],
 });
