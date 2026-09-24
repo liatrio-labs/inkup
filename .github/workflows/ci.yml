@@ -296,12 +296,11 @@ jobs:
       # contract/protocol.schema.json.
       - run: cargo test --workspace --locked
 
-  # The one required check. Skipped jobs pass; a failed or cancelled one fails it. extension-firefox is left out
-  # until it is green on main.
+  # The one required check. Skipped jobs pass; a failed or cancelled one fails it.
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, cargo]
+    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
