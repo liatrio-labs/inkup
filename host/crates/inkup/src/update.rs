@@ -470,6 +470,8 @@ mod tests {
         }
     }
 
+    // Unix paths: on Windows `/data/brew-cellar` has no drive, so it is not absolute, and Homebrew does not run there.
+    #[cfg(unix)]
     #[test]
     fn a_custom_homebrew_cellar_is_found_through_homebrew_cellar() {
         let exe = p("/data/brew-cellar/inkup/0.1.0/bin/inkup");
