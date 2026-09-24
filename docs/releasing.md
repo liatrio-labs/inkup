@@ -112,7 +112,22 @@ brew install liatrio-labs/tap/inkup
 
 `releases/latest` works only while the newest release is a host release; a Chrome or Firefox release made after it
 takes "latest". Link a specific `inkup-v…` release in announcements. The shell and PowerShell installers also install
-`inkup-update` and write an install receipt, which the in-binary updater reads (ADR 0008).
+`inkup-update` and write an install receipt, which `inkup update` reads (ADR 0008).
+
+### How installed hosts update
+
+- `inkup update` installs the newest `inkup-v*` release over a copy the shell or PowerShell installer installed;
+  `inkup update --check` only says whether there is one.
+- A Homebrew copy asks once: leave it to `brew upgrade inkup`, or install the release anyway (a second copy in
+  `~/.cargo/bin`; PATH order decides which runs). The answer is `[update] homebrew` in the data dir's config.toml;
+  change it with `inkup update --homebrew brew|self|ask`.
+- A `cargo install` or dev build only prints the install commands.
+- The TUI and `inkup serve` check at most once a day in the background, at a terminal only, and not when `CI` or
+  `INKUP_NO_UPDATE_CHECK=1` is set. A newer release shows in the TUI's key line.
+
+To try the whole path without publishing, point the updater and the installer at a stand-in for GitHub with
+`INKUP_INSTALLER_GHE_BASE_URL=http://127.0.0.1:<port>`: it must answer `/api/v3/repos/liatrio-labs/inkup/releases`
+(and `/releases/latest`) and serve the release files under `/liatrio-labs/inkup/releases/download/<tag>/`.
 
 ### Changing the host release config
 
