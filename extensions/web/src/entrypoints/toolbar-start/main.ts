@@ -5,46 +5,14 @@
 // away the video ends there and the Session goes on.
 
 import { FRAME_ERROR, FRAME_READY, FRAME_RECORDING } from '@/content/toolbar';
-import { PANEL_PORT, type PanelToWorker, type WorkerToPanel } from '@/lib/panel-port';
 import { pickTabVideo, TabVideoRecorder } from '@/media/tab-video';
+import { holdVideo } from '@/media/video-owner';
 import { sendMessage } from '@/messaging';
-import { platform, type SurfacePort } from '@/platform';
 
 const button = document.getElementById('start') as HTMLButtonElement;
 let recorder: TabVideoRecorder | null = null;
-let port: SurfacePort<PanelToWorker, WorkerToPanel> | null = null;
 
 const tell = (msg: { type: string; error?: string; on?: boolean }) => window.parent.postMessage(msg, '*');
-
-/** The Port that lets Stop ask for the last chunk; it reconnects if the service worker restarts. */
-function connect(sessionId: string) {
-  const p = platform.surfacePort.connect<PanelToWorker, WorkerToPanel>(PANEL_PORT);
-  port = p;
-  const post = (m: PanelToWorker) => {
-    try {
-      p.postMessage(m);
-    } catch {
-      /* reconnecting */
-    }
-  };
-  post({ type: 'owner', session_id: sessionId, stops_session: false });
-  p.onMessage((msg) => {
-    if (msg.type === 'session') return follow(msg.session_id, msg.paused);
-    if (msg.type !== 'flush_video') return;
-    const r = recorder;
-    void (async () => {
-      const chunks = r && r.session === msg.session_id ? await r.flush() : 0;
-      if (r === recorder) {
-        recorder = null;
-        tell({ type: FRAME_RECORDING, on: false });
-      }
-      post({ type: 'video_flushed', session_id: msg.session_id, chunks, stopped_at: r?.stoppedAt ?? Date.now() });
-    })();
-  });
-  p.onDisconnect(() => {
-    if (port === p && recorder) setTimeout(() => recorder && connect(sessionId), 100);
-  });
-}
 
 button.addEventListener('click', async () => {
   const clickedAt = Date.now();
@@ -68,9 +36,15 @@ button.addEventListener('click', async () => {
       return;
     }
     if (picked.stream) {
-      recorder = new TabVideoRecorder(picked.stream, r.session.id, r.session.t0);
-      recorder.start();
-      connect(r.session.id);
+      const rec = new TabVideoRecorder(picked.stream, r.session.id, r.session.t0);
+      recorder = rec;
+      rec.start();
+      // Said once the capture is stopped (flush stops its tracks), so the page knows the picker's surface is free.
+      holdVideo(rec, () => {
+        if (recorder !== rec) return;
+        recorder = null;
+        tell({ type: FRAME_RECORDING, on: false });
+      });
     }
   } catch (e) {
     picked.stream?.getTracks().forEach((t) => {
@@ -83,25 +57,8 @@ button.addEventListener('click', async () => {
   }
 });
 
-// The recording pauses with the Session, and a Session that ended without asking this frame still frees the capture.
-// Told over the Port: Firefox gives an extension frame inside a web page no storage.session, so watching
-// activeSession here threw, and this frame never said it was ready (F1).
-function follow(sessionId: string | null, paused: boolean) {
-  if (!recorder) return;
-  if (sessionId !== recorder.session) {
-    const r = recorder;
-    recorder = null;
-    // Said once the capture is stopped (flush stops its tracks), so the page knows the picker's surface is free.
-    void r.flush().finally(() => {
-      if (!recorder) tell({ type: FRAME_RECORDING, on: false });
-    });
-    port?.disconnect();
-    port = null;
-    return;
-  }
-  recorder.setPaused(paused);
-}
-// The page is going away: ask the recorder for what it has; the Port's disconnect then ends the video.
+// The page is going away: ask the recorder for what it has; the Port's disconnect then ends the video
+// (media/video-owner.ts).
 addEventListener('pagehide', () => recorder?.requestData());
 
 button.disabled = false;
