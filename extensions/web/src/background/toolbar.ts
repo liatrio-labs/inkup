@@ -4,8 +4,9 @@
 //
 // A Session started here belongs to no page (ADR 0004): closing the panel does not stop it, and a page navigating
 // away only remounts the toolbar. Video comes from Platform.capabilities().toolbarVideo (docs/spikes/toolbar-start.md):
-// Chrome records the tab with tabCapture in the media context; Firefox's toolbar Start is an extension frame that
-// opens the picker itself and calls startSession; elsewhere the Session has no video.
+// Chrome records the tab with tabCapture in the media context, and where Chrome refuses it opens the picker window
+// (./picker.ts); Firefox's toolbar Start is an extension frame that opens the picker itself and calls startSession;
+// elsewhere the Session has no video.
 import type { TimelineEvent } from '@inkup/core/timeline';
 import { isLoopbackUrl } from '@/adapters/host';
 import { type StartResult, sendMessage, type ToolbarState } from '@/messaging';
@@ -13,6 +14,7 @@ import { platform } from '@/platform';
 import { activeSession, hostStatus, panelNotice, tabViewports, toolbarTabs } from '@/session-state';
 import { type ActiveSession, discardPending, hostPairing, viewportSizes } from '@/settings';
 import { onEventAppended } from './event-log';
+import { openPicker } from './picker';
 import { getActive, startSession, stopSession } from './session';
 import { modeOf } from './target-tab';
 import { toolbarViewport } from './viewport';
@@ -135,12 +137,17 @@ export function onActionClick(tab: chrome.tabs.Tab): void {
 /**
  * Start from the page's toolbar or the shortcut, recording `tabId`, whose toolbar shows at once. On Chrome the tab's
  * video comes from tabCapture, which works once the extension was invoked on the tab (its icon showed the toolbar, or
- * the shortcut) and the tab has not navigated since; otherwise the Session records audio, Strokes and screenshots.
+ * the shortcut) and the tab has not navigated since. Otherwise the Session starts without video and the picker window
+ * offers the screen picker: the video joins the Session once the reviewer picks a tab there.
  */
 export async function startFromToolbar(tabId: number, clickedAt: number): Promise<StartResult> {
   const tabCapture = platform.capabilities().toolbarVideo === 'tab_capture' && !!platform.tabVideo.captureId;
   if (!(await shownIn(tabId))) await showToolbar(tabId, true);
-  return startSession({ state: 'off', reason: 'unavailable' }, clickedAt, { tabId, tabCapture });
+  return startSession({ state: 'off', reason: 'unavailable' }, clickedAt, {
+    tabId,
+    tabCapture,
+    ...(tabCapture ? { onNoTabCapture: openPicker } : {}),
+  });
 }
 
 /** Alt+Shift+R: Start on the tab it was pressed in (showing the toolbar there), or Stop. */

@@ -115,6 +115,8 @@ export interface StartOptions {
   tabId?: number;
   /** Chrome: the media context records the tab's video through tabCapture (docs/spikes/toolbar-start.md). */
   tabCapture?: boolean;
+  /** Chrome refused tabCapture (the tab was not invoked): the toolbar offers the picker window instead (./picker.ts). */
+  onNoTabCapture?: (s: ActiveSession) => unknown;
 }
 
 /** How long Start waits for the page to take the Session before it says Recording anyway. */
@@ -224,7 +226,7 @@ export async function startSession(
   await patchActive((s) => (s.id === id ? { ...s, starting: false } : s));
 
   // 2. The slow steps. Stop waits for them (doStop).
-  const media = startMedia(session, !!opts.tabCapture);
+  const media = startMedia(session, !!opts.tabCapture, opts.onNoTabCapture);
   startingMedia = media;
   try {
     return await media;
@@ -233,7 +235,11 @@ export async function startSession(
   }
 }
 
-async function startMedia(session: ActiveSession, tabCapture: boolean): Promise<StartResult> {
+async function startMedia(
+  session: ActiveSession,
+  tabCapture: boolean,
+  onNoTabCapture?: StartOptions['onNoTabCapture'],
+): Promise<StartResult> {
   const { id, t0, tab_id: tabId, voice = true } = session;
   let captureId: string | undefined;
   if (tabCapture) {
@@ -243,7 +249,11 @@ async function startMedia(session: ActiveSession, tabCapture: boolean): Promise<
     });
     if (!captureId) {
       await db.sessions.update(id, { video_off_reason: 'unavailable' });
-      await patchActive((s) => (s.id === id ? { ...s, video: { state: 'off', reason: 'unavailable' } } : s));
+      const off = await patchActive((s) =>
+        s.id === id ? { ...s, video: { state: 'off', reason: 'unavailable' } } : s,
+      );
+      // Not awaited: the microphone and the engine start while the reviewer reads the picker window.
+      if (off?.id === id && !off.stopping) void Promise.resolve(onNoTabCapture?.(off)).catch(console.warn);
     }
   }
   const dev = await devOverrides.getValue();
@@ -597,10 +607,47 @@ export async function onVideoStatus(input: VideoStatusInput): Promise<void> {
   });
 }
 
-/** The toolbar frame recording the video went away with its page: the video ends there, the Session goes on. */
+/**
+ * The picker window (./picker.ts) answered for a Session that started without video: a stream it now records, as the
+ * toolbar frame does, or the reviewer's choice to go on without one. False once that Session has ended or is ending.
+ */
+export async function attachVideo(input: { session_id: string; video: StartVideo }): Promise<{ ok: boolean }> {
+  const { session_id: id, video } = input;
+  let taken = false;
+  await patchActive((a) => {
+    if (a.id !== id || a.stopping || a.video.state !== 'off') return a;
+    taken = true;
+    return {
+      ...a,
+      video:
+        video.state === 'off'
+          ? video
+          : {
+              state: 'recording',
+              label: video.label,
+              start_offset_ms: null,
+              mime: null,
+              width: video.width,
+              height: video.height,
+              recorder: 'surface',
+            },
+    };
+  });
+  if (!taken) return { ok: false };
+  await db.sessions.update(id, { video_off_reason: video.state === 'off' ? video.reason : null });
+  return { ok: true };
+}
+
+/**
+ * The toolbar frame or the picker window recording the video went away: the video ends there, the Session goes on.
+ * During Stop it goes once it has handed over its last chunk, which is no end of the video: a write then could also
+ * put back the Session that Stop is clearing.
+ */
 export async function onVideoOwnerGone(sessionId: string): Promise<void> {
   await patchActive((a) =>
-    a.id !== sessionId || a.video.state !== 'recording' ? a : { ...a, video: { ...a.video, state: 'ended' } },
+    a.id !== sessionId || a.stopping || a.video.state !== 'recording'
+      ? a
+      : { ...a, video: { ...a.video, state: 'ended' } },
   );
 }
 

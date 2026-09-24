@@ -33,6 +33,7 @@ import {
 import { injectIntoOpenTabs } from '@/background/inject';
 import { pageApiCall } from '@/background/page-api';
 import { followSessionForOwner, listenForPanels } from '@/background/panel-port';
+import { initPicker } from '@/background/picker';
 import {
   combineItems,
   estimateProcess,
@@ -44,6 +45,7 @@ import {
 import { openReview } from '@/background/review-tab';
 import { sampleBackground } from '@/background/screenshots';
 import {
+  attachVideo,
   clearModes,
   contentHello,
   getActive,
@@ -90,6 +92,7 @@ export default defineBackground(() => {
   // click away on the toolbar, and on Alt+Shift+P.
   platform.controlSurface.onActionClick(onActionClick).catch(console.error);
   initToolbar();
+  initPicker();
   initViewport();
 
   // First run: onboarding obtains the mic grant in a visible tab and shows the capture privacy notice.
@@ -131,6 +134,7 @@ export default defineBackground(() => {
     return r;
   });
   onMessage('videoStatus', ({ data }) => onVideoStatus(data));
+  onMessage('attachVideo', ({ data }) => attachVideo(data));
   onMessage('stopSession', () => stopSession('stop'));
   onMessage('openReview', ({ data, sender }) => openReview(data, sender.tab?.windowId));
   onMessage('cancelSession', () => cancelSession());
