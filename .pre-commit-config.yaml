@@ -53,7 +53,8 @@ repos:
     rev: v1.30.1
     hooks:
       - id: zizmor
-        args: [--offline]
+        # Explicit config: discovery misses .github/zizmor.yml in a git worktree nested under another repo.
+        args: [--offline, --config=.github/zizmor.yml]
 
   # Conventional Commits
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook

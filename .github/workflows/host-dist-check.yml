@@ -1,0 +1,51 @@
+name: Host dist check
+
+# Checks the host's dist config on pull requests that touch it: host-release.yml must match what `dist generate`
+# writes from dist-workspace.toml, and `dist plan` must succeed for a sample host tag. Not a required check, and not
+# part of ci.yml's ci-ok gate. host-release.yml itself runs only on host/v* tags.
+on:
+  pull_request:
+    paths:
+      - dist-workspace.toml
+      - host/Cargo.toml
+      - host/Cargo.lock
+      - host/crates/*/Cargo.toml
+      - host/rust-toolchain.toml
+      - .github/workflows/host-release.yml
+      - .github/workflows/host-dist-check.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-dist-check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Keep in step with cargo-dist-version in dist-workspace.toml.
+  DIST_VERSION: "0.33.0"
+  DIST_SHA256: "4b3f0a5f0ebbdb798f6db649d01b32ba1518376b6f7a0502b7d92b75cc2c8293"
+
+jobs:
+  dist:
+    name: dist
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install dist (checksum-verified release binary)
+        run: |
+          archive=cargo-dist-x86_64-unknown-linux-gnu.tar.xz
+          curl --proto '=https' --tlsv1.2 -fsSLO "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/${archive}"
+          echo "${DIST_SHA256}  ${archive}" | sha256sum -c -
+          tar -xJf "$archive" --strip-components=1 -C "$RUNNER_TEMP" cargo-dist-x86_64-unknown-linux-gnu/dist
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: host-release.yml is up to date
+        run: dist generate --check
+      - name: dist plan for a sample host tag
+        run: |
+          version=$(cargo metadata --manifest-path host/Cargo.toml --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "inkup") | .version')
+          dist plan --tag="host/v${version}"

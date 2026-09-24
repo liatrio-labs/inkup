@@ -1,10 +1,10 @@
-name: Release
+name: Extension release
 
-# Push a tag like v0.2.0 on a commit that is already on main.
-# The tag must equal extensions/web/package.json "version" (which becomes the manifest version).
+# Push a tag like extension-v0.2.0 on a commit that is already on main.
+# The tag must equal extension-v + extensions/web/package.json "version" (which becomes the manifest version).
 on:
   push:
-    tags: ["v*.*.*"]
+    tags: ["extension-v*.*.*"]
 
 permissions:
   contents: read
@@ -36,7 +36,7 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME is not on main. Release only commits that passed CI on main."
             exit 1
           fi
-          pkg="v$(node -p 'require("./extensions/web/package.json").version')"
+          pkg="extension-v$(node -p 'require("./extensions/web/package.json").version')"
           if [ "$pkg" != "$GITHUB_REF_NAME" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $pkg."
             exit 1
@@ -87,7 +87,7 @@ jobs:
     name: chrome-web-store
     needs: build
     runs-on: ubuntu-latest
-    # Environment is restricted to v* tags. Required reviewers need a paid
+    # Environment is restricted to extension-v* tags. Required reviewers need a paid
     # plan on private repos; see docs/releasing.md.
     environment: chrome-web-store
     env:
