@@ -16,6 +16,8 @@ import {
   estimateOutputTokens,
   formatUsd,
   gapMs,
+  LIMIT_SHARE,
+  limitWarnings,
   type ModelCatalog,
   outputCapFor,
   PAIRING_WINDOW_MS,
@@ -24,6 +26,7 @@ import {
   pairSegment,
   priceFor,
   restoreScreenshotIds,
+  shouldAutoRun,
   sortForReview,
   speechAnchors,
   stamp,
@@ -414,6 +417,75 @@ describe('cost', () => {
   it('formats dollars', () => {
     expect(formatUsd(0.01234)).toBe('$0.0123');
     expect(formatUsd(2.5)).toBe('$2.50');
+  });
+});
+
+describe('limit warnings', () => {
+  const catalog: ModelCatalog = {
+    as_of: '2026-09-24',
+    models: { 'claude-sonnet-5': { id: 'claude-sonnet-5', price: null, context_window: 200_000, max_tokens: 128_000 } },
+  };
+  const est = (chunk_tokens: { input: number; output: number }[], model = 'claude-sonnet-5') => ({
+    ...estimateCost(
+      model,
+      chunk_tokens.reduce((n, c) => n + c.input, 0),
+      chunk_tokens.reduce((n, c) => n + c.output, 0),
+    ),
+    chunks: chunk_tokens.length,
+    chunk_tokens,
+  });
+
+  it('warns at 80% of the context window, for the largest call only', () => {
+    expect(LIMIT_SHARE).toBe(0.8);
+    expect(limitWarnings(est([{ input: 159_999, output: 2000 }]), catalog)).toEqual([]);
+    expect(
+      limitWarnings(
+        est([
+          { input: 160_000, output: 2000 },
+          { input: 190_000, output: 2000 },
+          { input: 10_000, output: 2000 },
+        ]),
+        catalog,
+      ),
+    ).toEqual([{ limit: 'context_window', chunk: 2, chunks: 3, tokens: 190_000, max: 200_000 }]);
+  });
+
+  it("warns at 80% of the output cap (the dated table's, else the list's)", () => {
+    // claude-sonnet-5: 128,000 → 102,400.
+    expect(limitWarnings(est([{ input: 1000, output: 102_399 }]), catalog)).toEqual([]);
+    expect(limitWarnings(est([{ input: 1000, output: 102_400 }]), catalog)).toEqual([
+      { limit: 'output_cap', chunk: 1, chunks: 1, tokens: 102_400, max: 128_000 },
+    ]);
+    // Both limits at once.
+    expect(limitWarnings(est([{ input: 199_000, output: 120_000 }]), catalog).map((w) => w.limit)).toEqual([
+      'context_window',
+      'output_cap',
+    ]);
+  });
+
+  it('skips the input check when no list gives the context window', () => {
+    expect(limitWarnings(est([{ input: 5_000_000, output: 1000 }]), null)).toEqual([]);
+    expect(limitWarnings(est([{ input: 5_000_000, output: 1000 }], 'mistral/unknown'), catalog)).toEqual([]);
+  });
+
+  it('reads an estimate without per-call counts as one call, and a no-call estimate as none', () => {
+    expect(limitWarnings(estimateCost('claude-sonnet-5', 170_000, 1000), catalog)).toHaveLength(1);
+    expect(limitWarnings({ ...estimateCost('claude-sonnet-5', 0, 0), chunks: 0 }, catalog)).toEqual([]);
+  });
+});
+
+describe('shouldAutoRun', () => {
+  const warning = { limit: 'context_window' as const, chunk: 1, chunks: 1, tokens: 190_000, max: 200_000 };
+  const base = { usd: 0.04, threshold: 0.5, done: false, warnings: [] };
+
+  it('runs without asking only when priced under the threshold, with nothing to replace and no warning', () => {
+    expect(shouldAutoRun(base)).toBe(true);
+    expect(shouldAutoRun({ ...base, threshold: undefined })).toBe(false);
+    expect(shouldAutoRun({ ...base, usd: null })).toBe(false);
+    expect(shouldAutoRun({ ...base, usd: 0.5 })).toBe(false);
+    expect(shouldAutoRun({ ...base, usd: 0.6 })).toBe(false);
+    expect(shouldAutoRun({ ...base, done: true })).toBe(false);
+    expect(shouldAutoRun({ ...base, warnings: [warning] })).toBe(false);
   });
 });
 

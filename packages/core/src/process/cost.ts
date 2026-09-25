@@ -104,6 +104,8 @@ export interface CostEstimate {
   output_tokens: number;
   /** Process calls the Session is split into (packages/core/src/process/sections.ts); absent: 1. */
   chunks?: number;
+  /** Each call's own tokens, in order (the limits apply per call); absent: the totals are one call's. */
+  chunk_tokens?: { input: number; output: number }[];
   /** null when neither PRICES nor the cached model list prices the model. */
   usd: number | null;
   /** PRICES_AS_OF, or the day the model list that priced it was fetched. */
@@ -121,6 +123,59 @@ export function estimateCost(
   const usd = p ? (inputTokens * p.input + outputTokens * p.output) / 1_000_000 : null;
   const asOf = listed || !p || !catalog ? PRICES_AS_OF : catalog.as_of;
   return { model, input_tokens: inputTokens, output_tokens: outputTokens, usd, prices_as_of: asOf };
+}
+
+/** A call at or above this share of a model limit gets a warning before Process runs. */
+export const LIMIT_SHARE = 0.8;
+
+/** One call of the estimate near one of the model's limits: its largest call, when several are near. */
+export interface LimitWarning {
+  /** `context_window`: the call's input; `output_cap`: its estimated answer. */
+  limit: 'context_window' | 'output_cap';
+  /** 1-based, of `chunks`. */
+  chunk: number;
+  chunks: number;
+  tokens: number;
+  max: number;
+}
+
+/**
+ * The estimate's calls that reach LIMIT_SHARE of the model's context window (skipped when no list gives it) or of
+ * its output cap: at most one warning per limit, for the largest call.
+ */
+export function limitWarnings(estimate: CostEstimate, catalog?: ModelCatalog | null): LimitWarning[] {
+  const calls =
+    estimate.chunk_tokens ??
+    ((estimate.chunks ?? 1) === 1 ? [{ input: estimate.input_tokens, output: estimate.output_tokens }] : []);
+  const window = contextWindowFor(estimate.model, catalog);
+  const limits: [LimitWarning['limit'], number | null, 'input' | 'output'][] = [
+    ['context_window', window, 'input'],
+    ['output_cap', outputCapFor(estimate.model, catalog), 'output'],
+  ];
+  const warnings: LimitWarning[] = [];
+  for (const [limit, max, side] of limits) {
+    if (!max) continue;
+    let worst = -1;
+    calls.forEach((c, i) => {
+      if (c[side] >= LIMIT_SHARE * max && (worst < 0 || c[side] > calls[worst]![side])) worst = i;
+    });
+    if (worst >= 0) warnings.push({ limit, chunk: worst + 1, chunks: calls.length, tokens: calls[worst]![side], max });
+  }
+  return warnings;
+}
+
+/**
+ * Whether Process may skip its confirm step: the reviewer set a threshold, the estimate is priced and under it, no
+ * call is near a model limit, and nothing would be replaced (Process again discards the items and their edits).
+ */
+export function shouldAutoRun(input: {
+  usd: number | null;
+  threshold: number | undefined;
+  done: boolean;
+  warnings: readonly LimitWarning[];
+}): boolean {
+  const { usd, threshold, done, warnings } = input;
+  return threshold !== undefined && usd !== null && usd < threshold && !done && warnings.length === 0;
 }
 
 /** "$0.0123" below a dollar, "$1.23" above. */
