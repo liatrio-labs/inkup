@@ -2,6 +2,7 @@
 // the Session comes back into the list. When its id is already stored, a dialog asks Open existing or Replace. While
 // a Host is paired, the restored Session goes to it too, whole.
 
+import { sessionName } from '@inkup/core/review-edits';
 import { readSessionFile, type SessionFile, SessionFileError } from '@inkup/core/session-file';
 import { useRef, useState } from 'react';
 import { ReviewLink } from '@/components/review-link';
@@ -39,7 +40,7 @@ export function RestoreSession({ size = 'default' }: { size?: 'default' | 'sm' }
       setState({
         kind: 'done',
         id: r.session_id,
-        title: file.doc.session.start_title || file.doc.session.start_url,
+        title: sessionName(file.doc.session, file.doc.events),
         media: file.source === 'zip',
       });
     } catch (e) {
@@ -106,9 +107,8 @@ export function RestoreSession({ size = 'default' }: { size?: 'default' | 'sm' }
             <DialogHeader>
               <DialogTitle>This Session is already stored</DialogTitle>
               <DialogDescription>
-                {clash.doc.session.start_title || clash.doc.session.start_url} is in your Sessions. Open the stored
-                copy, or replace it with the file. Replace deletes the stored copy, including its review edits and
-                Process runs.
+                {sessionName(clash.doc.session, clash.doc.events)} is in your Sessions. Open the stored copy, or replace
+                it with the file. Replace deletes the stored copy, including its review edits and Process runs.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

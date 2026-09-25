@@ -10,7 +10,8 @@ import { addEventRows, notifyOutbox, outboxEnabled, queueItems, storeEvents } fr
 
 type ReviewEvent =
   | Omit<EventOf<'transcript_edit'>, 'id' | 't' | 'edited_at'>
-  | Omit<EventOf<'item_edit'>, 'id' | 't' | 'edited_at'>;
+  | Omit<EventOf<'item_edit'>, 'id' | 't' | 'edited_at'>
+  | Omit<EventOf<'session_rename'>, 'id' | 't' | 'edited_at'>;
 
 export async function appendReviewEvent(sessionId: string, event: ReviewEvent): Promise<TimelineEvent> {
   const row = await db.sessions.get(sessionId);
