@@ -6,7 +6,11 @@
 //!
 //! Closing the window hides it; the app keeps running from the menubar until Quit, which stops the server when
 //! the app hosts. Where its icons show (menu bar, Dock) is `[desktop]` in config.toml (`inkup_store::DesktopConfig`).
+//! What they show (the Clients dot, the development stripes) is icon.rs.
 
+#[cfg(target_os = "macos")]
+mod dock;
+pub mod icon;
 pub mod link;
 pub mod startup;
 
@@ -18,10 +22,12 @@ use inkup_protocol::control::{CommandOutcome, CommandRequest, ControlState, NewT
 use inkup_server::{ActivateHook, NetworkHook};
 use inkup_store::DesktopConfig;
 use serde::{Deserialize, Serialize};
+use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent, Wry};
 
+use crate::icon::{Dot, DotDriver, Frames};
 use crate::link::HostLink;
 use crate::startup::{Hosted, Hosting, Startup, find_or_host};
 
@@ -31,6 +37,12 @@ const TRAY: &str = "inkup";
 const TOGGLES_EVENT: &str = "desktop-toggles";
 /// Sent to the window when the host it talks to changed: taken over, or restarted in or out of network mode.
 const VIEW_EVENT: &str = "host-view";
+/// The app icon the tray and Dock pictures are drawn from.
+const APP_ICON: &[u8] = include_bytes!("../icons/icon.png");
+/// The menu bar icon in pixels: 18 pt at 2x.
+const TRAY_SIZE: u32 = 36;
+/// The Dock icon in pixels: 256 pt at 2x, as big as the Dock magnifies.
+const DOCK_SIZE: u32 = 512;
 
 /// Where the app runs: the data dir and the port to host on.
 pub struct Launch {
@@ -86,6 +98,9 @@ struct Desktop {
     hosted: tokio::sync::Mutex<Option<Hosted>>,
     toggles: Mutex<Toggles>,
     tray: OnceLock<TrayItems>,
+    /// The Clients dot, from each host state the window reads.
+    dot: DotDriver,
+    icons: Icons,
 }
 
 impl Desktop {
@@ -102,6 +117,65 @@ impl Desktop {
     }
 }
 
+/// The tray and Dock pictures, one per frame of the dot.
+struct Icons {
+    tray: Frames<Image<'static>>,
+    /// macOS: a PNG for the Dock tile, or `None` for the bundled icon. Elsewhere: the window's taskbar icon.
+    #[cfg(target_os = "macos")]
+    dock: Frames<Option<Vec<u8>>>,
+    #[cfg(not(target_os = "macos"))]
+    dock: Frames<Image<'static>>,
+}
+
+impl Icons {
+    fn new() -> Self {
+        let base = Arc::new(
+            image::load_from_memory_with_format(APP_ICON, image::ImageFormat::Png)
+                .expect("the bundled icon is a PNG")
+                .to_rgba8(),
+        );
+        let development = icon::DEVELOPMENT;
+        let tray = {
+            let base = Arc::clone(&base);
+            Frames::new(move |dot| {
+                let img = icon::compose(&base, TRAY_SIZE, development, dot);
+                Image::new_owned(img.into_raw(), TRAY_SIZE, TRAY_SIZE)
+            })
+        };
+        #[cfg(target_os = "macos")]
+        let dock = Frames::new(move |dot| {
+            // A release build with no dot keeps the bundled icon.
+            if !development && dot == Dot::None {
+                return None;
+            }
+            let mut png = Vec::new();
+            let img = icon::compose(&base, DOCK_SIZE, development, dot);
+            img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).ok()?;
+            Some(png)
+        });
+        #[cfg(not(target_os = "macos"))]
+        let dock = Frames::new(move |dot| {
+            let img = icon::compose(&base, DOCK_SIZE, development, dot);
+            Image::new_owned(img.into_raw(), DOCK_SIZE, DOCK_SIZE)
+        });
+        Self { tray, dock }
+    }
+}
+
+/// Puts a frame of the dot on the tray and the Dock. Main thread only.
+fn show_dot(app: &AppHandle, dot: Dot) {
+    let desktop = app.state::<Desktop>();
+    if let Some(tray) = app.tray_by_id(TRAY) {
+        let _ = tray.set_icon(Some(desktop.icons.tray.get(dot).clone()));
+    }
+    #[cfg(target_os = "macos")]
+    dock::show(desktop.icons.dock.get(dot).as_deref());
+    #[cfg(not(target_os = "macos"))]
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        let _ = window.set_icon(desktop.icons.dock.get(dot).clone());
+    }
+}
+
 /// The tray's items that change while the app runs.
 struct TrayItems {
     status: MenuItem<Wry>,
@@ -113,10 +187,13 @@ fn text(error: impl std::fmt::Display) -> String {
     error.to_string()
 }
 
-/// What the window shows: `GET /api/host/state` through the link.
+/// What the window shows: `GET /api/host/state` through the link. Each read also sets the Clients dot, so the
+/// icons follow the window's long-poll with no loop of their own.
 #[tauri::command]
 async fn host_state(desktop: State<'_, Desktop>, timeline: Option<String>) -> Result<ControlState, String> {
-    desktop.link().state(timeline.as_deref()).await.map_err(text)
+    let state = desktop.link().state(timeline.as_deref()).await;
+    desktop.dot.follow(&state);
+    state.map_err(text)
 }
 
 #[tauri::command]
@@ -226,7 +303,14 @@ fn show_icons(app: &AppHandle, toggles: Toggles) {
         let _ = tray.set_visible(toggles.menubar);
     }
     #[cfg(target_os = "macos")]
-    let _ = app.set_dock_visibility(toggles.dock);
+    {
+        let _ = app.set_dock_visibility(toggles.dock);
+        // A Dock icon shown again starts from the bundle's: put the drawn one back.
+        if toggles.dock {
+            let desktop = app.state::<Desktop>();
+            dock::show(desktop.icons.dock.get(desktop.dot.clients().resting()).as_deref());
+        }
+    }
     #[cfg(not(target_os = "macos"))]
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         let _ = window.set_skip_taskbar(!toggles.dock);
@@ -295,6 +379,16 @@ pub fn run(launch: Launch) -> Result<()> {
             None => tracing::warn!("network mode asked for before the app was up"),
         })
     };
+    let dot = {
+        let handle = Arc::clone(&handle);
+        // The pulse calls this on a task; the icons change on the main thread.
+        DotDriver::new(move |dot| {
+            if let Some(app) = handle.get() {
+                let app = app.clone();
+                let _ = app.clone().run_on_main_thread(move || show_dot(&app, dot));
+            }
+        })
+    };
     let hosting = Hosting::new(launch.port, on_activate, on_network);
     // Tauri's own runtime, so the server runs where the app's commands do.
     let startup = tauri::async_runtime::block_on(find_or_host(&launch.data_dir, &hosting))?;
@@ -323,6 +417,8 @@ pub fn run(launch: Launch) -> Result<()> {
         hosted: tokio::sync::Mutex::new(hosted),
         toggles: Mutex::new(toggles),
         tray: OnceLock::new(),
+        dot,
+        icons: Icons::new(),
     };
 
     let app = tauri::Builder::default()
@@ -346,6 +442,8 @@ pub fn run(launch: Launch) -> Result<()> {
             let items = tray(app.handle(), &status, toggles)?;
             let _ = app.state::<Desktop>().tray.set(items);
             show_icons(app.handle(), toggles);
+            // Development stripes from the start; the dot follows the first host state.
+            show_dot(app.handle(), Dot::None);
             theme_override(app.handle());
             // Once the hooks can reach the window: scripts wait for these lines.
             eprintln!("{ready}");
@@ -397,10 +495,11 @@ fn tray(app: &AppHandle, status: &str, toggles: Toggles) -> tauri::Result<TrayIt
     let quit = MenuItem::with_id(app, "quit", "Quit InkUp", true, None::<&str>)?;
     let separator = || PredefinedMenuItem::separator(app);
     let menu = Menu::with_items(app, &[&show, &status, &separator()?, &menubar, &dock, &separator()?, &quit])?;
-    let mut tray = TrayIconBuilder::with_id(TRAY).tooltip("InkUp").menu(&menu).show_menu_on_left_click(true);
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
-    }
+    let icon = app.state::<Desktop>().icons.tray.get(Dot::None).clone();
+    // Not a template image: macOS would draw a template in the menu bar's one colour, and the dot has to stay green
+    // (and the development stripes yellow). The full-colour app icon reads on light and dark menu bars as it is.
+    let tray = TrayIconBuilder::with_id(TRAY).tooltip("InkUp").menu(&menu).show_menu_on_left_click(true);
+    let tray = tray.icon(icon).icon_as_template(false);
     tray.on_menu_event(|app, event| match event.id().as_ref() {
         "show" => show_main(app),
         "quit" => app.exit(0),

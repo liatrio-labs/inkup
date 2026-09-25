@@ -64,6 +64,23 @@ host asks.
 edited to both off gets the Dock back. Closing the window hides it and the app keeps hosting. Quit, in the menu bar
 menu, stops the server and gives up the data dir.
 
+**What the icons say.** The menu bar (tray) and Dock icons are drawn at run time from the bundled PNG
+(`apps/desktop/src-tauri/src/icon.rs`), in host mode and client mode alike:
+
+- A dot for paired Clients, the extension's host dot (green, white ring, bottom-right, the same geometry): none
+  while no Client is paired, steady while one or more are, and a slow pulse (full and faint, half a second each)
+  while any is sending: a live Session that is not paused (a paused one shows the steady dot). It follows the host
+  state the window already reads through `HostLink` (each `host_state` call), so the icons add no poll of their
+  own, and only the pulse runs a timer.
+- Development stripes: anything the release workflow did not build (`INKUP_RELEASE_BUILD` unset at compile time,
+  so debug builds, `desktop:dev` and a local release build) draws the icon, inset by one band, on 45° black and
+  yellow bands, the same as the extension's development icon. The dot goes on top.
+- The tray icon is a full-colour image, not a template: macOS draws a template in the menu bar's single colour,
+  which would lose the green dot and the stripes.
+- The Dock picture is the Dock tile's content view (safe objc2-app-kit calls), because Tauri 2 cannot change the
+  Dock icon. The bundled .icns never changes, so Finder, and the Dock before launch, show the plain icon even for a
+  development build.
+
 **It ships as a signed, notarized DMG on the host's release train.** Each `inkup-v<version>` release also carries
 `InkUp_<version>_universal.dmg`: one app for Apple silicon and Intel, versioned by the tag, since it embeds that
 host. cargo-dist's release workflow calls `.github/workflows/desktop-macos.yml` after it has published the release
@@ -129,6 +146,9 @@ recognisably the same product.
 - 2026-09-25 (#26): release packaging was deferred; builds were debug builds from a checkout. 2026-09-25: the app
   ships as a signed, notarized universal DMG on each host release, from a post-announce job, as "It ships as a signed,
   notarized DMG" says.
+- 2026-09-25: the icons showed only the app icon. Now they carry the paired-Clients dot and, on development builds,
+  the construction stripes, as "What the icons say" describes, so a glance says whether Clients are recording and
+  whether this is a real release.
 
 ## Sources
 

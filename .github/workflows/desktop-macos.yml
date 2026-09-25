@@ -90,6 +90,8 @@ jobs:
         env:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # A release build: no development stripes on the app's icons (apps/desktop/src-tauri/src/icon.rs).
+          INKUP_RELEASE_BUILD: '1'
         run: |
           version="${TAG#inkup-v}"
           pnpm -C apps/desktop tauri build --target universal-apple-darwin --bundles app,dmg \
