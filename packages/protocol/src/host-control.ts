@@ -8,13 +8,18 @@
 // - `host.json` (`HostFile`): who holds the data dir, where it listens, and the control token. 0600 on unix.
 // - `GET /api/host/state` (`ControlState`): `HostState`, what the TUI shows, plus the header's facts.
 // - `POST /api/host/activate` (`Activated`): whether the Host brought a window forward.
+// - `GET /api/host/changes?since=<seq>` (`Changes`): waits until what `state` returns has changed after `seq`.
+// - `POST /api/host/commands` (`CommandRequest` → `CommandOutcome`): drives a connected Client's Session.
+// - `POST /api/host/tokens` (`NewTokenRequest` → `NewToken`), `DELETE /api/host/tokens/{id}`: agent tokens.
+// - `POST /api/host/network` (`NetworkRequest` → `NetworkSwitched`): network mode, where the Host can switch it here.
+// - `POST /api/host/pairing/{id}` (`PairingAnswer`): approve or deny a pairing request the Host asks about here.
 //
 // Loopback only, with `Authorization: Bearer <control_token>`: a paired Client's token or an agent token is refused.
 // Nullable fields are always present, `null` when empty, as the Host serialises them.
 import { z } from 'zod';
 
 /** Bump on a breaking change to the control API. */
-export const CONTROL_API = 1 as const;
+export const CONTROL_API = 2 as const;
 
 const Int = z.number().int();
 const EpochMs = Int.describe('epoch ms');
@@ -121,6 +126,29 @@ export const NetworkView = z
   .describe('network mode as the header shows it');
 export type NetworkView = z.infer<typeof NetworkView>;
 
+export const RemotePairing = z
+  .object({
+    code: z
+      .string()
+      .regex(/^[0-9]{6}$/)
+      .describe('the 6-digit code the user types in the Client'),
+    from: z.string().describe('the address the request came from'),
+    link: z.string().describe('inkup://pair?url=…&code=…, for a QR code'),
+  })
+  .describe('a pairing request from another machine (network mode): shown, not approved');
+export type RemotePairing = z.infer<typeof RemotePairing>;
+
+export const PairingPrompt = z
+  .object({
+    id: Int.nonnegative().describe('answer it at POST /api/host/pairing/{id}'),
+    prompt: z.string().describe('"Chrome extension "Work laptop" wants to connect"'),
+    client_kind: z.string(),
+    client_name: z.string(),
+    remote: RemotePairing.nullable(),
+  })
+  .describe('a pairing request waiting for the user');
+export type PairingPrompt = z.infer<typeof PairingPrompt>;
+
 export const ControlState = z
   .object({
     control_api: z.literal(CONTROL_API),
@@ -129,6 +157,10 @@ export const ControlState = z
     address: z.string().describe('127.0.0.1:<port>'),
     network: NetworkView.nullable().describe('set in network mode'),
     update: z.string().nullable().describe('a newer release, once the background check finds one'),
+    network_switch: z.boolean().describe('whether POST /api/host/network can switch network mode on this Host'),
+    pending_pairing: z
+      .array(PairingPrompt)
+      .describe('pairing requests this Host asks about through the control API; empty when its terminal asks'),
     state: HostState,
   })
   .describe('GET /api/host/state?timeline=<session id>');
@@ -138,6 +170,56 @@ export const Activated = z
   .object({ handled: z.boolean().describe('false when the Host has no window to bring forward (the TUI, serve)') })
   .describe('POST /api/host/activate');
 export type Activated = z.infer<typeof Activated>;
+
+export const Changes = z
+  .object({ seq: Int.nonnegative().describe('pass it back as `since` to wait for the next change') })
+  .describe('GET /api/host/changes?since=<seq>: answered at the next change, or after a while with no change');
+export type Changes = z.infer<typeof Changes>;
+
+export const HostCommand = z.enum(['start_session', 'pause', 'resume', 'stop', 'set_draw_mode']);
+export type HostCommand = z.infer<typeof HostCommand>;
+
+export const CommandRequest = z
+  .object({
+    client_id: z.string().min(1),
+    command: HostCommand,
+    draw_mode: z.boolean().optional().describe('set_draw_mode only: on or off'),
+  })
+  .describe("POST /api/host/commands: what the TUI's keys do to a connected Client's Session");
+export type CommandRequest = z.infer<typeof CommandRequest>;
+
+export const CommandOutcome = z
+  .object({ ok: z.boolean(), session_id: z.string().nullable(), message: z.string().nullable() })
+  .describe("the Client's answer to a command");
+export type CommandOutcome = z.infer<typeof CommandOutcome>;
+
+export const NewTokenRequest = z
+  .object({ name: z.string().trim().min(1).max(60).describe('who it is for, e.g. "claude-code on laptop"') })
+  .describe('POST /api/host/tokens');
+export type NewTokenRequest = z.infer<typeof NewTokenRequest>;
+
+export const NewToken = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    created_at: EpochMs,
+    token: z.string().min(1).describe('the secret: shown once, stored nowhere but by its user'),
+  })
+  .describe('a new agent token');
+export type NewToken = z.infer<typeof NewToken>;
+
+export const NetworkRequest = z.object({ on: z.boolean() }).describe('POST /api/host/network');
+export type NetworkRequest = z.infer<typeof NetworkRequest>;
+
+export const NetworkSwitched = z
+  .object({ handled: z.boolean().describe('false when this Host switches network mode in its own terminal') })
+  .describe('the Host restarts its server in the new mode after answering');
+export type NetworkSwitched = z.infer<typeof NetworkSwitched>;
+
+export const PairingAnswer = z
+  .object({ decision: z.enum(['approve', 'deny']) })
+  .describe('POST /api/host/pairing/{id}; a request from another machine can only be denied');
+export type PairingAnswer = z.infer<typeof PairingAnswer>;
 
 /** Every schema in host-control.schema.json, by its definition name. */
 export const CONTROL_DEFINITIONS = {
@@ -155,4 +237,15 @@ export const CONTROL_DEFINITIONS = {
   Watcher,
   AgentToken,
   NetworkView,
+  PairingPrompt,
+  RemotePairing,
+  Changes,
+  HostCommand,
+  CommandRequest,
+  CommandOutcome,
+  NewTokenRequest,
+  NewToken,
+  NetworkRequest,
+  NetworkSwitched,
+  PairingAnswer,
 } as const;

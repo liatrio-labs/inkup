@@ -113,6 +113,9 @@ pub struct Watcher {
 
 pub struct Hub {
     changes: watch::Sender<u64>,
+    /// Bumped whenever what the TUI shows changes: `changes`, and also each stored event, connection, watcher,
+    /// token and pairing request. The control API's long-poll waits on it.
+    view: watch::Sender<u64>,
     pushes: broadcast::Sender<Push>,
     watchers: Mutex<BTreeMap<u64, Watcher>>,
     next_watcher: AtomicU64,
@@ -124,6 +127,7 @@ impl Default for Hub {
     fn default() -> Self {
         Self {
             changes: watch::Sender::new(0),
+            view: watch::Sender::new(0),
             pushes: broadcast::Sender::new(256),
             watchers: Mutex::new(BTreeMap::new()),
             next_watcher: AtomicU64::new(1),
@@ -137,6 +141,16 @@ impl Hub {
     /// Items, Resolutions or Signals changed.
     pub fn changed(&self) {
         self.changes.send_modify(|n| *n += 1);
+        self.view_changed();
+    }
+
+    /// Something the TUI shows changed that agents do not wait on: an event, a watcher, a token, a pairing request.
+    pub fn view_changed(&self) {
+        self.view.send_modify(|n| *n += 1);
+    }
+
+    pub fn subscribe_view(&self) -> watch::Receiver<u64> {
+        self.view.subscribe()
     }
 
     pub fn subscribe_changes(&self) -> watch::Receiver<u64> {
@@ -156,6 +170,7 @@ impl Hub {
     pub fn watching(&self, url: Option<String>, session_id: Option<String>, since: i64) -> WatchGuard<'_> {
         let id = self.next_watcher.fetch_add(1, Ordering::Relaxed);
         self.lock_watchers().insert(id, Watcher { id, url, session_id, since });
+        self.view_changed();
         WatchGuard { hub: self, id }
     }
 
@@ -226,5 +241,6 @@ pub struct WatchGuard<'a> {
 impl Drop for WatchGuard<'_> {
     fn drop(&mut self) {
         self.hub.lock_watchers().remove(&self.id);
+        self.hub.view_changed();
     }
 }

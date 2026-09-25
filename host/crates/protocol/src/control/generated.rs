@@ -18,6 +18,12 @@ pub struct AgentToken {
     pub last_used_at: ::std::option::Option<i64>,
     pub name: ::std::string::String,
 }
+///GET /api/host/changes?since=<seq>: answered at the next change, or after a while with no change
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct Changes {
+    ///pass it back as `since` to wait for the next change
+    pub seq: i64,
+}
 ///`ClientView`
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
 pub struct ClientView {
@@ -30,6 +36,78 @@ pub struct ClientView {
     pub last_seen_at: ::std::option::Option<i64>,
     pub name: ::std::string::String,
 }
+///the Client's answer to a command
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct CommandOutcome {
+    #[serde(deserialize_with = "::std::option::Option::deserialize")]
+    pub message: ::std::option::Option<::std::string::String>,
+    pub ok: bool,
+    #[serde(deserialize_with = "::std::option::Option::deserialize")]
+    pub session_id: ::std::option::Option<::std::string::String>,
+}
+///POST /api/host/commands: what the TUI's keys do to a connected Client's Session
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct CommandRequest {
+    pub client_id: CommandRequestClientId,
+    pub command: HostCommand,
+    ///set_draw_mode only: on or off
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub draw_mode: ::std::option::Option<bool>,
+}
+///`CommandRequestClientId`
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct CommandRequestClientId(::std::string::String);
+impl ::std::ops::Deref for CommandRequestClientId {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<CommandRequestClientId> for ::std::string::String {
+    fn from(value: CommandRequestClientId) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for CommandRequestClientId {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        if value.chars().count() < 1usize {
+            return Err("shorter than 1 characters".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for CommandRequestClientId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for CommandRequestClientId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for CommandRequestClientId {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
 ///GET /api/host/state?timeline=<session id>
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
 pub struct ControlState {
@@ -40,6 +118,10 @@ pub struct ControlState {
     ///set in network mode
     #[serde(deserialize_with = "::std::option::Option::deserialize")]
     pub network: ::std::option::Option<NetworkView>,
+    ///whether POST /api/host/network can switch network mode on this Host
+    pub network_switch: bool,
+    ///pairing requests this Host asks about through the control API; empty when its terminal asks
+    pub pending_pairing: ::std::vec::Vec<PairingPrompt>,
     pub state: HostState,
     ///a newer release, once the background check finds one
     #[serde(deserialize_with = "::std::option::Option::deserialize")]
@@ -66,7 +148,7 @@ impl ::std::convert::TryFrom<i64> for ControlStateControlApi {
     fn try_from(
         value: i64,
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        if ![1_i64].contains(&value) {
+        if ![2_i64].contains(&value) {
             Err("invalid value".into())
         } else {
             Ok(Self(value))
@@ -134,6 +216,73 @@ impl<'de> ::serde::Deserialize<'de> for ControlStateVersion {
             .map_err(|e: self::error::ConversionError| {
                 <D::Error as ::serde::de::Error>::custom(e.to_string())
             })
+    }
+}
+///`HostCommand`
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum HostCommand {
+    #[serde(rename = "start_session")]
+    StartSession,
+    #[serde(rename = "pause")]
+    Pause,
+    #[serde(rename = "resume")]
+    Resume,
+    #[serde(rename = "stop")]
+    Stop,
+    #[serde(rename = "set_draw_mode")]
+    SetDrawMode,
+}
+impl ::std::fmt::Display for HostCommand {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::StartSession => f.write_str("start_session"),
+            Self::Pause => f.write_str("pause"),
+            Self::Resume => f.write_str("resume"),
+            Self::Stop => f.write_str("stop"),
+            Self::SetDrawMode => f.write_str("set_draw_mode"),
+        }
+    }
+}
+impl ::std::str::FromStr for HostCommand {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "start_session" => Ok(Self::StartSession),
+            "pause" => Ok(Self::Pause),
+            "resume" => Ok(Self::Resume),
+            "stop" => Ok(Self::Stop),
+            "set_draw_mode" => Ok(Self::SetDrawMode),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for HostCommand {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for HostCommand {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
     }
 }
 ///host.json in the data dir, written by the Host holding host.lock once its server has bound
@@ -418,6 +567,17 @@ pub struct ItemView {
     pub status: ItemStatus,
     pub title: ::std::string::String,
 }
+///POST /api/host/network
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct NetworkRequest {
+    pub on: bool,
+}
+///the Host restarts its server in the new mode after answering
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct NetworkSwitched {
+    ///false when this Host switches network mode in its own terminal
+    pub handled: bool,
+}
 ///network mode as the header shows it
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
 pub struct NetworkView {
@@ -428,6 +588,271 @@ pub struct NetworkView {
     ///the .local name, once claimed on mDNS
     #[serde(deserialize_with = "::std::option::Option::deserialize")]
     pub claimed: ::std::option::Option<::std::string::String>,
+}
+///a new agent token
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct NewToken {
+    ///epoch ms
+    pub created_at: i64,
+    pub id: ::std::string::String,
+    pub name: ::std::string::String,
+    ///the secret: shown once, stored nowhere but by its user
+    pub token: NewTokenToken,
+}
+///POST /api/host/tokens
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct NewTokenRequest {
+    ///who it is for, e.g. "claude-code on laptop"
+    pub name: NewTokenRequestName,
+}
+///who it is for, e.g. "claude-code on laptop"
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct NewTokenRequestName(::std::string::String);
+impl ::std::ops::Deref for NewTokenRequestName {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<NewTokenRequestName> for ::std::string::String {
+    fn from(value: NewTokenRequestName) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for NewTokenRequestName {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        if value.chars().count() > 60usize {
+            return Err("longer than 60 characters".into());
+        }
+        if value.chars().count() < 1usize {
+            return Err("shorter than 1 characters".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for NewTokenRequestName {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for NewTokenRequestName {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for NewTokenRequestName {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
+///the secret: shown once, stored nowhere but by its user
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct NewTokenToken(::std::string::String);
+impl ::std::ops::Deref for NewTokenToken {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<NewTokenToken> for ::std::string::String {
+    fn from(value: NewTokenToken) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for NewTokenToken {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        if value.chars().count() < 1usize {
+            return Err("shorter than 1 characters".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for NewTokenToken {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for NewTokenToken {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for NewTokenToken {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
+///POST /api/host/pairing/{id}; a request from another machine can only be denied
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct PairingAnswer {
+    pub decision: PairingAnswerDecision,
+}
+///`PairingAnswerDecision`
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum PairingAnswerDecision {
+    #[serde(rename = "approve")]
+    Approve,
+    #[serde(rename = "deny")]
+    Deny,
+}
+impl ::std::fmt::Display for PairingAnswerDecision {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Approve => f.write_str("approve"),
+            Self::Deny => f.write_str("deny"),
+        }
+    }
+}
+impl ::std::str::FromStr for PairingAnswerDecision {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "approve" => Ok(Self::Approve),
+            "deny" => Ok(Self::Deny),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for PairingAnswerDecision {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PairingAnswerDecision {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///a pairing request waiting for the user
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct PairingPrompt {
+    pub client_kind: ::std::string::String,
+    pub client_name: ::std::string::String,
+    ///answer it at POST /api/host/pairing/{id}
+    pub id: i64,
+    ///"Chrome extension "Work laptop" wants to connect"
+    pub prompt: ::std::string::String,
+    #[serde(deserialize_with = "::std::option::Option::deserialize")]
+    pub remote: ::std::option::Option<RemotePairing>,
+}
+///a pairing request from another machine (network mode): shown, not approved
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct RemotePairing {
+    ///the 6-digit code the user types in the Client
+    pub code: RemotePairingCode,
+    ///the address the request came from
+    pub from: ::std::string::String,
+    ///inkup://pair?url=…&code=…, for a QR code
+    pub link: ::std::string::String,
+}
+///the 6-digit code the user types in the Client
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct RemotePairingCode(::std::string::String);
+impl ::std::ops::Deref for RemotePairingCode {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<RemotePairingCode> for ::std::string::String {
+    fn from(value: RemotePairingCode) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for RemotePairingCode {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        static PATTERN: ::std::sync::LazyLock<::regress::Regex> = ::std::sync::LazyLock::new(||
+        { ::regress::Regex::new("^[0-9]{6}$").unwrap() });
+        if PATTERN.find(value).is_none() {
+            return Err("doesn't match pattern \"^[0-9]{6}$\"".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for RemotePairingCode {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for RemotePairingCode {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for RemotePairingCode {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
 }
 ///`SessionOverview`
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]

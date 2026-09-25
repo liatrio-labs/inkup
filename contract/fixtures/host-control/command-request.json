@@ -1,0 +1,5 @@
+{
+  "client_id": "c-1a2b3c4d",
+  "command": "set_draw_mode",
+  "draw_mode": true
+}

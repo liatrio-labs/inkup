@@ -2,7 +2,10 @@
 //! decodes as its generated type and serialises back to the same JSON.
 use std::path::Path;
 
-use inkup_protocol::control::{Activated, CONTROL_API, ControlState, HostFile};
+use inkup_protocol::control::{
+    Activated, CONTROL_API, Changes, CommandOutcome, CommandRequest, ControlState, HostFile, NetworkRequest,
+    NetworkSwitched, NewToken, NewTokenRequest, PairingAnswer,
+};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -12,17 +15,34 @@ fn load(file: &str) -> Value {
     serde_json::from_str(&std::fs::read_to_string(&path).expect("read fixture")).expect("fixture is JSON")
 }
 
-fn round_trips<T: DeserializeOwned + Serialize>(file: &str) {
+fn round_trips<T: DeserializeOwned + Serialize>(file: &str) -> String {
     let raw = load(file);
     let decoded: T = serde_json::from_value(raw.clone()).unwrap_or_else(|e| panic!("{file}: {e}"));
     assert_eq!(serde_json::to_value(decoded).unwrap(), raw, "{file}");
+    file.to_owned()
 }
 
 #[test]
 fn every_fixture_decodes_and_round_trips() {
-    round_trips::<HostFile>("host-file.json");
-    round_trips::<ControlState>("control-state.json");
-    round_trips::<Activated>("activated.json");
+    let mut checked = vec![
+        round_trips::<HostFile>("host-file.json"),
+        round_trips::<ControlState>("control-state.json"),
+        round_trips::<Activated>("activated.json"),
+        round_trips::<Changes>("changes.json"),
+        round_trips::<CommandRequest>("command-request.json"),
+        round_trips::<CommandOutcome>("command-outcome.json"),
+        round_trips::<NewTokenRequest>("new-token-request.json"),
+        round_trips::<NewToken>("new-token.json"),
+        round_trips::<NetworkRequest>("network-request.json"),
+        round_trips::<NetworkSwitched>("network-switched.json"),
+        round_trips::<PairingAnswer>("pairing-answer.json"),
+    ];
+    checked.sort();
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../contract/fixtures/host-control");
+    let mut found: Vec<String> =
+        std::fs::read_dir(dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    found.sort();
+    assert_eq!(found, checked, "every fixture is decoded here");
 }
 
 #[test]

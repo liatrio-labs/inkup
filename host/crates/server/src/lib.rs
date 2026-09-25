@@ -35,7 +35,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-pub use control::{ActivateHook, Control};
+pub use control::{ActivateHook, Control, NetworkHook};
 pub use hub::{Command, CommandError, CommandOutcome, Connected, Hub, Push, Watcher};
 pub use network::{
     DEFAULT_MDNS_NAME, MAX_NAME_SUFFIX, NETWORK_WARNING, Network, NetworkConfig, SERVICE_TYPE, lan_addresses,
@@ -95,6 +95,8 @@ struct AppState {
     codes: Arc<pairing::PairingCodes>,
     hub: Arc<Hub>,
     network: Option<Arc<Network>>,
+    /// Pairing requests the control API asks about, once `Server::ask_pairing_over_control` is called.
+    inbox: Arc<control::PairingInbox>,
     /// Ends WebSocket connections on shutdown: an upgraded connection outlives graceful shutdown otherwise.
     closing: CancellationToken,
 }
@@ -105,6 +107,7 @@ pub struct Server {
     pairing_requests: Option<mpsc::Receiver<PairingRequest>>,
     hub: Arc<Hub>,
     network: Option<Arc<Network>>,
+    inbox: Arc<control::PairingInbox>,
     shutdown: oneshot::Sender<()>,
     mcp_shutdown: CancellationToken,
     task: JoinHandle<std::io::Result<()>>,
@@ -115,6 +118,21 @@ impl Server {
     /// nothing arrives. Once taken, `None`; if never taken, requests wait until they time out.
     pub fn take_pairing_requests(&mut self) -> Option<mpsc::Receiver<PairingRequest>> {
         self.pairing_requests.take()
+    }
+
+    /// Has the control API ask about pairing requests (`pending_pairing` in its state, answered at
+    /// `POST /api/host/pairing/{id}`), for an embedder with no screen of its own for them. False once taken.
+    pub fn ask_pairing_over_control(&mut self) -> bool {
+        let Some(mut requests) = self.pairing_requests.take() else { return false };
+        let (inbox, hub) = (Arc::clone(&self.inbox), Arc::clone(&self.hub));
+        // Ends with the server: its sender goes with it.
+        tokio::spawn(async move {
+            while let Some(request) = requests.recv().await {
+                inbox.push(request);
+                hub.view_changed();
+            }
+        });
+        true
     }
 
     /// What the server's parts share: changes, pushes to Clients, agent watchers.
@@ -152,8 +170,10 @@ pub async fn start(store: Arc<Store>, config: Config) -> std::io::Result<Server>
         Arc::new(Network::start(network, &hub_name, addr.port()))
     });
     let mcp_shutdown = CancellationToken::new();
+    let inbox = Arc::new(control::PairingInbox::default());
     let state = AppState {
         store,
+        inbox: Arc::clone(&inbox),
         codes: Arc::new(pairing::PairingCodes::new(config.pairing_code_ttl)),
         config: Arc::new(config),
         port: addr.port(),
@@ -172,7 +192,16 @@ pub async fn start(store: Arc<Store>, config: Config) -> std::io::Result<Server>
             .await
     });
     tracing::info!(%addr, network = network.is_some(), "inkup host listening");
-    Ok(Server { addr, pairing_requests: Some(pairing_rx), hub, network, shutdown: shutdown_tx, mcp_shutdown, task })
+    Ok(Server {
+        addr,
+        pairing_requests: Some(pairing_rx),
+        hub,
+        network,
+        inbox,
+        shutdown: shutdown_tx,
+        mcp_shutdown,
+        task,
+    })
 }
 
 fn router(state: AppState, mcp_shutdown: CancellationToken) -> Router {
@@ -189,6 +218,12 @@ fn router(state: AppState, mcp_shutdown: CancellationToken) -> Router {
         .route("/api/clients/{id}/commands", axum::routing::post(http::command))
         .route("/api/host/state", get(control::state))
         .route("/api/host/activate", axum::routing::post(control::activate))
+        .route("/api/host/changes", get(control::changes))
+        .route("/api/host/commands", axum::routing::post(control::command))
+        .route("/api/host/tokens", axum::routing::post(control::create_token))
+        .route("/api/host/tokens/{id}", axum::routing::delete(control::revoke_token))
+        .route("/api/host/network", axum::routing::post(control::network))
+        .route("/api/host/pairing/{id}", axum::routing::post(control::answer_pairing))
         .nest_service("/mcp", mcp)
         .layer(axum::middleware::from_fn_with_state(state.clone(), guard::guard))
         .with_state(state)
@@ -213,6 +248,7 @@ mod tests {
             pairing: mpsc::channel(1).0,
             hub: Arc::new(Hub::default()),
             network: None,
+            inbox: Arc::default(),
             closing: CancellationToken::new(),
         };
         let app = router(state, CancellationToken::new());
