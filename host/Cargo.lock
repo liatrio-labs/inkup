@@ -1515,6 +1515,7 @@ dependencies = [
  "directories",
  "getrandom 0.4.3",
  "hex",
+ "inkup-protocol",
  "rusqlite",
  "serde",
  "serde_json",

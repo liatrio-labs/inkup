@@ -59,3 +59,22 @@ fn host_json_is_only_readable_by_the_user() {
     let mode = std::fs::metadata(dir.path().join(HOST_FILE)).unwrap().permissions().mode();
     assert_eq!(mode & 0o777, 0o600);
 }
+
+/// `HostInfo` is the contract's `HostFile` (contract/host-control.schema.json): the fixture reads as both, and what
+/// `publish` writes decodes as the generated type.
+#[test]
+fn host_json_matches_the_contract() {
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../contract/fixtures/host-control/host-file.json");
+    let raw: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let info: inkup_store::instance::HostInfo = serde_json::from_value(raw.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&info).unwrap(), raw);
+
+    let dir = tempfile::tempdir().unwrap();
+    let lock = HostLock::acquire(dir.path(), HostKind::Tui).unwrap();
+    lock.publish(47823, "0.1.0").unwrap();
+    let written: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(dir.path().join(HOST_FILE)).unwrap()).unwrap();
+    let file: inkup_protocol::control::HostFile = serde_json::from_value(written.clone()).unwrap();
+    assert_eq!(serde_json::to_value(file).unwrap(), written);
+}

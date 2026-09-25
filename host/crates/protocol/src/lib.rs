@@ -1,10 +1,12 @@
 //! Wire types for the host protocol (ADR 0004): the envelopes a Client and the Host exchange over /ws, and the
 //! /health document. The TypeScript Zod schemas in packages/protocol are the source of truth; `generated` is
-//! typify's output for their JSON Schema, committed and checked by tests/generated.rs.
+//! typify's output for their JSON Schema, committed and checked by tests/generated.rs. `control` holds the control
+//! API's types (host-control.schema.json) the same way.
 
 #[rustfmt::skip]
 #[allow(clippy::all, clippy::pedantic, dead_code, unused_imports, missing_docs)]
 mod generated;
+pub mod control;
 
 pub use generated::*;
 use serde_json::{Value, json};

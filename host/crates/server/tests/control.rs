@@ -5,7 +5,8 @@ mod common;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use common::Host;
+use common::{Host, fixture, hello_with, recv, send};
+use inkup_protocol::ServerMessage;
 use inkup_server::{ActivateHook, Config, Control, NetworkConfig, lan_addresses};
 use inkup_store::instance::{CONTROL_API, HostKind};
 use serde_json::{Value, json};
@@ -59,23 +60,44 @@ async fn without_control_settings_no_token_opens_it() {
     assert_eq!(get(&host.url("/api/host/state"), None).await.status(), 401);
 }
 
+/// Built through the contract's generated types (`inkup_protocol::control::ControlState`), so a populated state
+/// that drifted from contract/host-control.schema.json would fail here with a 500.
 #[tokio::test]
 async fn state_is_the_snapshot_plus_the_header() {
     let host =
         Host::start_with(Config { auto_approve_pairing: true, control: control(None), ..Config::default() }).await;
-    host.pair().await;
+    let token = host.pair().await;
     host.store.create_agent_token("claude-code on laptop").unwrap();
+    // A Session with a timeline line and a Change Item, from a paired Client.
+    let mut ws = host.connect().await;
+    send(&mut ws, hello_with(&token)).await;
+    let ServerMessage::WelcomeMessage(_) = recv(&mut ws).await else { panic!("expected welcome") };
+    let start = fixture("event.session_start.json");
+    let session = start["session_id"].as_str().unwrap().to_owned();
+    for mut message in [start, fixture("items.json")] {
+        message["session_id"] = json!(session);
+        send(&mut ws, message).await;
+        let ServerMessage::AckMessage(_) = recv(&mut ws).await else { panic!("expected ack") };
+    }
 
-    let body: Value = get(&host.url("/api/host/state"), Some(TOKEN)).await.json().await.unwrap();
+    let response = get(&host.url("/api/host/state"), Some(TOKEN)).await;
+    assert_eq!(response.status(), 200);
+    let body: Value = response.json().await.unwrap();
     let snapshot = inkup_server::snapshot(&host.store, host.server.hub(), None).await.unwrap();
     assert_eq!(body["state"], serde_json::to_value(&snapshot).unwrap());
     assert_eq!(body["state"]["clients"].as_array().unwrap().len(), 1);
+    assert_eq!(body["state"]["sessions"][0]["id"], session);
+    assert!(!body["state"]["items"].as_array().unwrap().is_empty(), "{body}");
+    assert_eq!(body["state"]["timeline"]["session_id"], session);
+    assert_eq!(body["state"]["agent_tokens"].as_array().unwrap().len(), 1);
     assert_eq!(body["control_api"], json!(CONTROL_API));
     assert_eq!(body["kind"], "desktop");
     assert_eq!(body["version"], inkup_server::VERSION);
     assert_eq!(body["address"], format!("127.0.0.1:{}", host.addr().port()));
     assert_eq!(body["network"], Value::Null);
     assert_eq!(body["update"], Value::Null);
+    // And it decodes as the contract says.
+    serde_json::from_value::<inkup_protocol::control::ControlState>(body).unwrap();
 }
 
 #[tokio::test]

@@ -35,7 +35,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-pub use control::{ActivateHook, Activated, Control, ControlState, NetworkView};
+pub use control::{ActivateHook, Control};
 pub use hub::{Command, CommandError, CommandOutcome, Connected, Hub, Push, Watcher};
 pub use network::{
     DEFAULT_MDNS_NAME, MAX_NAME_SUFFIX, NETWORK_WARNING, Network, NetworkConfig, SERVICE_TYPE, lan_addresses,

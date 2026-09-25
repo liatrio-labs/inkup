@@ -6,6 +6,10 @@
 //! - Bearer `control_token` only (from `host.json`, which only the user can read). A paired Client's token or an
 //!   agent token is refused: they are for Sessions and MCP, not for running the Host.
 //!
+//! The shapes are the contract's (contract/host-control.schema.json, from packages/protocol/src/host-control.ts):
+//! responses are built as `inkup_protocol::control` types, so one that drifts from the schema fails here, loudly,
+//! instead of on the client.
+//!
 //! - `GET /api/host/state?timeline=<session id>`: `HostState` as the TUI shows it, plus the header's facts.
 //! - `POST /api/host/activate`: another launch asks this Host to come forward; the embedder's `on_activate` hook
 //!   does that (the desktop app shows its window). `{handled: false}` when there is no hook (the TUI, `serve`).
@@ -16,14 +20,15 @@ use std::sync::Arc;
 use axum::Json;
 use axum::extract::{FromRequestParts, Query, State};
 use axum::http::request::Parts;
-use inkup_store::instance::{CONTROL_API, HostKind};
-use serde::{Deserialize, Serialize};
+use inkup_protocol::control::{Activated, CONTROL_API, ControlState};
+use inkup_store::instance::HostKind;
+use serde::Deserialize;
+use serde_json::json;
 use tokio::sync::watch;
 
 use crate::guard::Peer;
 use crate::http::{ApiError, bearer};
 use crate::network::lan_addresses;
-use crate::state::HostState;
 use crate::{AppState, VERSION};
 
 /// What the embedder does when another launch asks this Host to come forward.
@@ -51,37 +56,6 @@ pub struct Control {
     pub on_activate: Option<ActivateHook>,
     /// A newer release, once the background check finds one.
     pub update: Option<watch::Receiver<Option<String>>>,
-}
-
-/// Network mode as the header shows it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct NetworkView {
-    /// `inkup.local`, once claimed on mDNS.
-    pub claimed: Option<String>,
-    /// This machine's LAN addresses.
-    pub addresses: Vec<String>,
-    /// Where another machine reaches the Host.
-    pub base_url: String,
-}
-
-/// `GET /api/host/state`.
-#[derive(Debug, Clone, Serialize)]
-pub struct ControlState {
-    pub control_api: u32,
-    pub kind: HostKind,
-    pub version: String,
-    /// `127.0.0.1:<port>`.
-    pub address: String,
-    /// Set in network mode.
-    pub network: Option<NetworkView>,
-    /// A newer release, as the TUI's key line says it.
-    pub update: Option<String>,
-    pub state: HostState,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Activated {
-    pub handled: bool,
 }
 
 /// A request from this machine with the control token.
@@ -120,20 +94,27 @@ pub(crate) async fn state(
     Query(query): Query<StateQuery>,
 ) -> Result<Json<ControlState>, ApiError> {
     let host = crate::state::snapshot(&state.store, &state.hub, query.timeline).await?;
-    let network = state.network.as_deref().map(|network| NetworkView {
-        claimed: network.claimed_name(),
-        addresses: lan_addresses().iter().map(ToString::to_string).collect(),
-        base_url: network.base_url(),
+    let network = state.network.as_deref().map(|network| {
+        json!({
+            "claimed": network.claimed_name(),
+            "addresses": lan_addresses().iter().map(ToString::to_string).collect::<Vec<_>>(),
+            "base_url": network.base_url(),
+        })
     });
-    Ok(Json(ControlState {
-        control_api: CONTROL_API,
-        kind: control.kind,
-        version: VERSION.to_owned(),
-        address: format!("127.0.0.1:{}", state.port),
-        network,
-        update: control.update.as_ref().and_then(|update| update.borrow().clone()),
-        state: host,
-    }))
+    let update = control.update.as_ref().and_then(|update| update.borrow().clone());
+    let body = json!({
+        "control_api": CONTROL_API,
+        "kind": control.kind,
+        "version": VERSION,
+        "address": format!("127.0.0.1:{}", state.port),
+        "network": network,
+        "update": update,
+        "state": host,
+    });
+    serde_json::from_value::<ControlState>(body).map(Json).map_err(|error| {
+        tracing::error!(%error, "the control state does not match contract/host-control.schema.json");
+        ApiError::Internal
+    })
 }
 
 pub(crate) async fn activate(Controller(control): Controller) -> Json<Activated> {
