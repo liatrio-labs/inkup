@@ -49,6 +49,11 @@ refuses any other `v`, `unsupported_version`), or `SCHEMA_VERSION` in `packages/
 migration step. Prefer an additive change and a capability over a bump: a protocol bump cuts every installed
 extension off from a newer Host until both are updated.
 
+A new Session event type is breaking for the Session file only, so it bumps `SCHEMA_VERSION` and not
+`PROTOCOL_VERSION`. The wire carries an event as `WireTimelineEvent`, an open object the Host checks for `id`, `type`
+and `t` and stores verbatim, so `protocol.schema.json` does not change: an older Host keeps the event without acting
+on it, and a newer one acts on it.
+
 **CI routing.** The `changes` job (`scripts/ci-changes.ts`) routes by path:
 
 | Path | Runs |
@@ -84,3 +89,9 @@ well as every other job; a skipped job passes it.
 - The extension now sends `PROTOCOL_VERSION` in every envelope instead of a literal `1`, so a bump is one constant on
   each side.
 - `docs/schema/` keeps a README that points to `contract/`, for links made before the move.
+
+## History
+
+- 2026-09-24 (#13): the first new event type under this rule, `session_rename` (the reviewer renames a Session on
+  the review page), showed which version it moves. `SCHEMA_VERSION` went 19 → 20 with a no-op upgrade step;
+  `PROTOCOL_VERSION` stayed 1, since the wire's event is an open object. The Versioning rule now says so.

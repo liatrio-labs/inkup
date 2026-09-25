@@ -38,7 +38,7 @@ fn required_str<'a>(event: &Fields<'a>, field: &str) -> Result<&'a str> {
 
 impl Store {
     /// Stores one timeline event of `session_id`, creating the Session on its first event. A `session_start`
-    /// also records the Session's URL, title and t0.
+    /// also records the Session's URL, title and t0; a `session_rename` (the review page) replaces the title.
     pub fn upsert_event(&self, client_id: Option<&str>, session_id: &str, event: &Value) -> Result<Upsert> {
         if session_id.is_empty() {
             return Err(StoreError::InvalidEvent("empty session id".into()));
@@ -86,6 +86,16 @@ impl Store {
                 tx.execute(
                     "UPDATE sessions SET url = ?2, title = ?3, t0 = ?4 WHERE id = ?1",
                     params![session_id, fields.str("url"), fields.str("title"), fields.i64("t0")],
+                )?;
+            }
+            if kind == "session_start" || kind == "session_rename" {
+                // The reviewer's latest rename wins over the start page's title, whichever arrives first.
+                tx.execute(
+                    "UPDATE sessions SET title = (
+                         SELECT json_extract(body, '$.name') FROM events
+                         WHERE session_id = ?1 AND type = 'session_rename' ORDER BY t DESC, seq DESC LIMIT 1)
+                     WHERE id = ?1 AND EXISTS (SELECT 1 FROM events WHERE session_id = ?1 AND type = 'session_rename')",
+                    [session_id],
                 )?;
             }
         }

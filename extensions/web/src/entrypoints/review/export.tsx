@@ -58,8 +58,10 @@ export function ExportControls({ sessionId, hasMedia }: { sessionId: string; has
   }
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    // The button sits in the header's corner group; what it reports opens under it, over the page.
+    <div className="relative">
       <Button
+        size="sm"
         onClick={exportZip}
         disabled={state.kind === 'building' || state.kind === 'downloading'}
         data-testid="export-zip"
@@ -67,7 +69,11 @@ export function ExportControls({ sessionId, hasMedia }: { sessionId: string; has
         {state.kind === 'building' ? 'Building zip…' : state.kind === 'downloading' ? 'Saving…' : 'Export'}
       </Button>
       {state.kind === 'done' && (
-        <div className="flex max-w-md flex-col gap-2 rounded-lg border p-3" role="status" data-testid="export-done">
+        <div
+          className="absolute top-full right-0 z-10 mt-2 flex w-80 flex-col gap-2 rounded-lg border bg-background p-3 shadow-md"
+          role="status"
+          data-testid="export-done"
+        >
           <p>
             Saved {state.name} ({state.files} files) to your downloads.
           </p>
@@ -90,12 +96,20 @@ export function ExportControls({ sessionId, hasMedia }: { sessionId: string; has
         </div>
       )}
       {state.kind === 'media_deleted' && (
-        <p role="status" data-testid="media-deleted">
+        <p
+          role="status"
+          className="absolute top-full right-0 z-10 mt-2 w-80 rounded-lg border bg-background p-3 shadow-md"
+          data-testid="media-deleted"
+        >
           Video and audio deleted. The transcript, screenshots and Change Items are kept.
         </p>
       )}
       {state.kind === 'error' && (
-        <p role="alert" className="max-w-md text-destructive" data-testid="export-error">
+        <p
+          role="alert"
+          className="absolute top-full right-0 z-10 mt-2 w-80 rounded-lg border bg-background p-3 text-destructive shadow-md"
+          data-testid="export-error"
+        >
           Export failed: {state.message}
         </p>
       )}
@@ -110,6 +124,7 @@ export function CopyAllPrompts({ items }: { items: ChangeItem[] }) {
   return (
     <Button
       variant="outline"
+      size="sm"
       disabled={items.length === 0}
       onClick={async () => {
         try {

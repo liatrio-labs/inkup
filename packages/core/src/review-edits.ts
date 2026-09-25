@@ -10,6 +10,7 @@
 // - Undo and Redo (F5): `undo` and `redo` are ops in the same log, so the log stays append-only. effectiveItemEdits
 //   folds them away first: a step is one op, except that a merge's combine joins the merge's step, so undoing a
 //   merge brings both originals back and drops the combined words. A new step clears what can be redone.
+// - Name: the latest `session_rename` names the Session; before any, its start page's title (sessionName).
 // - Acceptance rate (PRD §8): generated items that reach the final list with no edit ÷ generated items.
 import { type ChangeItem, isLowConfidence, sortForReview } from './process/change-item.ts';
 import type { EventOf, ItemEditOp, TimelineEvent } from './timeline.ts';
@@ -22,6 +23,16 @@ export function transcriptEdits(events: readonly TimelineEvent[]): Map<string, s
   const out = new Map<string, string>();
   for (const e of events) if (e.type === 'transcript_edit') out.set(e.segment_id, e.text);
   return out;
+}
+
+/** The Session's name: the latest `session_rename`, else the start page's title, else its URL. */
+export function sessionName(
+  session: { start_title: string; start_url: string },
+  events: readonly TimelineEvent[],
+): string {
+  let name: string | null = null;
+  for (const e of events) if (e.type === 'session_rename') name = e.name;
+  return name || session.start_title || session.start_url;
 }
 
 /**

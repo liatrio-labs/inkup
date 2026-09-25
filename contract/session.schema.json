@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:inkup:session:v19",
-  "title": "InkUp session.json (schema_version 19)",
+  "$id": "urn:inkup:session:v20",
+  "title": "InkUp session.json (schema_version 20)",
   "description": "One recorded review Session: the full event timeline on one clock (t = ms since t0), plus references to screenshots and media. Generated from packages/core/src/session-document.ts by `pnpm schema`; do not edit by hand.",
   "type": "object",
   "properties": {
     "schema_version": {
       "type": "number",
-      "const": 19
+      "const": 20
     },
     "generated_at": {
       "type": "string",
@@ -3335,6 +3335,44 @@
               "strokes",
               "picks",
               "comments"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "session_rename"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "the Session's name, trimmed"
+              },
+              "edited_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "name",
+              "edited_at"
             ],
             "additionalProperties": false
           }

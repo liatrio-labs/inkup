@@ -96,7 +96,19 @@ test('the Session list groups by starting origin, shows date, length, items and 
   const reviewPromise = context.waitForEvent('page', (p) => p.url().includes(`/review.html?session=${id}`));
   await newest.getByTestId('open-review').click();
   const review = await reviewPromise;
-  await expect(review.getByRole('heading', { name: 'Session review' })).toBeVisible();
+  await expect(review.getByTestId('session-name')).toContainText('Pricing Fixture');
+  await expect(review.getByTestId('session-start')).not.toBeEmpty();
+
+  // Rename it in place: Enter saves, Esc cancels; the list shows the new name.
+  await review.getByTestId('rename-session').click();
+  await review.getByTestId('session-name-input').fill('  Pricing header   pass ');
+  await review.getByTestId('session-name-input').press('Enter');
+  await expect(review.getByTestId('session-name')).toHaveText('Pricing header pass');
+  await review.getByTestId('rename-session').click();
+  await review.getByTestId('session-name-input').fill('never mind');
+  await review.getByTestId('session-name-input').press('Escape');
+  await expect(review.getByTestId('session-name')).toHaveText('Pricing header pass');
+  await expect(newest).toContainText('Pricing header pass');
   await review.close();
 
   // Delete asks first; Cancel keeps it; Delete removes the Session and everything stored for it.
@@ -355,7 +367,7 @@ test('the idle panel lists previous Sessions newest first, opens their review an
   const id = (await rows.nth(1).getAttribute('data-session'))!;
   const reviewPromise = context.waitForEvent('page', (p) => p.url().includes(`/review.html?session=${id}`));
   await rows.nth(1).getByTestId('open-review').click();
-  await expect((await reviewPromise).getByRole('heading', { name: 'Session review' })).toBeVisible();
+  await expect((await reviewPromise).getByTestId('session-name')).toBeVisible();
 
   await rows.nth(1).getByTestId('delete-session').click();
   await expect(rows.nth(1)).toContainText('This cannot be undone');

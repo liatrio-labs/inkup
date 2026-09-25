@@ -5,7 +5,7 @@ import { type MediaClock, mutedSpans, pauseGaps, sessionToMedia } from '../media
 import { type ChangeItem, isLowConfidence } from '../process/change-item.ts';
 import { displayUrl } from '../process/script.ts';
 import { styleChangeLines } from '../process/style-changes.ts';
-import { applyTranscriptEdits } from '../review-edits.ts';
+import { applyTranscriptEdits, sessionName } from '../review-edits.ts';
 import { type SessionDocument, screenshotPath } from '../session-document.ts';
 import { describeSource } from '../source-path.ts';
 import { sizeWithScale, viewportAt } from '../viewport.ts';
@@ -124,7 +124,7 @@ export function renderReviewMarkdown(doc: SessionDocument, opts: ReviewMarkdownO
       ? `Video: [${doc.media.video.path}](${doc.media.video.path}). Pauses are cut from the recording, so its times run behind Session time after a pause.`
       : `Video: none${s.video_off_reason === 'picker_cancelled' ? ' (the screen picker was cancelled)' : s.media_deleted_at ? ' (deleted after an earlier export)' : ''}.`;
   const out: string[] = [
-    `# Review: ${oneLine(s.start_title || s.start_url)}`,
+    `# Review: ${oneLine(sessionName(s, doc.events))}`,
     '',
     `Recorded ${s.started_at.slice(0, 16).replace('T', ' ')} UTC · ${s.duration_ms !== null ? formatElapsed(s.duration_ms) : 'unfinished'} · starts at ${s.start_url}`,
     '',

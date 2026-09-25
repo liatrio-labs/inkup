@@ -40,7 +40,7 @@ export function SessionRow({
     >
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium" title={s.start_url}>
-          {s.start_title || s.start_url}
+          {s.name}
         </p>
         {compact && <p className="truncate text-xs text-muted-foreground">{label(originOf(s.start_url))}</p>}
         <p className={cn('text-muted-foreground', compact && 'text-xs')}>

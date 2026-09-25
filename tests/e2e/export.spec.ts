@@ -84,7 +84,7 @@ async function exportAndUnzip(review: Page, sw: Worker): Promise<{ dir: string; 
   const item = await sw.evaluate(async (i) => (await chrome.downloads.search({ id: i }))[0]!, id);
   expect(item.state).toBe('complete');
   // Playwright stores downloads under a generated name; the page reports the name it asked for.
-  await expect(review.getByTestId('export-done')).toContainText(/review-\d{4}-\d\d-\d\d-pricing-fixture\.zip/);
+  await expect(review.getByTestId('export-done')).toContainText(/review-\d{4}-\d\d-\d\d-\d{4}-pricing-fixture\.zip/);
   const dir = mkdtempSync(join(tmpdir(), 'var-export-'));
   execFileSync('unzip', ['-q', item.filename, '-d', dir]);
   const files = readdirSync(dir, { recursive: true, withFileTypes: true })

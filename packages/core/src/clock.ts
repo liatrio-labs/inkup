@@ -28,3 +28,13 @@ export function formatElapsed(ms: number): string {
   const s = total % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
+
+/**
+ * YYYY-MM-DD-HHmm of an ISO time in the local time zone, for download file names: two copies of one Session share
+ * it, two Sessions started on the same day do not.
+ */
+export function localStamp(iso: string): string {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}

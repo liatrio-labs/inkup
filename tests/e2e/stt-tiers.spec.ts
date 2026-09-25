@@ -76,7 +76,7 @@ async function record(
   const reviewPromise = context.waitForEvent('page', (p) => p.url().includes('/review.html'));
   await panel.getByTestId('stop').click();
   const review = await reviewPromise;
-  await expect(review.getByRole('heading', { name: 'Session review' })).toBeVisible();
+  await expect(review.getByTestId('session-name')).toBeVisible();
   const sessionId = new URL(review.url()).searchParams.get('session')!;
   return { panel, review, sessionId, events: await sessionEvents(review, sessionId) };
 }

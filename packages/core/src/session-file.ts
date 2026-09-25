@@ -85,6 +85,8 @@ export const UPGRADES: Record<number, (doc: RawDocument) => RawDocument> = {
   17: (doc) => doc,
   // v19: item_edit ops `undo` and `redo` are new.
   18: (doc) => doc,
+  // v20: the `session_rename` event is new.
+  19: (doc) => doc,
 };
 
 /** Brings a parsed session.json of any supported version to SCHEMA_VERSION and validates it. */

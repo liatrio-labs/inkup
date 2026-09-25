@@ -1,5 +1,6 @@
 // The Session list's queries (PRD P0-14): a summary per stored Session, and delete. Runs in extension pages.
-import { applyItemEdits, itemEditsFor } from '@inkup/core/review-edits';
+import { applyItemEdits, itemEditsFor, sessionName } from '@inkup/core/review-edits';
+import { sortTimeline } from '@inkup/core/timeline';
 import type { ReviewDatabase, SessionRow } from './index';
 import { type ItemStatusCounts, itemStatusCounts } from './resolutions';
 
@@ -7,6 +8,8 @@ export interface SessionSummary {
   id: string;
   start_url: string;
   start_title: string;
+  /** What the reviewer named it on the review page, else the start page's title or URL (sessionName). */
+  name: string;
   started_at: string;
   status: SessionRow['status'];
   duration_ms: number | null;
@@ -40,10 +43,12 @@ export async function sessionSummaries(database: ReviewDatabase): Promise<Sessio
           resolutions.filter((r) => r.run_id === run.id),
         );
       }
+      const renames = await database.eventsOfType(s.id, 'session_rename').toArray();
       return {
         id: s.id,
         start_url: s.start_url,
         start_title: s.start_title,
+        name: sessionName(s, sortTimeline(renames)),
         started_at: s.started_at,
         status: s.status,
         duration_ms: s.duration_ms,

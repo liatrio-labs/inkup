@@ -38,7 +38,7 @@ test('Open review twice keeps one tab for the Session and brings it forward; ano
   const opened = context.waitForEvent('page', (p) => p.url().includes('/review.html?session=a'));
   await link('a').click();
   const reviewA = await opened;
-  await expect(reviewA.getByRole('heading', { name: 'Session review' })).toBeVisible();
+  await expect(reviewA.getByTestId('session-name')).toBeVisible();
   await expect.poll(() => reviewTabs(serviceWorker, 'a')).toHaveLength(1);
 
   // A second click focuses that tab: no new page, still one tab, and it is the active one.
@@ -62,7 +62,7 @@ test('Open review twice keeps one tab for the Session and brings it forward; ano
   // Session b has no review tab yet: it gets one.
   const openedB = context.waitForEvent('page', (p) => p.url().includes('/review.html?session=b'));
   await link('b').click();
-  await expect((await openedB).getByRole('heading', { name: 'Session review' })).toBeVisible();
+  await expect((await openedB).getByTestId('session-name')).toBeVisible();
   await expect.poll(() => reviewTabs(serviceWorker, 'b')).toHaveLength(1);
   expect(await reviewTabs(serviceWorker, 'a')).toHaveLength(1);
 
