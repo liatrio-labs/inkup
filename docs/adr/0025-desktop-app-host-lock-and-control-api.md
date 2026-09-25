@@ -69,8 +69,9 @@ menu, stops the server and gives up the data dir.
 
 - A dot for paired Clients, the extension's host dot (green, white ring, bottom-right, the same geometry): none
   while no Client is paired, steady while one or more are, and a slow pulse (full and faint, half a second each)
-  while any has a live Session. It follows the host state the window already reads through `HostLink` (each
-  `host_state` call), so the icons add no poll of their own, and only the pulse runs a timer.
+  while any is sending: a live Session that is not paused (a paused one shows the steady dot). It follows the host
+  state the window already reads through `HostLink` (each `host_state` call), so the icons add no poll of their
+  own, and only the pulse runs a timer.
 - Development stripes: anything the release workflow did not build (`INKUP_RELEASE_BUILD` unset at compile time,
   so debug builds, `desktop:dev` and a local release build) draws the icon, inset by one band, on 45° black and
   yellow bands, the same as the extension's development icon. The dot goes on top.

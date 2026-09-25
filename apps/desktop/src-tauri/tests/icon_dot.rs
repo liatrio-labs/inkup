@@ -1,6 +1,6 @@
 //! The Clients dot against a real in-process server, read the way the window reads it (`HostLink::state`), in host
-//! mode and client mode: no dot, a steady dot once a Client pairs, a pulse while its Session is live, and steady
-//! again, with the pulse stopped, once the Session ends.
+//! mode and client mode: no dot, a steady dot once a Client pairs, a pulse while its Session is live, steady while
+//! it is paused, and steady again, with the pulse stopped, once the Session ends.
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -83,6 +83,20 @@ async fn live_then_ended(link: &HostLink, dot: &DotDriver, shown: &Mutex<Vec<Dot
     for (i, dot) in pulse.iter().enumerate() {
         assert_eq!(*dot, if i % 2 == 0 { Dot::Full } else { Dot::Faint }, "{pulse:?}");
     }
+
+    // Paused: not sending, so a steady dot and no pulse; resumed, the pulse is back.
+    send(ws, fixture("event.session_pause.json")).await;
+    next(ws, "ack").await;
+    until(link, dot, Clients::Paired).await;
+    assert!(!dot.pulsing());
+    assert_eq!(shown.lock().unwrap().last(), Some(&Dot::Full), "steady while paused");
+    let frames = shown.lock().unwrap().len();
+    tokio::time::sleep(PULSE_BEAT * 3).await;
+    assert_eq!(shown.lock().unwrap().len(), frames, "no pulse while paused");
+    send(ws, fixture("event.session_resume.json")).await;
+    next(ws, "ack").await;
+    until(link, dot, Clients::Live).await;
+    assert!(dot.pulsing());
 
     send(ws, fixture("event.session_end.json")).await;
     next(ws, "ack").await;

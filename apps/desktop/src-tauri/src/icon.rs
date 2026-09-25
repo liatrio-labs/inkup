@@ -45,7 +45,8 @@ pub enum Clients {
     Unpaired,
     /// One or more are paired, none has a live Session: a steady dot.
     Paired,
-    /// Some Client has a live Session (not ended yet, paused or not): the dot pulses.
+    /// Some Client is sending: a live Session (not ended yet) that is not paused. The dot pulses. A paused Session
+    /// shows the steady dot.
     Live,
 }
 
@@ -53,7 +54,7 @@ impl Clients {
     pub fn of(state: &HostState) -> Self {
         if state.clients.is_empty() {
             Self::Unpaired
-        } else if state.sessions.iter().any(|s| s.live) {
+        } else if state.sessions.iter().any(|s| s.live && !s.paused) {
             Self::Live
         } else {
             Self::Paired
@@ -349,6 +350,13 @@ mod tests {
         assert_eq!(stripe_at(32, 0, 4), DARK);
         assert_eq!(stripe_at(32, 2, 2), DARK);
         assert_eq!(stripe_at(32, 8, 0), YELLOW);
+        // (0, 0), (w, 0) and (w - 1, w) at each size, as the extension checks them: yellow, dark, dark.
+        for size in [16, 32, 128] {
+            let w = band_width(size);
+            assert_eq!(stripe_at(size, 0, 0), YELLOW, "{size}: (0, 0)");
+            assert_eq!(stripe_at(size, w, 0), DARK, "{size}: (w, 0)");
+            assert_eq!(stripe_at(size, w - 1, w), DARK, "{size}: (w - 1, w)");
+        }
         // Size 16, bands 2 px; size 128, bands 16 px.
         assert_eq!(stripe_at(16, 1, 0), YELLOW);
         assert_eq!(stripe_at(16, 2, 0), DARK);
