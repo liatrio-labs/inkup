@@ -2,7 +2,8 @@ name: Host dist check
 
 # Checks the host's dist config on pull requests that touch it: inkup-v-release.yml must match what `dist generate`
 # writes from dist-workspace.toml, and `dist plan` must succeed for a sample host tag. Not a required check, and not
-# part of ci.yml's ci-ok gate. inkup-v-release.yml itself runs only on inkup-v* tags.
+# part of ci.yml's ci-ok gate. inkup-v-release.yml itself runs only on inkup-v* tags. Skipped on release pull requests,
+# like ci.yml.
 on:
   pull_request:
     paths:
@@ -29,6 +30,7 @@ env:
 jobs:
   dist:
     name: dist
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

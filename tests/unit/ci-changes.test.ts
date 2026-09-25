@@ -27,6 +27,12 @@ describe('ci-changes', () => {
       all,
     ],
     ['contract fixture', ['contract/fixtures/ack.json'], all],
+    // A release pull request skips CI entirely (ci.yml); this is its manifest on any other pull request.
+    [
+      'release-please files',
+      ['.release-please-manifest.json', 'release-please-config.json', 'host/CHANGELOG.md'],
+      none,
+    ],
     ['root config', ['biome.json', 'tsconfig.json'], { ...none, extension: true }],
     ['the lockfile', ['pnpm-lock.yaml'], { ...none, extension: true, desktop: true }],
     ['repo scripts and e2e', ['scripts/gen-schema.ts', 'tests/e2e/host.spec.ts'], { ...none, extension: true }],

@@ -161,3 +161,8 @@ Clients behind.
   one store alone. dist uploads to release-please's draft release instead of creating one.
 - 2026-09-25: the DMG's `desktop-macos.yml` ran as dist's post-announce job, which a pre-release skipped. Now it
   runs on the `inkup-v*` tag push itself, beside dist's workflow (ADR 0025).
+- 2026-09-25: a release pull request ran all of CI, extension e2e included, because the path routing counted
+  `.release-please-manifest.json` as a root file (everything). Now CI skips every job on `release-please--*` branches
+  and `ci-ok` passes: the pull request only bumps versions and changelogs of code already tested on its own pull
+  request. A bump that breaks the build shows up in the tag's release run instead, before anything is published. The
+  path routing also ignores release-please's files on other pull requests.

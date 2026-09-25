@@ -35,7 +35,8 @@ last release, it keeps one release pull request open and up to date: `chore(rele
 release's section to the train's changelog (`host/CHANGELOG.md`, `extensions/web/CHANGELOG.md`), and records the version
 in `.release-please-manifest.json`. `release-please-config.json` configures both trains.
 
-1. Read the release pull request: the version and the changelog. Let CI pass.
+1. Read the release pull request: the version and the changelog. CI skips every job on it, so `ci-ok` passes at
+   once: the code in it was tested on its own pull request.
 2. Merge it (squash, like any pull request).
 3. release-please, run again by the merge, tags the merge commit and creates the GitHub Release with the changelog
    section as its notes. A host release starts as a draft; dist publishes it once the artifacts are on it.
