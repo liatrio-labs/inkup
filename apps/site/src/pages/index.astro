@@ -15,7 +15,7 @@ import { itemFor, items } from '../review.ts';
 
 const title = 'InkUp: review your site out loud';
 const description =
-  'Talk and draw on any web page. InkUp turns what you say and point at into located Change Items that you, or your coding agent, can act on.';
+  'Talk through a web page and draw on it. InkUp turns your comments into a list of changes, each tied to the element you meant, for you or your coding agent to fix.';
 const heroItem = itemFor('top')!;
 const year = new Date().getFullYear();
 ---
@@ -54,8 +54,8 @@ const year = new Date().getFullYear();
           <h1 class="hero-title">Review your site out loud.</h1>
         </Inspect>
         <p class="hero-lede">
-          Talk and draw on any web page. InkUp turns what you say and point at into located Change Items that you, or
-          your coding agent, can act on.
+          Talk through a web page and draw on it. InkUp turns your comments into a list of changes, each tied to the
+          element you meant, for you or your coding agent to fix.
         </p>
         <div class="hero-actions">
           <span class="cta-wrap">
@@ -85,18 +85,18 @@ const year = new Date().getFullYear();
           </p>
         </div>
         <p class="hero-meta">
-          Free, open source and fully auditable. No account. Sessions stay in your browser.{
-            !chromeStore && ' The Chrome Web Store listing is in review; install from GitHub in a minute.'
+          Free and open source. No account needed, and your sessions stay in your browser.{
+            !chromeStore && ' While the Chrome Web Store listing is in review, you can install it from GitHub.'
           }
         </p>
         <ChangeItem item={heroItem} class="inline-item" />
       </section>
 
       <section class="section demo-section" id="demo" data-section="demo" data-ink>
-        <h2>Watch a review turn into Change Items.</h2>
+        <h2>Watch a review turn into Change Items</h2>
         <p class="lede">
-          Circle the thing, say what's wrong, keep going. When you stop, every note comes back as an item that names its
-          element, carries a screenshot and the words you used.
+          Circle something and say what's wrong with it. When you press Stop, each comment becomes an item with the
+          element it's about, a screenshot, and what you said.
         </p>
         <Inspect selector="figure.demo" class="demo-box" tagAt="top">
           <figure class="demo">
@@ -109,7 +109,7 @@ const year = new Date().getFullYear();
       </section>
 
       <section class="section" id="how" data-section="how" data-ink>
-        <h2>Three steps from talking to done.</h2>
+        <h2>How it works</h2>
         <Inspect selector="ol.steps" class="steps-box">
           <ol class="steps">
             <li>
@@ -139,8 +139,8 @@ const year = new Date().getFullYear();
       </section>
 
       <section class="section" id="what" data-section="what">
-        <h2>Say “this”, and InkUp knows which one.</h2>
-        <p class="lede">Everything you say lands on an element, like a node in the inspector.</p>
+        <h2>Say “this”, and InkUp knows which one you mean</h2>
+        <p class="lede">It keeps track of what you're pointing at while you talk.</p>
         <ul class="tree" role="list">
           <li>
             <details open>
@@ -153,13 +153,13 @@ const year = new Date().getFullYear();
           </li>
           <li>
             <details>
-              <summary>Pick exactly, when a circle is too loose</summary>
+              <summary>Pick an exact element</summary>
               <p>Object Select picks one element. Select Text comments on the words you highlight.</p>
             </details>
           </li>
           <li>
             <details>
-              <summary>Voice Commands, hands on the mouse</summary>
+              <summary>Voice Commands</summary>
               <p>
                 Say “scratch that”, “next”, “pin that”, “snap”, “pause” or “resume” without leaving the page.
               </p>
@@ -179,7 +179,7 @@ const year = new Date().getFullYear();
           </li>
           <li>
             <details>
-              <summary>From element to source</summary>
+              <summary>Source mapping</summary>
               <p>
                 Source mapping names the component that rendered an element, and your app can add review notes of its
                 own through <code>window.__inkup</code>.
@@ -190,7 +190,7 @@ const year = new Date().getFullYear();
       </section>
 
       <section class="section" id="privacy" data-section="privacy" data-ink>
-        <h2>Private until you add a key.</h2>
+        <h2>Private until you add a key</h2>
         <Inspect selector="p.promise" class="promise-box">
           <p class="promise">
             On the free tier, transcription runs on your device and nothing is sent anywhere.
@@ -205,21 +205,21 @@ const year = new Date().getFullYear();
             Items.
           </li>
           <li>Pair a host only when you want agents in the loop.</li>
-          <li>Don't take our word for it: <a href="#source">read the code</a>.</li>
+          <li>You can check all of this in <a href="#source">the source code</a>.</li>
         </ul>
         <ChangeItem item={itemFor('privacy')!} class="inline-item" />
       </section>
 
       <section class="section oss" id="source">
-        <h2>Open source. Audit every line.</h2>
+        <h2>Open source, so you can check</h2>
         <p class="lede">
-          InkUp is MIT licensed and fully auditable. The extension, the host and the desktop app live in one public
-          repository, so you can check exactly what gets recorded and where it goes.
+          InkUp is MIT licensed. The extension, the host and the desktop app are all in one public repository, so you
+          can audit what gets recorded and where it goes.
         </p>
         <ul class="facts">
           <li>Every release is built by public GitHub Actions workflows from a tagged commit on main.</li>
-          <li>The Firefox build is checked to rebuild the same add-on from its sources.</li>
-          <li>The decisions behind the design are written down as architecture decision records.</li>
+          <li>CI rebuilds the Firefox add-on from its source package and checks it comes out the same.</li>
+          <li>Design decisions are written up as architecture decision records.</li>
           <li>Issues, fixes and pull requests are welcome.</li>
         </ul>
         <div class="oss-actions">
@@ -237,7 +237,7 @@ const year = new Date().getFullYear();
         </div>
       </section>
       <section class="section install" id="install" data-section="install" data-ink>
-        <h2>Start reviewing.</h2>
+        <h2>Install InkUp</h2>
         <div class="install-rows">
           <div class="install-row lead">
             <div>
@@ -356,7 +356,7 @@ const year = new Date().getFullYear();
       </section>
 
       <section class="section agents" id="agents" data-section="agents" data-agents>
-        <h2>Hand the list to your coding agent.</h2>
+        <h2>Hand the list to your coding agent</h2>
         <p class="lede">
           Optional: install the host and its MCP server once. Claude Code, Cursor and Codex read your Change Items, claim one, and
           report back when it's done. You watch each item move from Open to In work to Done.
@@ -381,7 +381,7 @@ const year = new Date().getFullYear();
       </section>
 
       <section class="closing" aria-labelledby="closing-title">
-        <h2 id="closing-title">Your turn. Review something.</h2>
+        <h2 id="closing-title">Try it on your own site</h2>
         <div class="oss-actions">
           <a class="button primary cta" href={links.chrome} data-umami-event="install-chrome" data-umami-event-location="closing"
             >{installLabel}</a
