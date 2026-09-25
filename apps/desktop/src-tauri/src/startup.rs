@@ -5,6 +5,9 @@
 //! - Another desktop app holds it: that one is asked to come forward, and this launch ends.
 //!
 //! Either way the window talks to the host through one `HostLink`.
+//!
+//! Hosting, the app runs the daily update check the TUI and `serve` run (ADR 0008), so the window's "Update
+//! available" shows when the app hosts too. When the CLI hosts, the CLI checks.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -13,6 +16,8 @@ use std::time::Duration;
 use inkup_server::{ActivateHook, Config, Control, NetworkConfig, NetworkHook, Server};
 use inkup_store::instance::{CONTROL_API, HostInfo, HostKind, HostLock, LockError};
 use inkup_store::{HostConfig, Store, StoreError};
+use inkup_update_check::{Found, check_allowed, spawn_check};
+use tokio::sync::watch;
 
 use crate::link::HostLink;
 
@@ -27,11 +32,15 @@ pub struct Hosting {
     pub on_network: NetworkHook,
     /// Advertise on mDNS in network mode. Tests turn it off.
     pub advertise: bool,
+    /// Run the daily update check: unless `CI` or `INKUP_NO_UPDATE_CHECK` is set, as for the CLI at a terminal.
+    /// Tests turn it off, or on with a fresh cache so GitHub is not asked.
+    pub update_check: bool,
 }
 
 impl Hosting {
     pub fn new(port: u16, on_activate: ActivateHook, on_network: NetworkHook) -> Self {
-        Self { port, on_activate, on_network, advertise: true }
+        let update_check = check_allowed(true, |name| std::env::var(name).ok());
+        Self { port, on_activate, on_network, advertise: true, update_check }
     }
 }
 
@@ -42,6 +51,8 @@ pub struct Hosted {
     dir: PathBuf,
     store: Arc<Store>,
     hosting: Hosting,
+    /// The update check's notice; the restarted server reads the same one.
+    update: watch::Receiver<Option<String>>,
 }
 
 impl Hosted {
@@ -57,19 +68,19 @@ impl Hosted {
     /// data dir. Connected Clients reconnect, as they do when the TUI switches. If the port cannot be bound on
     /// every interface, the setting goes back and the server comes back on loopback.
     pub async fn switch_network(self, on: bool) -> Result<Self, StartupError> {
-        let Self { server, lock, dir, store, mut hosting } = self;
+        let Self { server, lock, dir, store, mut hosting, update } = self;
         hosting.port = server.addr.port();
         if let Err(error) = server.shutdown().await {
             tracing::warn!(%error, "the server did not stop cleanly");
         }
         HostConfig::save_network(&dir, on)?;
-        match serve(&dir, &lock, Arc::clone(&store), &hosting).await {
-            Ok(server) => Ok(Self { server, lock, dir, store, hosting }),
+        match serve(&dir, &lock, Arc::clone(&store), &hosting, &update).await {
+            Ok(server) => Ok(Self { server, lock, dir, store, hosting, update }),
             Err(error) if on => {
                 tracing::warn!(%error, "network mode did not start; back to this machine only");
                 HostConfig::save_network(&dir, false)?;
-                let server = serve(&dir, &lock, Arc::clone(&store), &hosting).await?;
-                Ok(Self { server, lock, dir, store, hosting })
+                let server = serve(&dir, &lock, Arc::clone(&store), &hosting, &update).await?;
+                Ok(Self { server, lock, dir, store, hosting, update })
             }
             Err(error) => Err(error),
         }
@@ -127,16 +138,23 @@ pub async fn find_or_host(dir: &Path, hosting: &Hosting) -> Result<Startup, Star
 
 async fn host(dir: &Path, lock: HostLock, hosting: &Hosting) -> Result<Startup, StartupError> {
     let store = Arc::new(Store::open(dir)?);
-    let server = serve(dir, &lock, Arc::clone(&store), hosting).await?;
+    let update = spawn_check(dir, hosting.update_check, |_, found| update_notice(found, cask_installed()));
+    let server = serve(dir, &lock, Arc::clone(&store), hosting, &update).await?;
     lock.publish(server.addr.port(), env!("CARGO_PKG_VERSION"))?;
     let link = HostLink::new(server.addr.port(), lock.control_token());
-    let hosted = Hosted { server, lock, dir: dir.to_owned(), store, hosting: hosting.clone() };
+    let hosted = Hosted { server, lock, dir: dir.to_owned(), store, hosting: hosting.clone(), update };
     Ok(Startup::Host { link, hosted })
 }
 
 /// Starts the server as config.toml says (network mode or this machine only), with pairing asked in the window.
 /// A restart binds the same port, so `host.json` stays as `host` published it.
-async fn serve(dir: &Path, lock: &HostLock, store: Arc<Store>, hosting: &Hosting) -> Result<Server, StartupError> {
+async fn serve(
+    dir: &Path,
+    lock: &HostLock,
+    store: Arc<Store>,
+    hosting: &Hosting,
+    update: &watch::Receiver<Option<String>>,
+) -> Result<Server, StartupError> {
     let settings = HostConfig::load(dir)?;
     let network = settings.network.then(|| NetworkConfig {
         hub_id: settings.hub_id,
@@ -148,7 +166,7 @@ async fn serve(dir: &Path, lock: &HostLock, store: Arc<Store>, hosting: &Hosting
         kind: HostKind::Desktop,
         on_activate: Some(hosting.on_activate.clone()),
         on_network: Some(hosting.on_network.clone()),
-        update: None,
+        update: Some(update.clone()),
     };
     let port = hosting.port;
     let config = Config { port, network, hub_name: Some(hub_name()), control: Some(control), ..Config::default() };
@@ -156,6 +174,29 @@ async fn serve(dir: &Path, lock: &HostLock, store: Arc<Store>, hosting: &Hosting
     server.ask_pairing_over_control();
     tracing::info!(port = server.addr.port(), network = settings.network, dir = %dir.display(), "hosting");
     Ok(server)
+}
+
+/// The window's "Update available": the release and how this app updates. The app does not update itself (ADR
+/// 0025): Homebrew's cask upgrades it, or the release's DMG is installed over it.
+pub fn update_notice(found: &Found, cask: bool) -> String {
+    let latest = &found.latest;
+    let how = if cask {
+        "brew upgrade --cask inkup".to_owned()
+    } else {
+        format!("install InkUp_{latest}_universal.dmg from github.com/liatrio-labs/inkup/releases")
+    };
+    match &found.skew {
+        None => format!("InkUp {latest} is out: {how}"),
+        Some(skew) => format!("InkUp {latest} is out{} then {how}", skew.clause()),
+    }
+}
+
+/// Whether Homebrew's cask installed the app: its Caskroom entry, under either Homebrew prefix.
+fn cask_installed() -> bool {
+    let prefixes = std::env::var_os("HOMEBREW_PREFIX").map(PathBuf::from).into_iter();
+    prefixes
+        .chain(["/opt/homebrew", "/usr/local"].map(PathBuf::from))
+        .any(|prefix| prefix.join("Caskroom/inkup").is_dir())
 }
 
 /// What the Host is called on the LAN, as the CLI names it: `inkup on <machine>`.
@@ -174,4 +215,28 @@ async fn published(dir: &Path) -> Option<HostInfo> {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use inkup_update_check::Skew;
+
+    use super::*;
+
+    #[test]
+    fn the_update_notice_says_how_the_app_updates() {
+        let found = Found { latest: "0.3.0".parse().unwrap(), skew: None };
+        assert_eq!(update_notice(&found, true), "InkUp 0.3.0 is out: brew upgrade --cask inkup");
+        assert_eq!(
+            update_notice(&found, false),
+            "InkUp 0.3.0 is out: install InkUp_0.3.0_universal.dmg from github.com/liatrio-labs/inkup/releases"
+        );
+        let skew = Skew { release: 2, behind: vec![("Chrome on MacBook".into(), "chrome".into(), 1)] };
+        let found = Found { skew: Some(skew), ..found };
+        assert_eq!(
+            update_notice(&found, true),
+            "InkUp 0.3.0 is out, on protocol 2: update the extension first (Chrome on MacBook behind), \
+             then brew upgrade --cask inkup"
+        );
+    }
 }

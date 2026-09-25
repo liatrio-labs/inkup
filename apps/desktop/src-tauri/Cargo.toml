@@ -38,6 +38,7 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 inkup-server = { path = "../../../host/crates/server" }
 inkup-store = { path = "../../../host/crates/store" }
 inkup-protocol = { path = "../../../host/crates/protocol" }
+inkup-update-check = { path = "../../../host/crates/update-check" }
 
 # The Dock icon: Tauri 2 has no API to change it at run time, so the app sets NSDockTile's content view (all safe
 # calls in objc2-app-kit 0.3).

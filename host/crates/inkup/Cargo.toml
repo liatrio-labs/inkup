@@ -31,6 +31,7 @@ inkup-protocol.workspace = true
 inkup-server.workspace = true
 inkup-store.workspace = true
 inkup-tui.workspace = true
+inkup-update-check.workspace = true
 
 [dev-dependencies]
 tungstenite = "0.30"

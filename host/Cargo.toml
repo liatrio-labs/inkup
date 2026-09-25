@@ -16,6 +16,7 @@ inkup-protocol = { path = "crates/protocol" }
 inkup-store = { path = "crates/store" }
 inkup-server = { path = "crates/server" }
 inkup-tui = { path = "crates/tui" }
+inkup-update-check = { path = "crates/update-check" }
 
 anyhow = "1.0.104"
 axoupdater = { version = "0.10.2", default-features = false, features = ["github_releases"] }
