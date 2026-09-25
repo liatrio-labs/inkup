@@ -198,7 +198,7 @@ function record(entries: Entry[]) {
 }
 
 /**
- * The review-flow clip: two cuts of the page's recorded video (seconds from its start), joined and encoded as H.264
+ * The review-flow clip: cuts of the page's recorded video (seconds from its start), joined and encoded as H.264
  * mp4 (yuv420p, faststart) and VP9 webm, both without audio, plus a poster frame at `posterAt` (seconds into the clip).
  */
 function encodeClip(raw: string, cuts: [number, number][], posterAt: number): Entry[] {
@@ -282,6 +282,7 @@ test('capture the site media: toolbar, Stroke, Draft Items, Change Items and the
 
     // Note 2: an arrow at the end of the headline's first line.
     await sleepUntil(startedAt + 7600);
+    const arrowFrom = Date.now();
     const h1 = (await demo.locator('#hero-title').boundingBox())!;
     await arrow(pen, [h1.x + h1.width + 60, h1.y - 36], [h1.x + h1.width - 70, h1.y + 26], {
       jitter: 0.8,
@@ -320,19 +321,19 @@ test('capture the site media: toolbar, Stroke, Draft Items, Change Items and the
     await review.getByTestId('process-button').click();
     await review.getByTestId('process-confirm').click();
     await expect(review.getByTestId('change-item')).toHaveCount(3, { timeout: 30_000 });
-    // The Change Items heading, with some room above it.
+    // From the Session's title down to the Change Items.
     await review.evaluate(() => {
-      const heading = document.getElementById('change-items')!;
-      window.scrollTo(0, heading.getBoundingClientRect().top + window.scrollY - 64);
+      const title = document.querySelector('h1')!;
+      window.scrollTo(0, title.getBoundingClientRect().top + window.scrollY - 32);
     });
     await review.waitForTimeout(500);
     shots.push(await shoot(review, 'review'));
 
-    // Start, the first two notes and their captions, then Stop: at most 12 s.
-    const from = at(startedAt) - 0.5;
+    // Start and the first note with its caption, the second note with its caption, then Stop: about 11 s.
     const cuts: [number, number][] = [
-      [from, Math.min(at(captionedAt) + 0.6, from + 10.2)],
-      [at(stoppedAt) - 0.3, at(stoppedAt) + 1.5],
+      [at(startedAt) - 0.4, at(circledAt) + 3.2],
+      [at(arrowFrom) - 0.4, at(captionedAt) + 0.8],
+      [at(stoppedAt) - 0.3, at(stoppedAt) + 1.4],
     ];
     const clip = encodeClip(raw, cuts, at(circledAt) - cuts[0]![0] + 0.1);
     record([...shots, ...clip]);
