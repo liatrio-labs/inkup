@@ -7,7 +7,7 @@
 // Process names the size in the Change Item's agent_prompt and review.md names it too. A page that refuses framing
 // says why instead of offering sizes.
 //
-// Chrome's debugger could resize the page in place but was turned down (decisions log, E6). Runs standalone and
+// Chrome's debugger could resize the page in place but was turned down (ADR 0023). Runs standalone and
 // paired with the real host, and in Firefox (tests/e2e-firefox/viewport.spec.ts). The window is made tall enough
 // for 375×812 at 1:1.
 import { execFileSync } from 'node:child_process';

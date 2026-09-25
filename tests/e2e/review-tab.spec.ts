@@ -1,4 +1,4 @@
-// Decisions log #40: one review tab per Session. "Open review" and Stop focus the tab already showing that
+// ADR 0019: one review tab per Session. "Open review" and Stop focus the tab already showing that
 // Session's review; only a Session with none gets a new tab. Cmd or Ctrl click still opens another on purpose.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

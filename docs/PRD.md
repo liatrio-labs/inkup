@@ -198,7 +198,7 @@ processing time using speech.
   bounding box and filling at least a quarter of it, pick the one filling most of it, so a loose circle around a button
   picks the button, not the card around it. When the mark encloses nothing that size (an underline, a scribble over
   text), pick the deepest element whose box covers at least 70% of the bounding box; fall back to the largest overlap.
-  (Changed 2026-09-23 after review feedback; see decisions log, Feedback batch 1, U2.)
+  (Changed 2026-09-23 after review feedback; see ADR 0012.)
 - [ ] Candidates = the geometric pick, up to 5 of its ancestors, and any siblings the Strokes cover. For each store: a
   stable CSS selector, tag, role, accessible name / visible text (truncated to 200 chars), `data-testid` and `id` if
   present, and bounding box.

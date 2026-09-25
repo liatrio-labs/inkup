@@ -99,7 +99,7 @@ describe('which viewport a moment was seen at', () => {
         mechanism: 'frame_host',
       }),
     ).toThrow();
-    // Chrome's debugger was turned down (decisions log, E6): the frame host is the one mechanism.
+    // Chrome's debugger was turned down (ADR 0023): the frame host is the one mechanism.
     expect(() =>
       TimelineEventSchema.parse({
         id: 'x',

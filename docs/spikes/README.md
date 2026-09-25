@@ -145,7 +145,7 @@ Setup, once:
     `ort-wasm-simd-threaded.{mjs,wasm}` from onnxruntime-web **1.30.0**.
     - **Superseded in Slice 7:** `onnxWASMBasePath` is now `/ort/`. The VAD runs on the onnxruntime-web build
       transformers.js pins, so `public/vad` holds only the worklet and `silero_vad_v5.onnx`, and one 26.9 MB ORT wasm
-      ships (docs/decisions-log.md Slice 7).
+      ships (ADR 0024).
   - transformers.js: set
     <!-- markdownlint-disable-next-line MD013 -->
     `env.backends.onnx.wasm.wasmPaths = { mjs: getURL('/ort/ort-wasm-simd-threaded.asyncify.mjs'), wasm: getURL('/ort/ort-wasm-simd-threaded.asyncify.wasm') }`

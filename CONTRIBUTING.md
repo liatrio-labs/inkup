@@ -46,8 +46,10 @@ cd host && cargo fmt --all --check && cargo clippy --workspace --all-targets --l
   for logic, a Playwright e2e for anything a reviewer does in the browser, a `cargo test` for the host.
 - **Use the domain words.** `CONTEXT.md` defines Session, Stroke, Annotation, Candidate, Change Item and the rest,
   and the code uses those terms. Add a term there before using a new one.
-- **Record decisions.** A call the PRD, plan and ADRs leave open goes in `docs/decisions-log.md`. A larger one (a
-  new permission, a new trust boundary, a new process) gets an ADR in `docs/adr/`.
+- **Record decisions as ADRs.** A decision that constrains future code (architecture, a contract, trust, stored
+  data, or a user-visible behaviour rule) gets an ADR in `docs/adr/`, or a dated History entry in the ADR it refines;
+  a reversal is a new ADR that supersedes the old one. UI tweaks and implementation detail go in the pull request
+  description. There is no decisions log. `docs/adr/README.md` has the rules and the template.
 - **Keep the schemas in sync.** `session.json` and the host protocol come from the Zod schemas in
   `packages/core` and `packages/protocol`. Change those, run `pnpm schema`, then regenerate the host's Rust types
   with `UPDATE_PROTOCOL=1 cargo test -p inkup-protocol --test generated`.

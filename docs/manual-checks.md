@@ -237,7 +237,7 @@ check it on real sites, with a real sign-in, in installed Chrome.
 | 3 | Pick Phone 375×812. | The tab shows a bar with "375×812", the page's address and Reset, and under it the page in a 375 px frame, centred on grey. The nav is collapsed into "☰ Menu", and the toolbar is inside the frame. No debugging bar. |
 | 4 | Start, circle the Menu button, Snap, then drag the frame's right handle to about 900 px. | A live size follows the drag; on release the frame is about 900 px wide and the nav is back. |
 | 5 | Click Viewport on the toolbar, then "The tab's own size". | The page fills the tab again, still recording. Stop: the review's screenshot is 375 px wide (no grey, no bar), and review.md's header lists 375×812, 900×… and the tab's own size. |
-| 6 | On a site you are signed in to (e.g. GitHub), set 375×812. | Write down whether you stay signed in inside the frame. If not, note it in the decisions log's E6 entry (third-party cookies or storage in the frame). |
+| 6 | On a site you are signed in to (e.g. GitHub), set 375×812. | Write down whether you stay signed in inside the frame. If not, add it to ADR 0023's History (third-party cookies or storage in the frame). |
 | 7 | On `https://www.google.com`, click Viewport. | No sizes: the menu says the site does not allow being shown in a frame (X-Frame-Options). |
 | 8 | Set 2400×1400 on a smaller window. | The frame is scaled down to fit, and the button and the bar say "2400×1400 at N%". |
 | 9 | Reload the page and open Viewport. | "Last used here" offers the last size; nothing was applied by itself. |
@@ -387,7 +387,7 @@ Needs the C3 key. This is the Session that used to fail with "The answer did not
 | 2 | On the review page click Process. | The estimate says the Session runs in 2 parts (or more), two at a time. |
 | 3 | Run Process and watch the Change Items section. | Within a few seconds "Part 1 of 2 · writing" and "Part 2 of 2 · writing" appear with a grey placeholder card each. Finished items appear one by one as read-only cards marked "in progress" before the run ends. |
 | 4 | Wait for the run to finish. | The in-progress cards disappear and the final list appears, numbered from item_0001. No "did not fit" or other token error. The coverage line names the number of parts. |
-| 5 | Open DevTools on the review page, Application, IndexedDB, `inkup`, `processRuns`, and expand the newest row's `calls`. | Each `main` call has a `chunk` and an `estimated_output`; note the ratio of `output_tokens` to `estimated_output` in the decisions log for calibrating the estimate. |
+| 5 | Open DevTools on the review page, Application, IndexedDB, `inkup`, `processRuns`, and expand the newest row's `calls`. | Each `main` call has a `chunk` and an `estimated_output`; note the ratio of `output_tokens` to `estimated_output` in the pull request, for calibrating the estimate (ADR 0016). |
 | 6 | Click Process again and, while parts are writing, go to `chrome://extensions` and click the extension's reload button. Reopen the review page. | The review page says "Process failed: Process stopped because the extension restarted before it finished. Run it again." No in-progress cards remain. Retry works. |
 
 ## C9: paid tiers with real keys (Slice 6)

@@ -1,5 +1,5 @@
 // src/entrypoints/offscreen/voice.ts feeds vad-web's MicVAD by hand: it resumes the private frameProcessor,
-// calls processFrame and releases the private model (docs/decisions-log.md "Speech before the VAD loads").
+// calls processFrame and releases the private model (ADR 0014).
 // package.json's "^0.0.31" already allows only 0.0.31 (a caret on 0.0.x pins the patch).
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

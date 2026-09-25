@@ -2,7 +2,7 @@
 // (src/entrypoints/viewport) around a sized frame of the page. Each page the frame loads runs the probe content
 // script, which asks here for the overlay's content script in that frame. Sites that refuse framing (X-Frame-Options,
 // CSP frame-ancestors) are reported per page. This logs `viewport_change` for a Session on that tab and shoots a
-// resized page as exactly its frame. Chrome's debugger could resize in place, but was turned down (decisions log, E6).
+// resized page as exactly its frame. Chrome's debugger could resize in place, but was turned down (ADR 0023).
 import { clampSize, fitScale, type Size } from '@inkup/core/viewport';
 import type { ToolbarViewport } from '@/messaging';
 import { platform } from '@/platform';

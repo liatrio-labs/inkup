@@ -1,4 +1,4 @@
-// Decisions log #40 in Firefox (an event page, not a service worker): "Open review" focuses the tab already showing
+// ADR 0019 in Firefox (an event page, not a service worker): "Open review" focuses the tab already showing
 // that Session's review instead of opening another. The Session is a fixture session.json restored from the side
 // panel (the file is handed to the input from the page, as RDP cannot upload one).
 import { readFileSync } from 'node:fs';
