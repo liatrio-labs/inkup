@@ -108,21 +108,45 @@ export class ExtPage {
 
   /**
    * Clicks the element with this data-testid once it exists (a DOM click: no user activation). A click that navigates
-   * the page away (the frame host's Reset) would take the evaluation's answer with it, so with `navigates` it runs
-   * just after the answer; any other click has happened by the time this returns.
+   * the page away (the frame host's Reset) takes with it any answer still to be read from the page, so with
+   * `navigates` the click is scheduled by a plain expression whose value comes back with the evaluation itself; any
+   * other click has happened by the time this returns.
    */
   async click(testId: string, { navigates = false } = {}): Promise<void> {
+    if (navigates) return this.clickAway(testId);
     await this.waitFor(
-      ({ id, later }) => {
+      (id) => {
         const el = document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
         if (!el || (el as HTMLButtonElement).disabled) return false;
-        if (later) setTimeout(() => el.click(), 50);
-        else el.click();
+        el.click();
         return true;
       },
-      { id: testId, later: navigates },
+      testId,
       { what: `a clickable [data-testid="${testId}"]` },
     );
+  }
+
+  /**
+   * `evaluate` reads its answer back in a second round trip. When that came after the page had navigated away (slow
+   * CI), the click had happened but its answer was lost, and the retries looked for the button in the page the tab had
+   * gone back to: "timed out waiting for a clickable [data-testid="viewport-host-reset"]; last: false".
+   */
+  private async clickAway(testId: string, timeout = 15_000): Promise<void> {
+    const until = Date.now() + timeout;
+    const selector = JSON.stringify(`[data-testid="${testId}"]`);
+    const text =
+      `(() => { const el = document.querySelector(${selector}); if (!el || el.disabled) return false;` +
+      ' setTimeout(() => el.click(), 50); return true; })()';
+    let last: unknown;
+    for (;;) {
+      last = await this.evalText(text).catch((e: unknown) => e);
+      if (last === true) return;
+      if (Date.now() > until)
+        throw new Error(
+          `timed out after ${timeout} ms in ${this.url} waiting for a clickable [data-testid="${testId}"]; last: ${String(last)}`,
+        );
+      await new Promise((r) => setTimeout(r, 200));
+    }
   }
 
   /** The trimmed text of the element with this data-testid, or null. */
