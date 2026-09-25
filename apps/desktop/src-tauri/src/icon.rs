@@ -99,10 +99,10 @@ pub fn band_width(size: u32) -> u32 {
     ((size as f32 / 8.0).round() as u32).max(1)
 }
 
-/// The development bands at pixel (`x`, `y`): 45°, running bottom-left to top-right, dark first at the top-left
-/// corner.
+/// The development bands at pixel (`x`, `y`): 45°, running bottom-left to top-right, yellow first at the top-left
+/// corner. The extension's rule (extensions/web/src/lib/dev-stripes.ts), so the two match pixel for pixel.
 pub fn stripe_at(size: u32, x: u32, y: u32) -> [u8; 3] {
-    if ((x + y) / band_width(size)).is_multiple_of(2) { DARK } else { YELLOW }
+    if ((x + y) / band_width(size)).is_multiple_of(2) { YELLOW } else { DARK }
 }
 
 /// The icon at `size` px: `base` scaled to fit, on the development bands when `development`, with `dot` on top.
@@ -341,13 +341,21 @@ mod tests {
         assert_eq!(band_width(32), 4);
         assert_eq!(band_width(4), 1);
         assert_eq!(band_width(1), 1);
-        // Size 32, bands 4 px: x + y in 0..4 dark, 4..8 yellow, 8..12 dark.
-        assert_eq!(stripe_at(32, 0, 0), DARK);
-        assert_eq!(stripe_at(32, 3, 0), DARK);
-        assert_eq!(stripe_at(32, 4, 0), YELLOW);
-        assert_eq!(stripe_at(32, 0, 4), YELLOW);
-        assert_eq!(stripe_at(32, 2, 2), YELLOW);
-        assert_eq!(stripe_at(32, 8, 0), DARK);
+        // The extension's numbers (dev-stripes.ts): band = floor((x + y) / w) % 2, even yellow, odd dark.
+        // Size 32, bands 4 px: x + y in 0..4 yellow, 4..8 dark, 8..12 yellow.
+        assert_eq!(stripe_at(32, 0, 0), YELLOW);
+        assert_eq!(stripe_at(32, 3, 0), YELLOW);
+        assert_eq!(stripe_at(32, 4, 0), DARK);
+        assert_eq!(stripe_at(32, 0, 4), DARK);
+        assert_eq!(stripe_at(32, 2, 2), DARK);
+        assert_eq!(stripe_at(32, 8, 0), YELLOW);
+        // Size 16, bands 2 px; size 128, bands 16 px.
+        assert_eq!(stripe_at(16, 1, 0), YELLOW);
+        assert_eq!(stripe_at(16, 2, 0), DARK);
+        assert_eq!(stripe_at(16, 15, 15), DARK);
+        assert_eq!(stripe_at(128, 15, 0), YELLOW);
+        assert_eq!(stripe_at(128, 16, 0), DARK);
+        assert_eq!(stripe_at(128, 127, 127), DARK);
         // Bottom-left to top-right: the same band along x + y = constant.
         assert_eq!(stripe_at(32, 1, 6), stripe_at(32, 6, 1));
     }
@@ -373,7 +381,7 @@ mod tests {
         let icon = compose(&base(128), 128, true, Dot::Full);
         let (c, ..) = dot_geometry(128);
         assert_eq!(rgb(icon.get_pixel(c as u32, c as u32)), GREEN);
-        assert_eq!(rgb(icon.get_pixel(0, 0)), DARK);
+        assert_eq!(rgb(icon.get_pixel(0, 0)), YELLOW);
     }
 
     #[test]
