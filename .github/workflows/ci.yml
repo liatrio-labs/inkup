@@ -315,6 +315,10 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
+    # bash on Windows too: under PowerShell, pnpm printed nothing and exited 0 without running.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -333,7 +337,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm --version && pnpm install --frozen-lockfile
       - if: runner.os == 'Linux'
         run: pnpm -C apps/desktop typecheck
       - if: runner.os == 'Linux'
@@ -351,8 +355,12 @@ jobs:
         run: cargo clippy --all-targets --locked -- -D warnings
       - working-directory: apps/desktop/src-tauri
         run: cargo test --locked
-      # The UI (vite build) and the app binary, as `pnpm desktop:build` makes them.
+      # The UI (vite build) and the app binary, as `pnpm desktop:build` makes them. The check after it fails a build
+      # that exits 0 without making anything.
       - run: pnpm desktop:build
+      - name: The UI and the app binary were built
+        run: |
+          ls -l apps/desktop/dist/index.html apps/desktop/src-tauri/target/debug/inkup-desktop${{ runner.os == 'Windows' && '.exe' || '' }}
 
   # The one required check. Skipped jobs pass; a failed or cancelled one fails it.
   ci-ok:
