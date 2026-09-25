@@ -27,7 +27,7 @@ use rusqlite::Connection;
 pub use agents::{AgentToken, Bearer, NewAgentToken};
 pub use blobs::{BlobMeta, valid_blob_id};
 pub use clients::{Client, PairedClient};
-pub use config::{CONFIG_FILE, HostConfig};
+pub use config::{CONFIG_FILE, DesktopConfig, HostConfig};
 pub use events::{SessionSummary, TIMELINE_TYPES, Upsert};
 pub use items::{
     Item, ItemFilter, ItemResolution, ItemStatus, PutItems, Resolution, ResolutionStatus, SessionOverview, Signal,

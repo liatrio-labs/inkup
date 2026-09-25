@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use toml_edit::{DocumentMut, value};
+use toml_edit::{DocumentMut, Item, Table, value};
 
 use crate::{Result, StoreError, random_hex};
 
@@ -52,6 +52,45 @@ impl HostConfig {
     pub fn save_network(dir: &Path, on: bool) -> Result<()> {
         let mut doc = read(dir)?;
         doc["network"] = value(on);
+        write(dir, &doc)
+    }
+}
+
+/// The desktop app's `[desktop]` table: where its icon shows. At least one is on, or the app could not be reached.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DesktopConfig {
+    /// An icon in the menu bar (macOS) or system tray.
+    pub menubar: bool,
+    /// An icon in the Dock (macOS) or taskbar.
+    pub dock: bool,
+}
+
+impl Default for DesktopConfig {
+    fn default() -> Self {
+        Self { menubar: true, dock: true }
+    }
+}
+
+impl DesktopConfig {
+    /// The table's settings; a file with both off (edited by hand) gets the Dock back.
+    pub fn load(dir: &Path) -> Result<Self> {
+        let doc = read(dir)?;
+        let on = |key: &str| doc.get("desktop").and_then(|t| t.get(key)).and_then(Item::as_bool).unwrap_or(true);
+        let (menubar, dock) = (on("menubar"), on("dock"));
+        Ok(Self { menubar, dock: dock || !menubar })
+    }
+
+    /// Writes the table, keeping the rest of the file. Both off is refused.
+    pub fn save(self, dir: &Path) -> Result<()> {
+        if !self.menubar && !self.dock {
+            return Err(StoreError::Config("the menu bar icon and the Dock icon cannot both be off".into()));
+        }
+        let mut doc = read(dir)?;
+        if !doc.get("desktop").is_some_and(Item::is_table) {
+            doc["desktop"] = Item::Table(Table::new());
+        }
+        doc["desktop"]["menubar"] = value(self.menubar);
+        doc["desktop"]["dock"] = value(self.dock);
         write(dir, &doc)
     }
 }
@@ -146,6 +185,28 @@ mod tests {
         std::fs::write(&path, format!("hub_id = \"abc\"\n# mine\nnetwork = true\n{NEW_FILE}")).unwrap();
         assert_eq!(HostConfig::load(dir.path()).unwrap(), HostConfig { network: true, hub_id: "abc".into() });
         assert_eq!(text(dir.path()), format!("{NEW_FILE}\nhub_id = \"abc\"\n# mine\nnetwork = true\n"));
+    }
+
+    #[test]
+    fn the_desktop_toggles_persist_and_cannot_both_be_off() {
+        let dir = tempfile::tempdir().unwrap();
+        let first = HostConfig::load(dir.path()).unwrap();
+        assert_eq!(DesktopConfig::load(dir.path()).unwrap(), DesktopConfig::default());
+        let tray_only = DesktopConfig { menubar: true, dock: false };
+        tray_only.save(dir.path()).unwrap();
+        HostConfig::save_network(dir.path(), true).unwrap();
+        assert_eq!(DesktopConfig::load(dir.path()).unwrap(), tray_only);
+        assert_eq!(HostConfig::load(dir.path()).unwrap(), HostConfig { network: true, ..first });
+        let text = text(dir.path());
+        assert!(text.starts_with(NEW_FILE), "{text}");
+        assert!(text.contains("[desktop]\nmenubar = true\ndock = false\n"), "{text}");
+
+        let off = DesktopConfig { menubar: false, dock: false };
+        assert!(off.save(dir.path()).is_err());
+        assert_eq!(DesktopConfig::load(dir.path()).unwrap(), tray_only, "a refused save changes nothing");
+        // Both off by hand: the Dock comes back.
+        std::fs::write(dir.path().join(CONFIG_FILE), "[desktop]\nmenubar = false\ndock = false\n").unwrap();
+        assert_eq!(DesktopConfig::load(dir.path()).unwrap(), DesktopConfig { menubar: false, dock: true });
     }
 
     #[test]
