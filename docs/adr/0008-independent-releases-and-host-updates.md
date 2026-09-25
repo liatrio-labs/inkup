@@ -113,6 +113,10 @@ Clients behind.
 - `RELEASE_PLEASE_TOKEN` must exist and stay unexpired. Without it the release pull requests get no CI run, so they
   cannot pass `ci-ok`, and the tags start no release workflow.
 - The `chrome-web-store` and `firefox-amo` environments and the release-tag ruleset must list `inkup-extension-v*`.
+- The Chrome Web Store upload holds no Google key. The job exchanges its GitHub OIDC token for an access token of the
+  `inkup-cws-upload` service account through a workload identity provider that admits only this repository's
+  `chrome-web-store` environment (docs/releasing.md). Renaming that environment, or moving the upload to another job
+  environment, breaks the sign-in until the provider's condition and the service account binding follow it.
 - A change only in `packages/` opens no release on its own; it ships with the next extension release.
 - The host's lockfile bump selects packages by name through release-please's parsed TOML (`@.name.value`); a
   release-please upgrade that changes that shape leaves the lockfiles stale, and the release pull request fails CI's
@@ -171,3 +175,7 @@ Clients behind.
   deployments. Now releases are automatic: release-please sets its pull request to auto-merge with
   RELEASE_PLEASE_TOKEN, and neither environment has a required reviewer. Every releasable commit on `main` ships
   within minutes. The environments' tag policies keep the signing and store secrets to release tags.
+- 2026-09-25: we thought the Chrome Web Store upload would sign in with a service account JSON key kept in the
+  `chrome-web-store` environment's secrets, through `wxt submit`. Now it is keyless: Google workload identity
+  federation trusts the job's GitHub OIDC token, and `scripts/chrome-web-store.ts` calls the store API v2 directly,
+  because Liatrio's org policy blocks service account keys. The environment keeps only the item and publisher IDs.
