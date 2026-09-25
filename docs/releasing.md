@@ -247,10 +247,11 @@ points at. Its `desktop-macos` job then:
    draft and dist's `host` job publishes it; the upload works on the draft, and this job never publishes it. If the
    release does not exist yet, it checks every 30 seconds for up to 30 minutes, then fails;
 7. on a stable release only (dist's rule for the formula), waits up to 30 minutes for dist to publish the release,
-   because the cask's url only downloads from a published release. It then renders the Homebrew cask with
+   because the cask's url only downloads from a published release, then up to 10 minutes for dist's
+   `publish-homebrew-formula` job, whose push to the same tap does not retry. It then renders the Homebrew cask with
    `node scripts/cask.ts <version> <sha256>` and pushes it to `liatrio-labs/homebrew-tap` as `Casks/inkup.rb`,
    committed as `github-actions[bot]`. It uses the repository secret `HOMEBREW_TAP_TOKEN`, the one dist's formula job
-   uses. Nothing is pushed when the cask is unchanged.
+   uses. Nothing is pushed when the cask is unchanged, and a rejected push rebases and retries up to 5 times.
 
 Only one run per tag goes at a time; a second waits instead of cancelling the first. It restores no dependency
 caches, as a release build.
