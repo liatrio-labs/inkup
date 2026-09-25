@@ -448,6 +448,8 @@ impl Connection {
             Ok(upsert) => {
                 if signal && upsert != Upsert::Unchanged {
                     self.state.hub.changed();
+                } else if upsert != Upsert::Unchanged {
+                    self.state.hub.view_changed();
                 }
                 protocol::ack(&self.next_id(), &re, Some(&event_id)).map_err(|e| internal(&re, e))
             }

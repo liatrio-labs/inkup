@@ -1,14 +1,37 @@
 {
-  "control_api": 1,
+  "control_api": 2,
   "kind": "serve",
   "version": "0.1.0",
   "address": "127.0.0.1:47823",
   "network": {
     "claimed": "inkup.local",
-    "addresses": ["192.168.1.20"],
+    "addresses": [
+      "192.168.1.20"
+    ],
     "base_url": "http://inkup.local:47823"
   },
   "update": "inkup 0.2.0 is out: run `inkup update`",
+  "network_switch": true,
+  "pending_pairing": [
+    {
+      "id": 3,
+      "prompt": "Firefox extension \"Studio\" from 192.168.1.31 wants to connect",
+      "client_kind": "firefox",
+      "client_name": "Studio",
+      "remote": {
+        "code": "042917",
+        "from": "192.168.1.31",
+        "link": "inkup://pair?url=http://inkup.local:47823&code=042917"
+      }
+    },
+    {
+      "id": 4,
+      "prompt": "Chrome extension \"Work laptop\" wants to connect",
+      "client_kind": "chrome",
+      "client_name": "Work laptop",
+      "remote": null
+    }
+  ],
   "state": {
     "clients": [
       {
@@ -48,9 +71,21 @@
     "timeline": {
       "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
       "entries": [
-        { "t": 0, "kind": "session", "text": "started on http://localhost:4401/pricing.html" },
-        { "t": 1200, "kind": "said", "text": "make this bigger" },
-        { "t": 1500, "kind": "annotation", "text": "#1 on button 'Get started'" }
+        {
+          "t": 0,
+          "kind": "session",
+          "text": "started on http://localhost:4401/pricing.html"
+        },
+        {
+          "t": 1200,
+          "kind": "said",
+          "text": "make this bigger"
+        },
+        {
+          "t": 1500,
+          "kind": "annotation",
+          "text": "#1 on button 'Get started'"
+        }
       ]
     },
     "items": [
@@ -66,7 +101,21 @@
         "prompt": "Increase the size of the Get started button on the pricing page."
       }
     ],
-    "watchers": [{ "id": 1, "url": "http://localhost:4401", "session_id": null, "since": 1790124350000 }],
-    "agent_tokens": [{ "id": "a-0f1e2d3c", "name": "codex on desktop", "created_at": 1790000000000, "last_used_at": null }]
+    "watchers": [
+      {
+        "id": 1,
+        "url": "http://localhost:4401",
+        "session_id": null,
+        "since": 0
+      }
+    ],
+    "agent_tokens": [
+      {
+        "id": "a-0f1e2d3c",
+        "name": "codex on desktop",
+        "created_at": 1790000000000,
+        "last_used_at": null
+      }
+    ]
   }
 }

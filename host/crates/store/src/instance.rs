@@ -16,7 +16,7 @@ use crate::{Result, StoreError, now_ms, random_hex};
 pub const LOCK_FILE: &str = "host.lock";
 pub const HOST_FILE: &str = "host.json";
 /// The control API's version (`/api/host/*`), in `host.json`. A client that speaks another one stays away.
-pub const CONTROL_API: u32 = 1;
+pub const CONTROL_API: u32 = 2;
 
 /// Which kind of host holds a data dir.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

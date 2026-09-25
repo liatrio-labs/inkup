@@ -13,23 +13,44 @@
 //! - `GET /api/host/state?timeline=<session id>`: `HostState` as the TUI shows it, plus the header's facts.
 //! - `POST /api/host/activate`: another launch asks this Host to come forward; the embedder's `on_activate` hook
 //!   does that (the desktop app shows its window). `{handled: false}` when there is no hook (the TUI, `serve`).
+//! - `GET /api/host/changes?since=<seq>`: a long-poll on `Hub::subscribe_view`, answered at the next change (or
+//!   after `LONG_POLL` with none), so a window refreshes on change rather than on a timer.
+//! - `POST /api/host/commands`: a command to a connected Client's Session, as the TUI's keys send.
+//! - `POST /api/host/tokens`, `DELETE /api/host/tokens/{id}`: agent tokens, as the TUI makes and revokes them.
+//! - `POST /api/host/network`: network mode, through the embedder's `on_network` hook (the desktop app restarts its
+//!   server). `{handled: false}` without one: the TUI switches it in its terminal.
+//! - `POST /api/host/pairing/{id}`: answers a pairing request, when the embedder has the server ask here
+//!   (`Server::ask_pairing_over_control`) rather than on its own screen.
 
 use std::fmt;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use axum::Json;
-use axum::extract::{FromRequestParts, Query, State};
+use axum::extract::{FromRequestParts, Path, Query, State};
+use axum::http::StatusCode;
 use axum::http::request::Parts;
-use inkup_protocol::control::{Activated, CONTROL_API, ControlState};
+use inkup_protocol::control::{
+    Activated, CONTROL_API, Changes, CommandOutcome, CommandRequest, ControlState, NetworkRequest, NetworkSwitched,
+    NewToken, NewTokenRequest, PairingAnswer, PairingAnswerDecision,
+};
 use inkup_store::instance::HostKind;
 use serde::Deserialize;
-use serde_json::json;
+use serde::de::DeserializeOwned;
+use serde_json::{Value, json};
 use tokio::sync::watch;
 
 use crate::guard::Peer;
 use crate::http::{ApiError, bearer};
+use crate::hub::Command;
 use crate::network::lan_addresses;
+use crate::pairing::{PairingDecision, PairingRequest};
+use crate::ws::blocking;
 use crate::{AppState, VERSION};
+
+/// How long `changes` waits for a change before it answers anyway.
+const LONG_POLL: Duration = Duration::from_secs(25);
 
 /// What the embedder does when another launch asks this Host to come forward.
 #[derive(Clone)]
@@ -47,6 +68,72 @@ impl fmt::Debug for ActivateHook {
     }
 }
 
+/// What the embedder does to switch network mode: save it and restart the server in it, after the answer is sent.
+#[derive(Clone)]
+pub struct NetworkHook(pub Arc<dyn Fn(bool) + Send + Sync>);
+
+impl NetworkHook {
+    pub fn new(hook: impl Fn(bool) + Send + Sync + 'static) -> Self {
+        Self(Arc::new(hook))
+    }
+}
+
+impl fmt::Debug for NetworkHook {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("NetworkHook")
+    }
+}
+
+/// Pairing requests waiting for an answer through the control API, by id.
+#[derive(Default)]
+pub(crate) struct PairingInbox {
+    next: AtomicU64,
+    waiting: Mutex<Vec<(u64, PairingRequest)>>,
+}
+
+impl PairingInbox {
+    pub(crate) fn push(&self, request: PairingRequest) {
+        let id = self.next.fetch_add(1, Ordering::Relaxed) + 1;
+        self.lock().push((id, request));
+    }
+
+    /// The requests still waiting: a Client that gave up, or a code used, refused or expired, needs no answer.
+    fn prompts(&self) -> Vec<Value> {
+        let mut waiting = self.lock();
+        waiting.retain(|(_, request)| !request.is_cancelled());
+        waiting
+            .iter()
+            .map(|(id, request)| {
+                json!({
+                    "id": id,
+                    "prompt": request.prompt(),
+                    "client_kind": request.client_kind,
+                    "client_name": request.client_name,
+                    "remote": request.remote.as_ref().map(|remote| json!({
+                        "code": remote.code, "from": remote.from.to_string(), "link": remote.link,
+                    })),
+                })
+            })
+            .collect()
+    }
+
+    fn take(&self, id: u64, remote_allowed: impl Fn(&PairingRequest) -> bool) -> Result<PairingRequest, ApiError> {
+        let mut waiting = self.lock();
+        let at = waiting.iter().position(|(found, _)| *found == id).ok_or(ApiError::NotFound)?;
+        if !remote_allowed(&waiting[at].1) {
+            return Err(ApiError::BadRequest(
+                "a request from another machine is approved by typing its code in the Client; it can only be denied"
+                    .into(),
+            ));
+        }
+        Ok(waiting.remove(at).1)
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, Vec<(u64, PairingRequest)>> {
+        self.waiting.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
 /// The control API's settings. Without them (`Config::control: None`) no token opens it.
 #[derive(Debug, Clone)]
 pub struct Control {
@@ -54,6 +141,8 @@ pub struct Control {
     pub token: String,
     pub kind: HostKind,
     pub on_activate: Option<ActivateHook>,
+    /// Set where network mode can be switched through the control API (the desktop app hosting).
+    pub on_network: Option<NetworkHook>,
     /// A newer release, once the background check finds one.
     pub update: Option<watch::Receiver<Option<String>>>,
 }
@@ -109,12 +198,123 @@ pub(crate) async fn state(
         "address": format!("127.0.0.1:{}", state.port),
         "network": network,
         "update": update,
+        "network_switch": control.on_network.is_some(),
+        "pending_pairing": state.inbox.prompts(),
         "state": host,
     });
-    serde_json::from_value::<ControlState>(body).map(Json).map_err(|error| {
-        tracing::error!(%error, "the control state does not match contract/host-control.schema.json");
+    typed::<ControlState>(body).map(Json)
+}
+
+/// A response built as the contract's type: one that drifts from the schema is the Host's bug, logged.
+fn typed<T: DeserializeOwned>(body: Value) -> Result<T, ApiError> {
+    serde_json::from_value(body).map_err(|error| {
+        tracing::error!(%error, "a control API response does not match contract/host-control.schema.json");
         ApiError::Internal
     })
+}
+
+/// A request body as the contract's type.
+fn request<T: DeserializeOwned>(body: Value) -> Result<T, ApiError> {
+    serde_json::from_value(body).map_err(|error| ApiError::BadRequest(error.to_string()))
+}
+
+#[derive(Deserialize)]
+pub(crate) struct ChangesQuery {
+    #[serde(default)]
+    since: u64,
+}
+
+/// Answers once the view's counter is not `since` (a restarted Host counts from 0 again), or after `LONG_POLL`.
+pub(crate) async fn changes(
+    _: Controller,
+    State(state): State<AppState>,
+    Query(query): Query<ChangesQuery>,
+) -> Result<Json<Changes>, ApiError> {
+    let mut view = state.hub.subscribe_view();
+    // A server shutting down answers at once, so a waiting window does not hold up its graceful shutdown.
+    tokio::select! {
+        _ = tokio::time::timeout(LONG_POLL, view.wait_for(|seq| *seq != query.since)) => {}
+        () = state.closing.cancelled() => {}
+    }
+    let seq = *view.borrow();
+    typed(json!({ "seq": seq })).map(Json)
+}
+
+pub(crate) async fn command(
+    _: Controller,
+    State(state): State<AppState>,
+    Json(body): Json<Value>,
+) -> Result<Json<CommandOutcome>, ApiError> {
+    let asked: CommandRequest = request(body)?;
+    let mut command = json!({ "command": asked.command });
+    if let Some(on) = asked.draw_mode {
+        command["draw_mode"] = json!(on);
+    }
+    let command: Command = request(command)?;
+    let outcome = state.hub.command(&asked.client_id, command).await.map_err(ApiError::Command)?;
+    typed(serde_json::to_value(outcome).map_err(|_| ApiError::Internal)?).map(Json)
+}
+
+pub(crate) async fn create_token(
+    _: Controller,
+    State(state): State<AppState>,
+    Json(body): Json<Value>,
+) -> Result<(StatusCode, Json<NewToken>), ApiError> {
+    let asked: NewTokenRequest = request(body)?;
+    let name = asked.name.trim().to_owned();
+    if name.is_empty() {
+        return Err(ApiError::BadRequest("name the token for who it is for".into()));
+    }
+    let made = blocking(&state.store, move |store| store.create_agent_token(&name)).await?;
+    state.hub.view_changed();
+    let body = json!({
+        "id": made.agent.id, "name": made.agent.name, "created_at": made.agent.created_at, "token": made.token,
+    });
+    Ok((StatusCode::CREATED, Json(typed(body)?)))
+}
+
+pub(crate) async fn revoke_token(
+    _: Controller,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    if !blocking(&state.store, move |store| store.revoke_agent_token(&id)).await? {
+        return Err(ApiError::NotFound);
+    }
+    state.hub.view_changed();
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub(crate) async fn network(
+    Controller(control): Controller,
+    Json(body): Json<Value>,
+) -> Result<Json<NetworkSwitched>, ApiError> {
+    let asked: NetworkRequest = request(body)?;
+    let handled = match &control.on_network {
+        Some(hook) => {
+            (hook.0)(asked.on);
+            true
+        }
+        None => false,
+    };
+    Ok(Json(NetworkSwitched { handled }))
+}
+
+pub(crate) async fn answer_pairing(
+    _: Controller,
+    State(state): State<AppState>,
+    Path(id): Path<u64>,
+    Json(body): Json<Value>,
+) -> Result<StatusCode, ApiError> {
+    let asked: PairingAnswer = request(body)?;
+    let decision = match asked.decision {
+        PairingAnswerDecision::Approve => PairingDecision::Approve,
+        PairingAnswerDecision::Deny => PairingDecision::Deny,
+    };
+    let request = state.inbox.take(id, |request| request.remote.is_none() || decision == PairingDecision::Deny)?;
+    request.decide(decision);
+    state.hub.view_changed();
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub(crate) async fn activate(Controller(control): Controller) -> Json<Activated> {

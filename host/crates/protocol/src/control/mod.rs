@@ -9,4 +9,4 @@ mod generated;
 pub use generated::*;
 
 /// The control API version: `control_api` in `host.json` and in `GET /api/host/state`.
-pub const CONTROL_API: i64 = 1;
+pub const CONTROL_API: i64 = 2;

@@ -3,7 +3,7 @@
   "kind": "desktop",
   "port": 47823,
   "control_token": "fixture-control-token",
-  "control_api": 1,
+  "control_api": 2,
   "version": "0.1.0",
   "started_at": 1790347514041
 }

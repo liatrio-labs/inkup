@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://inkup.dev/schema/host-control.schema.json",
   "title": "inkup host control API",
-  "description": "Control API version 1 (host.json and /api/host/*). Generated from packages/protocol/src/host-control.ts by `pnpm schema`; do not edit.",
+  "description": "Control API version 2 (host.json and /api/host/*). Generated from packages/protocol/src/host-control.ts by `pnpm schema`; do not edit.",
   "definitions": {
     "HostFile": {
       "type": "object",
@@ -60,7 +60,7 @@
         "control_api": {
           "type": "integer",
           "enum": [
-            1
+            2
           ]
         },
         "kind": {
@@ -92,6 +92,17 @@
             "null"
           ]
         },
+        "network_switch": {
+          "type": "boolean",
+          "description": "whether POST /api/host/network can switch network mode on this Host"
+        },
+        "pending_pairing": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PairingPrompt"
+          },
+          "description": "pairing requests this Host asks about through the control API; empty when its terminal asks"
+        },
         "state": {
           "$ref": "#/definitions/HostState"
         }
@@ -103,6 +114,8 @@
         "address",
         "network",
         "update",
+        "network_switch",
+        "pending_pairing",
         "state"
       ],
       "description": "GET /api/host/state?timeline=<session id>"
@@ -461,9 +474,9 @@
         },
         "since": {
           "type": "integer",
-          "minimum": -9007199254740991,
+          "minimum": 0,
           "maximum": 9007199254740991,
-          "description": "epoch ms"
+          "description": "the item seq its cursor waits after, not a time"
         }
       },
       "required": [
@@ -539,6 +552,226 @@
         "base_url"
       ],
       "description": "network mode as the header shows it"
+    },
+    "PairingPrompt": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "answer it at POST /api/host/pairing/{id}"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "\"Chrome extension \"Work laptop\" wants to connect\""
+        },
+        "client_kind": {
+          "type": "string"
+        },
+        "client_name": {
+          "type": "string"
+        },
+        "remote": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RemotePairing"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "prompt",
+        "client_kind",
+        "client_name",
+        "remote"
+      ],
+      "description": "a pairing request waiting for the user"
+    },
+    "RemotePairing": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[0-9]{6}$",
+          "description": "the 6-digit code the user types in the Client"
+        },
+        "from": {
+          "type": "string",
+          "description": "the address the request came from"
+        },
+        "link": {
+          "type": "string",
+          "description": "inkup://pair?url=…&code=…, for a QR code"
+        }
+      },
+      "required": [
+        "code",
+        "from",
+        "link"
+      ],
+      "description": "a pairing request from another machine (network mode): shown, not approved"
+    },
+    "Changes": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "pass it back as `since` to wait for the next change"
+        }
+      },
+      "required": [
+        "seq"
+      ],
+      "description": "GET /api/host/changes?since=<seq>: answered at the next change, or after a while with no change"
+    },
+    "HostCommand": {
+      "type": "string",
+      "enum": [
+        "start_session",
+        "pause",
+        "resume",
+        "stop",
+        "set_draw_mode"
+      ]
+    },
+    "CommandRequest": {
+      "type": "object",
+      "properties": {
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command": {
+          "$ref": "#/definitions/HostCommand"
+        },
+        "draw_mode": {
+          "description": "set_draw_mode only: on or off",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "client_id",
+        "command"
+      ],
+      "description": "POST /api/host/commands: what the TUI's keys do to a connected Client's Session"
+    },
+    "CommandOutcome": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "ok",
+        "session_id",
+        "message"
+      ],
+      "description": "the Client's answer to a command"
+    },
+    "NewTokenRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "who it is for, e.g. \"claude-code on laptop\""
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "description": "POST /api/host/tokens"
+    },
+    "NewToken": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "epoch ms"
+        },
+        "token": {
+          "type": "string",
+          "minLength": 1,
+          "description": "the secret: shown once, stored nowhere but by its user"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "created_at",
+        "token"
+      ],
+      "description": "a new agent token"
+    },
+    "NetworkRequest": {
+      "type": "object",
+      "properties": {
+        "on": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "on"
+      ],
+      "description": "POST /api/host/network"
+    },
+    "NetworkSwitched": {
+      "type": "object",
+      "properties": {
+        "handled": {
+          "type": "boolean",
+          "description": "false when this Host switches network mode in its own terminal"
+        }
+      },
+      "required": [
+        "handled"
+      ],
+      "description": "the Host restarts its server in the new mode after answering"
+    },
+    "PairingAnswer": {
+      "type": "object",
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "deny"
+          ]
+        }
+      },
+      "required": [
+        "decision"
+      ],
+      "description": "POST /api/host/pairing/{id}; a request from another machine can only be denied"
     }
   }
 }

@@ -24,6 +24,8 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive", "env"] }
+gethostname = "1.1.0"
+qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "query"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
@@ -37,7 +39,9 @@ inkup-store = { path = "../../../host/crates/store" }
 inkup-protocol = { path = "../../../host/crates/protocol" }
 
 [dev-dependencies]
+futures-util = "0.3.34"
 tempfile = "3.27.0"
+tokio-tungstenite = "0.30.0"
 
 [lints.rust]
 unsafe_code = "forbid"

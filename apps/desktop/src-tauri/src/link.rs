@@ -4,8 +4,13 @@
 
 use std::time::Duration;
 
-use inkup_protocol::control::{Activated, ControlState};
+use inkup_protocol::control::{
+    Activated, Changes, CommandOutcome, CommandRequest, ControlState, NetworkSwitched, NewToken, PairingAnswer,
+};
 use inkup_store::instance::HostInfo;
+
+/// How long `changes` waits: longer than the host holds a long-poll (25 s).
+const LONG_POLL: Duration = Duration::from_secs(35);
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinkError {
@@ -61,6 +66,62 @@ impl HostLink {
         let request = self.http.post(self.url("/api/host/activate")).bearer_auth(&self.token);
         let activated: Activated = checked(request.send().await?).await?.json().await?;
         Ok(activated.handled)
+    }
+
+    /// `GET /api/host/changes?since=`: the view's change count, once it is not `since` (or after the host's
+    /// long-poll timeout).
+    pub async fn changes(&self, since: u64) -> Result<u64, LinkError> {
+        let request = self
+            .http
+            .get(self.url("/api/host/changes"))
+            .query(&[("since", since)])
+            .bearer_auth(&self.token)
+            // Longer than the host holds a long-poll.
+            .timeout(LONG_POLL);
+        let changes: Changes = checked(request.send().await?).await?.json().await?;
+        Ok(u64::try_from(changes.seq).unwrap_or_default())
+    }
+
+    /// `POST /api/host/commands`: the Client's answer.
+    pub async fn command(&self, command: &CommandRequest) -> Result<CommandOutcome, LinkError> {
+        let request = self
+            .http
+            .post(self.url("/api/host/commands"))
+            .bearer_auth(&self.token)
+            .json(command)
+            // The host waits for the Client's answer.
+            .timeout(Duration::from_secs(20));
+        Ok(checked(request.send().await?).await?.json().await?)
+    }
+
+    /// `POST /api/host/tokens`: the token, shown this once.
+    pub async fn create_token(&self, name: &str) -> Result<NewToken, LinkError> {
+        let body = serde_json::json!({ "name": name });
+        let request = self.http.post(self.url("/api/host/tokens")).bearer_auth(&self.token).json(&body);
+        Ok(checked(request.send().await?).await?.json().await?)
+    }
+
+    /// `DELETE /api/host/tokens/{id}`.
+    pub async fn revoke_token(&self, id: &str) -> Result<(), LinkError> {
+        let request = self.http.delete(self.url(&format!("/api/host/tokens/{id}"))).bearer_auth(&self.token);
+        checked(request.send().await?).await?;
+        Ok(())
+    }
+
+    /// `POST /api/host/network`: whether the host switches (only the desktop app hosting does).
+    pub async fn network(&self, on: bool) -> Result<bool, LinkError> {
+        let body = serde_json::json!({ "on": on });
+        let request = self.http.post(self.url("/api/host/network")).bearer_auth(&self.token).json(&body);
+        let switched: NetworkSwitched = checked(request.send().await?).await?.json().await?;
+        Ok(switched.handled)
+    }
+
+    /// `POST /api/host/pairing/{id}`.
+    pub async fn answer_pairing(&self, id: u64, answer: &PairingAnswer) -> Result<(), LinkError> {
+        let request =
+            self.http.post(self.url(&format!("/api/host/pairing/{id}"))).bearer_auth(&self.token).json(answer);
+        checked(request.send().await?).await?;
+        Ok(())
     }
 
     fn url(&self, path: &str) -> String {

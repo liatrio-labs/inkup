@@ -226,6 +226,7 @@ fn control(lock: &HostLock, update: &watch::Receiver<Option<String>>) -> Control
         token: lock.control_token().to_owned(),
         kind: lock.kind(),
         on_activate: None,
+        on_network: None,
         update: Some(update.clone()),
     }
 }

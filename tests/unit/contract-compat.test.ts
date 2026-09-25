@@ -177,7 +177,8 @@ describe('contract-compat: the real contract', () => {
     const head = clone(base);
     delete props(head, 'HostState').sessions;
     expect(check('host-control.schema.json', base, head).ok).toBe(false);
-    (props(head, 'ControlState').control_api as { enum: number[] }).enum = [2];
+    const version = props(head, 'ControlState').control_api as { enum: number[] };
+    version.enum = [(version.enum[0] ?? 0) + 1];
     expect(check('host-control.schema.json', base, head).ok).toBe(true);
   });
 

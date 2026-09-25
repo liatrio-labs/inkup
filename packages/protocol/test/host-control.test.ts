@@ -1,11 +1,24 @@
 // The control API's fixtures (contract/fixtures/host-control): host/crates/protocol/tests/control.rs decodes the same
 // files. Each parses as its schema and round-trips; the schema file matches the Zod schemas.
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { CONTROL_SCHEMA_FILE, renderControlSchema } from '../scripts/gen-schema.ts';
-import { Activated, CONTROL_API, ControlState, HostFile } from '../src/host-control.ts';
+import {
+  Activated,
+  Changes,
+  CONTROL_API,
+  CommandOutcome,
+  CommandRequest,
+  ControlState,
+  HostFile,
+  NetworkRequest,
+  NetworkSwitched,
+  NewToken,
+  NewTokenRequest,
+  PairingAnswer,
+} from '../src/host-control.ts';
 
 const FIXTURES = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -24,12 +37,26 @@ describe('contract/host-control.schema.json', () => {
   });
 });
 
+const SCHEMA_OF = Object.fromEntries([
+  ['host-file.json', HostFile],
+  ['control-state.json', ControlState],
+  ['activated.json', Activated],
+  ['changes.json', Changes],
+  ['command-request.json', CommandRequest],
+  ['command-outcome.json', CommandOutcome],
+  ['new-token-request.json', NewTokenRequest],
+  ['new-token.json', NewToken],
+  ['network-request.json', NetworkRequest],
+  ['network-switched.json', NetworkSwitched],
+  ['pairing-answer.json', PairingAnswer],
+] as const) as Record<string, { parse: (v: unknown) => unknown }>;
+
 describe('fixtures/host-control/', () => {
-  it.each([
-    ['host-file.json', HostFile],
-    ['control-state.json', ControlState],
-    ['activated.json', Activated],
-  ] as const)('%s parses and round-trips', (file, schema) => {
+  it('every fixture has a schema below', () => {
+    expect(readdirSync(FIXTURES).sort()).toEqual(Object.keys(SCHEMA_OF).sort());
+  });
+
+  it.each(Object.entries(SCHEMA_OF))('%s parses and round-trips', (file, schema) => {
     const raw = load(file);
     expect(schema.parse(raw)).toEqual(raw);
   });
