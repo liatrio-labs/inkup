@@ -61,26 +61,36 @@
     }
   ],
   "packages": {
-    "host": {
+    ".": {
       "release-type": "simple",
       "component": "inkup",
       "package-name": "inkup",
       "draft": true,
       "prerelease": true,
+      "changelog-path": "host/CHANGELOG.md",
+      "exclude-paths": [
+        ".github",
+        "docs",
+        "extensions",
+        "fixtures",
+        "packages",
+        "scripts",
+        "tests"
+      ],
       "extra-files": [
         {
           "type": "toml",
-          "path": "Cargo.toml",
+          "path": "host/Cargo.toml",
           "jsonpath": "$.workspace.package.version"
         },
         {
           "type": "toml",
-          "path": "Cargo.lock",
+          "path": "host/Cargo.lock",
           "jsonpath": "$.package[?(@.name.value=='inkup' || @.name.value=='inkup-protocol' || @.name.value=='inkup-server' || @.name.value=='inkup-store' || @.name.value=='inkup-tui')].version"
         },
         {
           "type": "toml",
-          "path": "/apps/desktop/src-tauri/Cargo.lock",
+          "path": "apps/desktop/src-tauri/Cargo.lock",
           "jsonpath": "$.package[?(@.name.value=='inkup-protocol' || @.name.value=='inkup-server' || @.name.value=='inkup-store')].version"
         }
       ]
