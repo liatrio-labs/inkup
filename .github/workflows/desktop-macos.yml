@@ -70,6 +70,8 @@ jobs:
     permissions:
       # gh release upload, to the tag's release.
       contents: write
+      # gh run list and the jobs API, to wait for dist's formula job (see "Publish the Homebrew cask").
+      actions: read
     env:
       TAG: ${{ needs.tag.outputs.tag }}
     steps:
@@ -186,7 +188,9 @@ jobs:
           exit 1
 
       # The cask's url is the published release's download URL, which a draft does not serve. Wait for dist to publish
-      # the release (stable releases only, like the cask step), up to 30 minutes.
+      # the release (stable releases only, like the cask step), up to 30 minutes. Then wait for dist's
+      # publish-homebrew-formula job, which starts the moment the release is published and pushes to the same tap: its
+      # generated push does not retry, so a cask pushed first made it fail (inkup-v0.2.0).
       - name: Wait for the release to be published
         if: ${{ needs.tag.outputs.prerelease == 'false' }}
         env:
@@ -202,6 +206,24 @@ jobs:
           done
           echo "::error::the $TAG release is still a draft after 30 minutes; once inkup-v-release.yml publishes it, re-run this job"
           exit 1
+      - name: Wait for dist's Homebrew formula job
+        if: ${{ needs.tag.outputs.prerelease == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for _ in $(seq 40); do
+            run="$(gh run list --workflow inkup-v-release.yml --branch "$TAG" --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+            status="$([ -n "$run" ] && gh api "repos/$GH_REPO/actions/runs/$run/jobs" \
+              --jq '[.jobs[] | select(.name == "publish-homebrew-formula") | .status][0] // empty')"
+            if [ "$status" = "completed" ]; then
+              exit 0
+            fi
+            echo "waiting for publish-homebrew-formula in inkup-v-release.yml (run ${run:-not found}, ${status:-not started})"
+            sleep 15
+          done
+          # Not fatal: the cask push below rebases and retries, so it lands either way.
+          echo "::warning::publish-homebrew-formula has not finished after 10 minutes; pushing the cask anyway"
 
       # The Homebrew cask, Casks/inkup.rb in liatrio-labs/homebrew-tap, rendered by scripts/cask.ts. Stable releases
       # only (no `-` in the version), the rule dist's publish-homebrew-formula job follows, so a pre-release never
@@ -226,7 +248,7 @@ jobs:
           echo "::add-mask::$basic"
           auth="AUTHORIZATION: basic $basic"
           tap="$RUNNER_TEMP/homebrew-tap"
-          git -c http.extraheader="$auth" clone --depth 1 https://github.com/liatrio-labs/homebrew-tap.git "$tap"
+          git -c http.extraheader="$auth" clone https://github.com/liatrio-labs/homebrew-tap.git "$tap"
           mkdir -p "$tap/Casks"
           node scripts/cask.ts "$version" "$sha" > "$tap/Casks/inkup.rb"
           cd "$tap"
@@ -238,7 +260,17 @@ jobs:
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit -m "inkup $version (cask)"
-          git -c http.extraheader="$auth" push origin HEAD
+          # Rebase onto whatever else reached the tap (the formula) and try again.
+          for attempt in 1 2 3 4 5; do
+            if git -c http.extraheader="$auth" push origin HEAD; then
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt); rebasing onto the tap's main"
+            git -c http.extraheader="$auth" pull --rebase origin main
+            sleep 5
+          done
+          echo "::error::could not push the cask to liatrio-labs/homebrew-tap after 5 attempts"
+          exit 1
 
       - name: Remove the key and the keychain
         if: always()
