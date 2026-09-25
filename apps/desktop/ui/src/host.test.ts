@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { ControlState } from '@inkup/protocol';
+import { ControlState } from '@inkup/protocol/host-control';
 import { describe, expect, it } from 'vitest';
 import { ago, type ClientView, clientState, type SessionOverview, sessionPage, sessionState } from './host';
 

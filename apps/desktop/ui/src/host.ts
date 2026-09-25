@@ -1,7 +1,7 @@
 // The host as the window reads it: the app's commands (src-tauri/src/lib.rs), which proxy the control API
 // (`GET /api/host/state`). The webview never holds the control token.
-// The shapes are the contract's (contract/host-control.schema.json), from @inkup/protocol.
-import type { ClientView, ControlState, HostKind, SessionOverview } from '@inkup/protocol';
+// The shapes are the contract's (contract/host-control.schema.json), from @inkup/protocol/host-control.
+import type { ClientView, ControlState, HostKind, SessionOverview } from '@inkup/protocol/host-control';
 import { invoke } from '@tauri-apps/api/core';
 
 export type { ClientView, ControlState, SessionOverview };

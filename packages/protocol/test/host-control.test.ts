@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { CONTROL_SCHEMA_FILE, renderControlSchema } from '../scripts/gen-schema.ts';
-import { Activated, CONTROL_API, ControlState, HostFile } from '../src/index.ts';
+import { Activated, CONTROL_API, ControlState, HostFile } from '../src/host-control.ts';
 
 const FIXTURES = join(
   dirname(fileURLToPath(import.meta.url)),

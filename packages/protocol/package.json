@@ -6,7 +6,8 @@
   "type": "module",
   "description": "The host wire protocol: Zod schemas, the generated JSON Schema, and the fixture corpus both sides decode.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./host-control": "./src/host-control.ts"
   },
   "scripts": {
     "schema": "node scripts/gen-schema.ts",
