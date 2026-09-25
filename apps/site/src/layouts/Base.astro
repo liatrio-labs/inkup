@@ -1,0 +1,57 @@
+---
+// The page shell: head, favicons, and Umami analytics when the build has a website ID (ADR 0026). Umami is cookieless
+// and honours Do Not Track; it counts only on inkup.liatr.io, never on a preview or the github.io address.
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const umamiId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
+const umamiSrc = import.meta.env.PUBLIC_UMAMI_SRC || 'https://cloud.umami.is/script.js';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={new URL(base, Astro.site)} />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <link rel="icon" href={`${base}favicon-32.png`} type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href={`${base}apple-touch-icon.png`} />
+    <link rel="sitemap" href={`${base}sitemap-index.xml`} />
+    {
+      umamiId && (
+        <script
+          is:inline
+          defer
+          src={umamiSrc}
+          data-website-id={umamiId}
+          data-domains="inkup.liatr.io"
+          data-do-not-track="true"
+        />
+      )
+    }
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    color-scheme: light dark;
+    font-family: system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+</style>

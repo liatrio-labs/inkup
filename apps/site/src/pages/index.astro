@@ -1,58 +1,38 @@
 ---
 import logo from '../assets/logo.svg?url';
+import Base from '../layouts/Base.astro';
 import { links, versions } from '../releases.ts';
 
-const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const title = 'InkUp: review a web page out loud';
 const description =
   'Talk and draw on a web page. InkUp turns your review into located Change Items that a person or a coding agent can act on.';
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}</title>
-    <meta name="description" content={description} />
-    <link rel="canonical" href={new URL(base, Astro.site)} />
-    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
-    <link rel="icon" href={`${base}favicon-32.png`} type="image/png" sizes="32x32" />
-    <link rel="apple-touch-icon" href={`${base}apple-touch-icon.png`} />
-    <link rel="sitemap" href={`${base}sitemap-index.xml`} />
-  </head>
-  <body>
-    <main>
-      <img src={logo} alt="" width="96" height="96" />
-      <h1>InkUp</h1>
-      <p class="pitch">
-        A browser extension for reviewing a web page out loud. You talk and draw on the page. It turns the Session into
-        a list of located Change Items that a person or a coding agent can act on.
-      </p>
-      <div class="actions">
-        <a class="button primary" href={links.chrome}>Add to Chrome</a>
-        <a class="button" href={links.repo}>GitHub</a>
-      </div>
-      <p class="versions">
-        Extension {versions.extension} · <a href={links.host}>Host {versions.host}</a> for macOS, Linux and Windows
-      </p>
-    </main>
-    <footer>An open-source tool from <a href="https://www.liatrio.com">Liatrio</a></footer>
-  </body>
-</html>
+<Base title={title} description={description}>
+  <main>
+    <img src={logo} alt="" width="96" height="96" />
+    <h1>InkUp</h1>
+    <p class="pitch">
+      A browser extension for reviewing a web page out loud. You talk and draw on the page. It turns the Session into a
+      list of located Change Items that a person or a coding agent can act on.
+    </p>
+    <div class="actions">
+      <a class="button primary" href={links.chrome} data-umami-event="install-chrome" data-umami-event-location="hero"
+        >Add to Chrome</a
+      >
+      <a class="button" href={links.repo} data-umami-event="github" data-umami-event-location="hero">GitHub</a>
+    </div>
+    <p class="versions">
+      Extension {versions.extension} · <a href={links.host}>Host {versions.host}</a> for macOS, Linux and Windows
+    </p>
+  </main>
+  <footer>
+    An open-source tool from <a href="https://www.liatrio.com">Liatrio</a> ·
+    <a href={links.repo} data-umami-event="github" data-umami-event-location="footer">GitHub</a>
+  </footer>
+</Base>
 
 <style>
-  :root {
-    color-scheme: light dark;
-    font-family: system-ui, sans-serif;
-    line-height: 1.5;
-  }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
   main {
     flex: 1;
     max-width: 40rem;

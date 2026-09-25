@@ -26,6 +26,15 @@ build), and a site-only change runs nothing else.
 a published `inkup-v*` host release (so the download links point at a release that exists), and by hand. Pull
 requests never deploy.
 
+**Cookieless analytics, with conversions as named events.** The layout (`apps/site/src/layouts/Base.astro`) loads
+Umami only when the build has `PUBLIC_UMAMI_WEBSITE_ID`, from `PUBLIC_UMAMI_SRC` (default Umami Cloud,
+`https://cloud.umami.is/script.js`), so a self-hosted Umami is a variable change. Umami sets no cookies, honours Do Not
+Track and counts only on `inkup.liatr.io`, so the site has no consent banner. `site.yml` takes both from the
+`UMAMI_WEBSITE_ID` and `UMAMI_SRC` repository variables; CI builds without them. Conversions are `data-umami-event`
+attributes on the calls to action, and their names are a contract that dashboards and goals rely on: `install-chrome`,
+`install-firefox`, `download-dmg`, `copy-brew-cli`, `copy-brew-cask` and `github`, with `data-umami-event-location`
+(`hero`, `install` or `footer`) saying where. A rename is a new event, not an edit.
+
 **Never released.** The site is not a release-please component, and `apps/site` is in the root component's
 `exclude-paths`, so site commits never bump the host's version or changelog.
 
@@ -34,6 +43,8 @@ requests never deploy.
 - A separate repository: the versions and, later, the screenshots would have to be copied across by hand or by a bot.
 - Next.js or a plain Vite app: the site is static pages; Astro ships no JavaScript by default and builds them directly.
 - Hosting other than Pages: Pages is free for the public repo and deploys from the workflow with no secrets.
+- Google Analytics or another cookie-based tool: it needs a consent banner, and sends more than page views and a few
+  events.
 
 ## Consequences
 
@@ -43,7 +54,7 @@ requests never deploy.
 
 ## History
 
-- 2026-09-25: first version, with a one-page site.
+- 2026-09-25: first version, with a one-page site and Umami Cloud analytics (free Hobby tier; self-hosted later).
 
 ## Sources
 
