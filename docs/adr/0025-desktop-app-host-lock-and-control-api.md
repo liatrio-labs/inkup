@@ -57,7 +57,8 @@ long-poll for changes, Session commands, agent tokens, network mode, pairing ans
 app, when it hosts, asks in its window: `Server::ask_pairing_over_control` routes requests to the control API's
 pending list instead of a terminal. A request from another machine shows its pairing code and a QR code. The window can
 only refuse it, because the Client pairs by typing the code (ADR 0006). When the app is another host's window, that
-host asks.
+host asks. A network-mode restart drops the waiting requests (their Clients are cut off and ask again), and a request's
+id is never reused within the process, so an answer meant for a dropped request is a 404, never another request's.
 
 **The app's own settings.** `[desktop]` in `config.toml` holds `menubar` and `dock`: whether the app shows a menu bar
 (tray) icon and a Dock icon (the taskbar outside macOS). At least one stays on. Saving both off is refused, and a file
@@ -171,6 +172,9 @@ recognisably the same product.
   (Tauri's default, 10.13) is below every macOS Homebrew supports, and Homebrew refuses a floor it has dropped.
 - 2026-09-25: the app hosting did not check for updates (`ControlState.update` stayed null); now it runs the same
   daily check as the TUI and `serve`, so a window on the app's own host says when a release is out.
+- 2026-09-25: pending pairing ids counted from 1 again after a network-mode restart, so a dialog left open from
+  before it could answer a new request; now ids are unique for the process, and the window's link opens a connection
+  per request, since a pooled one to the stopped server failed the first request after a restart.
 - 2026-09-25: we hooked the DMG to dist's post-announce; an rc (inkup-v0.2.0-rc.2) skipped it because implicit
   `success()` skips on any skipped ancestor; now it runs on the tag itself, in its own workflow that waits for
   release-please's draft release, and can be dispatched for an existing tag.

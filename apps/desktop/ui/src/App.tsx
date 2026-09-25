@@ -79,7 +79,7 @@ export function App() {
     try {
       const next = await hostState(timelineRef.current);
       setHost(next);
-      // Answered requests leave the host's list; a restarted host counts ids from 1 again.
+      // Answered requests leave the host's list. Ids are never reused, a restarted server's included.
       setAnswered((a) => a.filter((id) => next.pending_pairing.some((p) => p.id === id)));
       setError(null);
     } catch (e) {

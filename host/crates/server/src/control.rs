@@ -84,16 +84,20 @@ impl fmt::Debug for NetworkHook {
     }
 }
 
+/// The last pairing request id, for every server this process runs. A restarted server (network mode switched)
+/// never reuses an id, so a window still showing a request from before the restart cannot answer a new one by
+/// mistake: its answer is a 404.
+static PAIRING_IDS: AtomicU64 = AtomicU64::new(0);
+
 /// Pairing requests waiting for an answer through the control API, by id.
 #[derive(Default)]
 pub(crate) struct PairingInbox {
-    next: AtomicU64,
     waiting: Mutex<Vec<(u64, PairingRequest)>>,
 }
 
 impl PairingInbox {
     pub(crate) fn push(&self, request: PairingRequest) {
-        let id = self.next.fetch_add(1, Ordering::Relaxed) + 1;
+        let id = PAIRING_IDS.fetch_add(1, Ordering::Relaxed) + 1;
         self.lock().push((id, request));
     }
 

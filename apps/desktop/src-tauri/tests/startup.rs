@@ -8,11 +8,13 @@ use std::sync::{Arc, Mutex};
 use futures_util::{SinkExt, StreamExt};
 use inkup_desktop::link::HostLink;
 use inkup_desktop::startup::{Hosting, Startup, StartupError, find_or_host};
-use inkup_protocol::control::{PairingAnswer, PairingAnswerDecision};
+use inkup_protocol::control::{PairingAnswer, PairingAnswerDecision, PairingPrompt};
 use inkup_server::{ActivateHook, Config, Control, NetworkHook, Server};
 use inkup_store::instance::{HOST_FILE, HostKind, HostLock, holder};
 use inkup_store::{HostConfig, Store};
 use inkup_update_check::{Checked, now, write_cache};
+
+type Socket = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 /// Any free port, hooks that do nothing, no mDNS.
 fn hosting() -> Hosting {
@@ -145,13 +147,8 @@ async fn once_the_cli_host_quits_the_app_can_host_here() {
     hosted.shutdown().await;
 }
 
-/// The app hosting asks about pairing in the window: pending in the state, answered through the link.
-#[tokio::test]
-async fn the_app_hosting_asks_about_pairing_in_the_window() {
-    let dir = tempfile::tempdir().unwrap();
-    let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting()).await.unwrap() else {
-        panic!("expected host mode");
-    };
+/// A local Client's hello, and the pairing request it makes once the window's state shows it.
+async fn ask_to_pair(link: &HostLink) -> (Socket, PairingPrompt) {
     let hello =
         std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../contract/fixtures/hello.unpaired.json"))
             .unwrap();
@@ -167,9 +164,47 @@ async fn the_app_hosting_asks_about_pairing_in_the_window() {
     })
     .await
     .unwrap();
+    (ws, pending)
+}
+
+/// The app hosting asks about pairing in the window: pending in the state, answered through the link.
+#[tokio::test]
+async fn the_app_hosting_asks_about_pairing_in_the_window() {
+    let dir = tempfile::tempdir().unwrap();
+    let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting()).await.unwrap() else {
+        panic!("expected host mode");
+    };
+    let (mut ws, pending) = ask_to_pair(&link).await;
     assert!(pending.remote.is_none());
     let approve = PairingAnswer { decision: PairingAnswerDecision::Approve };
     link.answer_pairing(u64::try_from(pending.id).unwrap(), &approve).await.unwrap();
+    let paired = ws.next().await.unwrap().unwrap().into_text().unwrap();
+    assert!(paired.contains("\"paired\""), "{paired}");
+    hosted.shutdown().await;
+}
+
+/// A network-mode restart drops the requests that were waiting (their Clients are cut off and ask again), but never
+/// reuses their ids. They used to count from 1 again, so a dialog still open from before the restart answered
+/// whichever new request took its id: a Decline meant for one Client refused another.
+#[tokio::test]
+async fn pairing_ids_are_not_reused_after_a_network_restart() {
+    let dir = tempfile::tempdir().unwrap();
+    let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting()).await.unwrap() else {
+        panic!("expected host mode");
+    };
+    let (_before_ws, before) = ask_to_pair(&link).await;
+    let hosted = hosted.switch_network(false).await.unwrap();
+    let (mut ws, after) = ask_to_pair(&link).await;
+    assert_ne!(after.id, before.id, "a new request gets a new id");
+
+    let deny = PairingAnswer { decision: PairingAnswerDecision::Deny };
+    let stale = link.answer_pairing(u64::try_from(before.id).unwrap(), &deny).await.unwrap_err().to_string();
+    assert!(stale.contains("(404)"), "{stale}");
+    let still = link.state(None).await.unwrap().pending_pairing;
+    assert_eq!(still.iter().map(|p| p.id).collect::<Vec<_>>(), vec![after.id], "the new request still waits");
+
+    let approve = PairingAnswer { decision: PairingAnswerDecision::Approve };
+    link.answer_pairing(u64::try_from(after.id).unwrap(), &approve).await.unwrap();
     let paired = ws.next().await.unwrap().unwrap().into_text().unwrap();
     assert!(paired.contains("\"paired\""), "{paired}");
     hosted.shutdown().await;
