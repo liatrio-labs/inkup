@@ -77,7 +77,10 @@ export function App() {
 
   const refresh = useCallback(async () => {
     try {
-      setHost(await hostState(timelineRef.current));
+      const next = await hostState(timelineRef.current);
+      setHost(next);
+      // Answered requests leave the host's list; a restarted host counts ids from 1 again.
+      setAnswered((a) => a.filter((id) => next.pending_pairing.some((p) => p.id === id)));
       setError(null);
     } catch (e) {
       setError(String(e));
