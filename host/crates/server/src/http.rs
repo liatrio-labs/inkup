@@ -28,6 +28,10 @@ pub(crate) async fn health(State(state): State<AppState>) -> Json<Health> {
 pub(crate) enum ApiError {
     #[error("send a paired Client's token or an agent token as `Authorization: Bearer <token>`")]
     Unauthorized,
+    #[error("send the control token from host.json as `Authorization: Bearer <token>`")]
+    NoControlToken,
+    #[error("{0}")]
+    Forbidden(&'static str),
     #[error("not found")]
     NotFound,
     #[error("{0}")]
@@ -62,7 +66,8 @@ impl From<std::io::Error> for ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let status = match self {
-            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Unauthorized | Self::NoControlToken => StatusCode::UNAUTHORIZED,
+            Self::Forbidden(_) => StatusCode::FORBIDDEN,
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
             Self::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,

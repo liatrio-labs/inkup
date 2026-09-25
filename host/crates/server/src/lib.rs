@@ -9,9 +9,11 @@
 //!   token, a Client's from pairing or an agent token.
 //! - `/mcp`: MCP over Streamable HTTP for agents (mcp.rs). No token from this machine; from another machine (network
 //!   mode) a Bearer token. Never from a web page origin.
+//! - `/api/host/*`: the control API (control.rs). This machine only, with the control token from `host.json`.
 
 #[cfg(test)]
 mod contract;
+mod control;
 mod guard;
 mod http;
 mod hub;
@@ -33,6 +35,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
+pub use control::{ActivateHook, Activated, Control, ControlState, NetworkView};
 pub use hub::{Command, CommandError, CommandOutcome, Connected, Hub, Push, Watcher};
 pub use network::{
     DEFAULT_MDNS_NAME, MAX_NAME_SUFFIX, NETWORK_WARNING, Network, NetworkConfig, SERVICE_TYPE, lan_addresses,
@@ -63,6 +66,8 @@ pub struct Config {
     pub hello_timeout: Duration,
     /// Treat every peer, loopback too, as another machine. Tests only: the rules for other machines, without one.
     pub every_peer_is_remote: bool,
+    /// The control API (`/api/host/*`): its token, the host's kind and the activate hook. `None`: closed.
+    pub control: Option<Control>,
 }
 
 impl Default for Config {
@@ -76,6 +81,7 @@ impl Default for Config {
             pairing_code_ttl: Duration::from_secs(120),
             hello_timeout: Duration::from_secs(10),
             every_peer_is_remote: false,
+            control: None,
         }
     }
 }
@@ -181,6 +187,8 @@ fn router(state: AppState, mcp_shutdown: CancellationToken) -> Router {
         .route("/api/items", get(http::items))
         .route("/api/state", get(http::state))
         .route("/api/clients/{id}/commands", axum::routing::post(http::command))
+        .route("/api/host/state", get(control::state))
+        .route("/api/host/activate", axum::routing::post(control::activate))
         .nest_service("/mcp", mcp)
         .layer(axum::middleware::from_fn_with_state(state.clone(), guard::guard))
         .with_state(state)
