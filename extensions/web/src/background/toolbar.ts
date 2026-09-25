@@ -9,6 +9,7 @@
 // elsewhere the Session has no video.
 import type { TimelineEvent } from '@inkup/core/timeline';
 import { isLoopbackUrl } from '@/adapters/host';
+import { coalesced } from '@/lib/coalesced';
 import { type StartResult, sendMessage, type ToolbarState } from '@/messaging';
 import { platform } from '@/platform';
 import { activeSession, hostStatus, panelNotice, tabViewports, toolbarTabs } from '@/session-state';
@@ -23,7 +24,6 @@ import { toolbarViewport } from './viewport';
 let toast: { session_id: string; toast: NonNullable<ToolbarState['toast']> } | null = null;
 /** Tabs sent a state, so a tab that stops showing the toolbar is told to hide it. */
 const pushedTo = new Set<number>();
-let pushTimer: ReturnType<typeof setTimeout> | undefined;
 
 export async function stateFor(tabId: number, s: ActiveSession | null = null): Promise<ToolbarState> {
   const [active, pairing, status, notice, viewport, discards] = await Promise.all([
@@ -101,11 +101,11 @@ async function pushAll(): Promise<void> {
   );
 }
 
-/** Coalesces the bursts of changes one action causes (a Start writes the Session several times). */
-export function pushToolbars(): void {
-  clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => void pushAll().catch(console.warn), 30);
-}
+/**
+ * Coalesces the bursts of changes one action causes (a Start writes the Session several times), one push at a time:
+ * a push that read the Session before a change never lands after the push that carries it.
+ */
+export const pushToolbars: () => void = coalesced(pushAll, 30);
 
 /** Shows or hides the toolbar in a tab. Resolves with whether a page there received it. */
 export async function showToolbar(tabId: number, on: boolean): Promise<boolean> {
