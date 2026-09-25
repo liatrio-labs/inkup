@@ -1,21 +1,30 @@
 name: Desktop macOS
 
-# The desktop app's signed, notarized DMG, attached to a host release (ADR 0025). inkup-v-release.yml calls this once it
-# has published the release: dist-workspace.toml lists it in post-announce-jobs, so `dist generate` keeps the call and
-# this file is ours to edit. It runs in the `release` environment, which holds the signing secrets, waits for a
-# maintainer's approval and takes inkup-v* tags only. A pre-release tag (inkup-v0.2.0-rc.1) runs it too, but only a
-# stable release updates the Homebrew cask.
+# The desktop app's signed, notarized DMG, attached to a host release (ADR 0025). It runs on the inkup-v* tag
+# release-please pushes, alongside inkup-v-release.yml rather than inside it, so it runs for pre-releases too. A
+# maintainer can also build it for an existing tag: `gh workflow run desktop-macos.yml --ref <tag> -f tag=<tag>`. The
+# `release` environment holds the signing secrets, waits for a maintainer's approval and takes inkup-v* tags only, so
+# dispatch it on the tag, not on main. Only a stable release updates the Homebrew cask.
 on:
-  workflow_call:
+  push:
+    tags: ['inkup-v*']
+  workflow_dispatch:
     inputs:
-      plan:
-        description: dist's plan manifest (JSON), from inkup-v-release.yml
+      tag:
+        description: The host release tag to build the DMG for, e.g. inkup-v0.2.0
         required: true
         type: string
 
 permissions:
   contents: read
 
+# One run per tag. A second run for the same tag waits rather than cancelling a notarization halfway.
+concurrency:
+  group: desktop-macos-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+# No dependency caches: a tag-triggered job that signs a release restores nothing another run could have written
+# (zizmor's cache-poisoning), as in release.yml.
 env:
   NODE_VERSION: "26"
   PNPM_VERSION: "12"
@@ -23,19 +32,50 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  desktop-macos:
-    name: desktop-macos
-    runs-on: macos-latest
-    environment: release
-    timeout-minutes: 60
-    permissions:
-      # gh release upload, to the release the host job created.
-      contents: write
-    env:
-      TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+  # Checks the tag before the `release` environment asks for approval: a host release tag (scripts/desktop-tag.ts) that
+  # exists on the remote. The build checks out the commit it points at, not the dispatch ref.
+  tag:
+    name: tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+      sha: ${{ steps.tag.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+          sparse-checkout: scripts
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - id: tag
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          REMOTE: ${{ github.server_url }}/${{ github.repository }}.git
+        run: |
+          node scripts/desktop-tag.ts "$TAG" "$REMOTE" > "$RUNNER_TEMP/tag"
+          cat "$RUNNER_TEMP/tag"
+          cat "$RUNNER_TEMP/tag" >> "$GITHUB_OUTPUT"
+
+  desktop-macos:
+    name: desktop-macos
+    needs: tag
+    runs-on: macos-latest
+    environment: release
+    timeout-minutes: 90
+    permissions:
+      # gh release upload, to the tag's release.
+      contents: write
+    env:
+      TAG: ${{ needs.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.tag.outputs.sha }}
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
@@ -43,7 +83,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
+          package-manager-cache: false
       - run: pnpm install --frozen-lockfile
       # Both architectures, for a universal app.
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master, 2026-09-12
@@ -53,8 +93,12 @@ jobs:
       - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
         with:
           ruby-version: "4.0"
-          bundler-cache: true
           working-directory: apps/desktop
+      # Gems exactly as Gemfile.lock pins them.
+      - run: bundle install
+        working-directory: apps/desktop
+        env:
+          BUNDLE_FROZEN: "true"
 
       # fastlane match (read-only) puts the Developer ID Application certificate in a temporary default keychain. The
       # deploy key goes to a file only this user can read: match hands a raw key to ssh-add inside a shell command.
@@ -122,16 +166,49 @@ jobs:
           spctl -a -vvv -t install "$DMG"
           xcrun stapler validate "$DMG"
 
+      # release-please creates the tag's release as a draft before it pushes the tag, and dist's host job publishes it
+      # once the host's artifacts are on it. The DMG goes on whether it is still a draft or already published; this job
+      # never publishes it. A release that has not appeared after 30 minutes fails the job.
       - name: Attach the DMG to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" "$DMG" --clobber
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for _ in $(seq 60); do
+            if found="$(gh release view "$TAG" --json tagName 2>&1)"; then
+              gh release upload "$TAG" "$DMG" --clobber
+              exit 0
+            fi
+            echo "waiting for the $TAG release to exist: $found"
+            sleep 30
+          done
+          echo "::error::no GitHub Release for $TAG after 30 minutes; create it (release-please does), then re-run this job"
+          exit 1
+
+      # The cask's url is the published release's download URL, which a draft does not serve. Wait for dist to publish
+      # the release (stable releases only, like the cask step), up to 30 minutes.
+      - name: Wait for the release to be published
+        if: ${{ needs.tag.outputs.prerelease == 'false' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for _ in $(seq 60); do
+            if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = "false" ]; then
+              exit 0
+            fi
+            echo "waiting for inkup-v-release.yml to publish the $TAG release"
+            sleep 30
+          done
+          echo "::error::the $TAG release is still a draft after 30 minutes; once inkup-v-release.yml publishes it, re-run this job"
+          exit 1
 
       # The Homebrew cask, Casks/inkup.rb in liatrio-labs/homebrew-tap, rendered by scripts/cask.ts. Stable releases
-      # only, the rule dist's publish-homebrew-formula job follows, so a pre-release never touches the tap. A re-run
-      # that leaves the cask unchanged pushes nothing; one that rebuilt the DMG pushes its new sha256.
+      # only (no `-` in the version), the rule dist's publish-homebrew-formula job follows, so a pre-release never
+      # touches the tap. A re-run that leaves the cask unchanged pushes nothing; one that rebuilt the DMG pushes its new
+      # sha256.
       - name: Publish the Homebrew cask
-        if: ${{ !fromJson(inputs.plan).announcement_is_prerelease || fromJson(inputs.plan).publish_prereleases }}
+        if: ${{ needs.tag.outputs.prerelease == 'false' }}
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |

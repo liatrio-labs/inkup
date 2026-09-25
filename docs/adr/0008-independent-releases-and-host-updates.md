@@ -159,3 +159,5 @@ Clients behind.
   extension had a tag per store. Now release-please cuts them from release pull requests, and one
   `inkup-extension-v<version>` tag releases both stores; `inkup-chrome-v…` and `inkup-firefox-v…` remain for releasing
   one store alone. dist uploads to release-please's draft release instead of creating one.
+- 2026-09-25: the DMG's `desktop-macos.yml` ran as dist's post-announce job, which a pre-release skipped. Now it
+  runs on the `inkup-v*` tag push itself, beside dist's workflow (ADR 0025).

@@ -83,10 +83,13 @@ menu, stops the server and gives up the data dir.
 
 **It ships as a signed, notarized DMG on the host's release train.** Each `inkup-v<version>` release also carries
 `InkUp_<version>_universal.dmg`: one app for Apple silicon and Intel, versioned by the tag, since it embeds that
-host. cargo-dist's release workflow calls `.github/workflows/desktop-macos.yml` after it has published the release
-(`post-announce-jobs` in `dist-workspace.toml`, so `dist generate` keeps the call). The job runs on a GitHub-hosted
-macOS runner in the `release` environment, which holds the signing secrets, needs a maintainer's approval, and takes
-`inkup-v*` tags only.
+host. `.github/workflows/desktop-macos.yml` runs on the same `inkup-v*` tag as cargo-dist's release workflow, as a
+workflow of its own rather than a job in dist's. It first checks the tag (`scripts/desktop-tag.ts`): a host release
+tag that exists on the remote. Its version says whether it is a pre-release, by the rule dist and release-please use
+(a `-` in the version). The build checks out the commit the tag points at. The job runs on a GitHub-hosted macOS
+runner in the `release` environment, which holds the signing secrets, needs a maintainer's approval, and takes
+`inkup-v*` tags only. A maintainer can run it again for an existing tag with `workflow_dispatch`, dispatched on that
+tag so the environment admits it. There is one run per tag at a time.
 
 - fastlane match puts the Developer ID Application certificate in a temporary keychain. It reads the shared match
   repo read-only, so CI never creates or renews a certificate (`apps/desktop/fastlane`).
@@ -94,15 +97,20 @@ macOS runner in the `release` environment, which holds the signing secrets, need
   using an App Store Connect API key.
 - The job notarizes and staples the DMG as well, because Gatekeeper checks the file that was downloaded.
 - It attaches the DMG only after `codesign --verify --deep --strict` and `spctl` accept both the app and the DMG.
-- On a stable release it then pushes a Homebrew cask for the DMG, `Casks/inkup.rb`, to `liatrio-labs/homebrew-tap`
-  (rendered by `scripts/cask.ts`), with the `HOMEBREW_TAP_TOKEN` dist's formula job uses. The cask's token is
-  `inkup`, the formula's too: `brew install --cask liatrio-labs/tap/inkup` installs the app and
+  release-please creates the tag's release as a draft, and dist's `host` job publishes it once the host's files are
+  on it. The job uploads to that release whether it is still a draft or not, waiting up to 30 minutes for it to
+  exist, and never publishes it itself.
+- On a stable release it waits (up to 30 minutes) for dist to publish the release, since the cask's URL is a published
+  release's download. It then pushes a Homebrew cask for the DMG, `Casks/inkup.rb`, to `liatrio-labs/homebrew-tap`
+  (rendered by `scripts/cask.ts`), with the `HOMEBREW_TAP_TOKEN` dist's formula job uses. The cask's token is `inkup`,
+  the formula's too: `brew install --cask liatrio-labs/tap/inkup` installs the app and
   `brew install liatrio-labs/tap/inkup` the CLI. A pre-release never touches the tap, the rule dist follows for the
   formula. Its `zap` removes only the app's own `dev.inkup.desktop` caches and preferences: the host's data dir is
   the CLI's too.
 
-The job runs after announce, so a failed, slow or unapproved desktop build never holds up or undoes the host release:
-the release just has no DMG until the job is re-run. Pre-releases run it too, which is how the path is proven.
+Nothing in dist's workflow waits on this one, so a failed, slow or unapproved desktop build never holds up or undoes
+the host release: the release just has no DMG until the job is re-run. Pre-releases run it too, which is how the path
+is proven.
 
 **The UI is shadcn/ui only.** The window (`apps/desktop/ui`) is built from off-the-shelf shadcn/ui components added
 with the shadcn CLI, and has no custom components of its own. It follows the TUI's views and words, so the two stay
@@ -113,8 +121,10 @@ recognisably the same product.
 - The DMG as a dist publish job (`publish-jobs`): dist skips publish jobs for pre-releases unless
   `publish-prereleases` is on, which would also push every rc to the Homebrew tap. It would also make `announce` wait
   for the desktop build.
-- A separate workflow on the same tag: it would race dist's `host` job to create the release, and nothing would tie
-  the DMG to the release dist made.
+- The DMG as a dist post-announce job (`post-announce-jobs`), which it first was: the generated job has no `if:`, so
+  its implicit `success()` skips it when any job it depends on, directly or not, was skipped. On a pre-release dist
+  skips `publish-homebrew-formula`, `announce` depends on it, so the DMG was never built for an rc. The generated
+  workflow can't take a custom `if:`.
 - Tauri importing a `.p12` from a secret (`APPLE_CERTIFICATE`): a second copy of the certificate to rotate. match keeps
   one copy, which the team's other apps already use.
 
@@ -158,6 +168,9 @@ recognisably the same product.
 - 2026-09-25: the DMG was a download only; now stable releases also publish it as the Homebrew cask `inkup` in
   `liatrio-labs/homebrew-tap`, so the app installs and upgrades with `brew`. The cask names no macOS floor: the app's
   (Tauri's default, 10.13) is below every macOS Homebrew supports, and Homebrew refuses a floor it has dropped.
+- 2026-09-25: we hooked the DMG to dist's post-announce; an rc (inkup-v0.2.0-rc.2) skipped it because implicit
+  `success()` skips on any skipped ancestor; now it runs on the tag itself, in its own workflow that waits for
+  release-please's draft release, and can be dispatched for an existing tag.
 
 ## Sources
 
