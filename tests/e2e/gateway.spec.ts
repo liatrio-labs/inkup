@@ -4,7 +4,14 @@
 // /v1/messages request is recorded with its headers, so the test sees which key and effort each call carried.
 import type { Page, Worker } from '@playwright/test';
 import { buildLongSession } from '../../scripts/gen-long-session.ts';
-import { type AnthropicStub, messageReply, scriptOf, startAnthropicStub } from '../support/anthropic-stub';
+import {
+  type AnthropicStub,
+  confirmAll,
+  isVetRequest,
+  messageReply,
+  scriptOf,
+  startAnthropicStub,
+} from '../support/anthropic-stub';
 import { scriptModel } from '../support/script-model';
 import { expect, test } from './fixtures';
 import { seedSession } from './helpers/seed';
@@ -33,7 +40,10 @@ test('options: model selects list each provider, the Gateway key goes with Gatew
     onMessage: (req) =>
       req.body.max_tokens === 1
         ? messageReply(req.body.model, 'OK', { input_tokens: 10, output_tokens: 1 })
-        : messageReply(req.body.model, JSON.stringify(scriptModel(scriptOf(req)))),
+        : messageReply(
+            req.body.model,
+            isVetRequest(req) ? confirmAll(req) : JSON.stringify(scriptModel(scriptOf(req))),
+          ),
   });
   try {
     await pointAtStub(serviceWorker, stub);

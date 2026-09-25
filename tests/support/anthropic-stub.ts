@@ -409,6 +409,21 @@ export function isVetRequest(req: StubRequest): boolean {
   return text.startsWith('You check Change Items');
 }
 
+/** The ids of the items a vetting call checks (the JSON list at the end of its message). */
+export function vetItemIds(req: StubRequest): string[] {
+  const text = scriptOf(req);
+  const at = text.search(/The Change Items to check \(\d+\):\n\n/);
+  if (at < 0) return [];
+  const list = JSON.parse(text.slice(text.indexOf('\n\n', at) + 2)) as { id: string }[];
+  return list.map((i) => i.id);
+}
+
+/** A vetting answer that confirms every item it was sent. */
+export const confirmAll = (req: StubRequest) =>
+  JSON.stringify({
+    results: vetItemIds(req).map((id) => ({ id, verdict: 'confirmed', reason: 'stub: seen in the recording' })),
+  });
+
 /** A review-page Combine after a merge (packages/core/src/process/combine.ts). */
 export function isCombineRequest(req: StubRequest): boolean {
   const system = req.body?.system;
