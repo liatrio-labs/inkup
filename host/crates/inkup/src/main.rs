@@ -250,38 +250,52 @@ async fn start(store: Arc<Store>, config: Config, lock: &HostLock) -> Result<Ser
     Ok(server)
 }
 
-async fn tui(common: Common, mut network_flag: bool, dir: PathBuf, lock: HostLock) -> Result<()> {
+async fn tui(common: Common, network_flag: bool, dir: PathBuf, lock: HostLock) -> Result<()> {
     let store = Arc::new(Store::open(&dir).with_context(|| format!("open the store in {}", dir.display()))?);
     let update = update::spawn_check(&dir);
     let mut terminal = inkup_tui::init();
-    let result = async {
-        loop {
-            let config = config(&common, &dir, network_flag, control(&lock, &update))?;
-            let mut server = start(Arc::clone(&store), config, &lock).await?;
-            let running = inkup_tui::Running {
-                address: format!("127.0.0.1:{}", server.addr.port()),
-                store: Arc::clone(&store),
-                hub: Arc::clone(server.hub()),
-                requests: server.take_pairing_requests().context("pairing requests already taken")?,
-                network: server.network().cloned(),
-                update: update.clone(),
-            };
-            let exit = inkup_tui::run(&mut terminal, running).await;
-            server.shutdown().await?;
-            match exit.context("the TUI failed")? {
-                inkup_tui::Exit::Quit => return Ok(()),
-                inkup_tui::Exit::SwitchNetwork(on) => {
-                    HostConfig::save_network(&dir, on)?;
-                    // The flag was for the first run; from here the saved setting decides.
-                    network_flag = false;
-                    tracing::info!(on, "network mode switched from the TUI");
-                }
+    let run = async |running| inkup_tui::run(&mut terminal, running).await.context("the TUI failed");
+    let result = host_tui(&common, network_flag, &dir, &lock, store, &update, run).await;
+    inkup_tui::restore();
+    result
+}
+
+/// Serves and runs the TUI (`run`) until it quits, restarting the server when it switches network mode. A restart
+/// binds the port the first start bound, with `--port 0` too, so host.json, Clients and agents keep the address.
+async fn host_tui(
+    common: &Common,
+    mut network_flag: bool,
+    dir: &Path,
+    lock: &HostLock,
+    store: Arc<Store>,
+    update: &watch::Receiver<Option<String>>,
+    mut run: impl AsyncFnMut(inkup_tui::Running) -> Result<inkup_tui::Exit>,
+) -> Result<()> {
+    let mut port = common.port;
+    loop {
+        let config = Config { port, ..config(common, dir, network_flag, control(lock, update))? };
+        let mut server = start(Arc::clone(&store), config, lock).await?;
+        port = server.addr.port();
+        let running = inkup_tui::Running {
+            address: format!("127.0.0.1:{port}"),
+            store: Arc::clone(&store),
+            hub: Arc::clone(server.hub()),
+            requests: server.take_pairing_requests().context("pairing requests already taken")?,
+            network: server.network().cloned(),
+            update: update.clone(),
+        };
+        let exit = run(running).await;
+        server.shutdown().await?;
+        match exit? {
+            inkup_tui::Exit::Quit => return Ok(()),
+            inkup_tui::Exit::SwitchNetwork(on) => {
+                HostConfig::save_network(dir, on)?;
+                // The flag was for the first run; from here the saved setting decides.
+                network_flag = false;
+                tracing::info!(on, "network mode switched from the TUI");
             }
         }
     }
-    .await;
-    inkup_tui::restore();
-    result
 }
 
 struct Serve {
@@ -444,4 +458,32 @@ async fn status(common: Common) -> Result<()> {
         bail!("no host is running");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// With `--port 0` the first start takes a free port; switching network mode restarts on that port rather than
+    /// on a new free one, and host.json keeps it.
+    #[tokio::test]
+    async fn a_network_switch_keeps_the_port_that_port_0_bound() {
+        let dir = tempfile::tempdir().unwrap();
+        let lock = HostLock::acquire(dir.path(), HostKind::Tui).unwrap();
+        let store = Arc::new(Store::open(dir.path()).unwrap());
+        let common = Common { data_dir: Some(dir.path().into()), port: 0 };
+        let (_notice, update) = watch::channel(None);
+        let mut ports = Vec::new();
+        let run = async |running: inkup_tui::Running| {
+            let port = running.address.rsplit(':').next().unwrap().parse::<u16>().unwrap();
+            assert_eq!(inkup_store::instance::holder(dir.path()).unwrap().unwrap().port, port, "host.json");
+            ports.push(port);
+            // Off to off: a restart like any switch, without binding every interface.
+            Ok(if ports.len() < 3 { inkup_tui::Exit::SwitchNetwork(false) } else { inkup_tui::Exit::Quit })
+        };
+        host_tui(&common, false, dir.path(), &lock, store, &update, run).await.unwrap();
+        assert_eq!(ports.len(), 3);
+        assert_ne!(ports[0], 0);
+        assert!(ports.iter().all(|port| *port == ports[0]), "{ports:?}");
+    }
 }
