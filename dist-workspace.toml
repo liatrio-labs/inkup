@@ -19,8 +19,8 @@ checksum = "sha256"
 # The workflow triggers only on tags starting `inkup-v`, so `inkup-chrome-v*` and `inkup-firefox-v*` never start it.
 # dist names the workflow after this: inkup-v-release.yml.
 tag-namespace = "inkup-v"
-# Ship `inkup-update` next to `inkup` from the shell and PowerShell installers. The installers also write the install
-# receipt that an in-binary axoupdater reads.
+# The installers write the install receipt that `inkup update` reads only when this is on. It also ships the standalone
+# `inkup-update`, which `inkup update` makes redundant; it stays for the receipt.
 install-updater = true
 tap = "liatrio-labs/homebrew-tap"
 formula = "inkup"

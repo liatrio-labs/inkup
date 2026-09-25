@@ -16,7 +16,7 @@ use inkup_server::{Command, Hub, Network, PairingDecision, PairingRequest, lan_a
 use inkup_store::Store;
 use ratatui::DefaultTerminal;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 
 pub use app::{Action, App, NetworkView, Overlay, PairingPrompt, View};
 pub use ui::render;
@@ -44,6 +44,8 @@ pub struct Running {
     pub requests: mpsc::Receiver<PairingRequest>,
     /// Set in network mode.
     pub network: Option<Arc<Network>>,
+    /// A newer inkup release, once the background check finds one: the key line shows it.
+    pub update: watch::Receiver<Option<String>>,
 }
 
 /// Why the TUI stopped.
@@ -99,7 +101,7 @@ fn describe(command: Command) -> &'static str {
 }
 
 async fn event_loop(terminal: &mut DefaultTerminal, mut app: App, running: Running) -> std::io::Result<Exit> {
-    let Running { store, hub, mut requests, network, .. } = running;
+    let Running { store, hub, mut requests, network, update, .. } = running;
     app.network = network.as_deref().map(network_view);
     let mut events = EventStream::new();
     let mut tick = tokio::time::interval(REFRESH);
@@ -113,6 +115,7 @@ async fn event_loop(terminal: &mut DefaultTerminal, mut app: App, running: Runni
                 pending.retain(|r| !r.is_cancelled());
                 app.pairing = pending.iter().map(PairingPrompt::from).collect();
                 app.network = network.as_deref().map(network_view);
+                app.update = update.borrow().clone();
                 match inkup_server::snapshot(&store, &hub, app.timeline_session()).await {
                     Ok(state) => app.update(state, now_ms()),
                     Err(error) => app.status = Some(format!("Could not read the store: {error}")),

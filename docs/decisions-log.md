@@ -2,6 +2,28 @@
 
 Calls made during implementation that the PRD, PLAN and ADRs leave open. Newest slice first.
 
+## #39: the host updates itself (2026-09-24)
+
+ADR 0008. `inkup update` (`--check`, `--homebrew brew|self|ask`) and a background check in the TUI and `serve`, in
+`host/crates/inkup/src/update.rs`, on axoupdater 0.10. Calls made while building it:
+
+- **Homebrew is found by path, not by running `brew`.** The canonical executable path runs through
+  `<prefix>/Cellar/inkup/` (or `$HOMEBREW_CELLAR/inkup/`). No subprocess, no dependence on `brew` being on PATH, and
+  the same rule covers `/opt/homebrew`, `/usr/local` and Linuxbrew.
+- **"self" over Homebrew installs a second copy rather than overwriting Homebrew's.** Writing into the Cellar would
+  leave Homebrew's records wrong and `brew upgrade` would put the old files back. The installer's own dir
+  (`~/.cargo/bin`) gets the new copy and a receipt; `inkup update` reports which copy PATH runs and suggests
+  `brew uninstall inkup`.
+- **The choice lives in config.toml, the check's result in `update-check.json`.** The choice is a setting a user may
+  edit; the check's time and result are a cache. The `[update]` table is written from the inkup crate with
+  `toml_edit`, the same way the store writes `network`, so the store crate is unchanged.
+- **The version check ignores the receipt.** Every copy asks GitHub for the newest `inkup-v*` release and compares it
+  with its own version, so Homebrew and dev copies get the notice too. Only installing needs the receipt.
+- **The notice goes in the key line.** The header has no room at 100 columns without cutting the tabs; the key line
+  already carries status, and a command's outcome takes precedence over the notice.
+- **reqwest gains rustls (aws-lc-rs)** through axoupdater's `axoasset`, for HTTPS to GitHub. The host's own reqwest
+  use (loopback `/health`) is unchanged.
+
 ## #38: model providers, model lists and effort (2026-09-24)
 
 Each model role (Process, Draft, Merge) picks its provider, its model and an effort in the options page. The

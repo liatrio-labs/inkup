@@ -6,11 +6,14 @@
 //! - `status`: whether a host is running, and what its store holds.
 //! - `mcp install`: point Claude Code, Cursor or Codex at the host's `/mcp` (mcp_install.rs).
 //! - `token create|list|revoke`: agent tokens, for agents on other machines in network mode (ADR 0006).
+//! - `update`: install a newer inkup release, or say how (update.rs, ADR 0008). The TUI and `serve` check for one
+//!   in the background at most once a day.
 //!
 //! Network mode (`--network`, or `network = true` in the data dir's config.toml, which the TUI's N key writes)
 //! binds every interface; the default is 127.0.0.1 only.
 
 mod mcp_install;
+mod update;
 
 use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
@@ -71,6 +74,8 @@ enum Command {
         #[command(subcommand)]
         command: McpCommand,
     },
+    /// Update inkup to the newest release (--check only says whether there is one).
+    Update(update::UpdateArgs),
 }
 
 #[derive(Subcommand)]
@@ -136,6 +141,7 @@ async fn main() -> Result<()> {
                 Command::Status { common } => status(common).await,
                 Command::Token { command } => token(command),
                 Command::Mcp { command: McpCommand::Install(args) } => mcp_install::install(args),
+                Command::Update(args) => update::run(args).await,
             }
         }
         None => {
@@ -179,6 +185,7 @@ async fn start(store: Arc<Store>, config: Config) -> Result<Server> {
 
 async fn tui(common: Common, mut network_flag: bool, dir: PathBuf) -> Result<()> {
     let store = Arc::new(Store::open(&dir).with_context(|| format!("open the store in {}", dir.display()))?);
+    let update = update::spawn_check(&dir);
     let mut terminal = inkup_tui::init();
     let result = async {
         loop {
@@ -190,6 +197,7 @@ async fn tui(common: Common, mut network_flag: bool, dir: PathBuf) -> Result<()>
                 hub: Arc::clone(server.hub()),
                 requests: server.take_pairing_requests().context("pairing requests already taken")?,
                 network: server.network().cloned(),
+                update: update.clone(),
             };
             let exit = inkup_tui::run(&mut terminal, running).await;
             server.shutdown().await?;
@@ -258,6 +266,15 @@ async fn serve(common: Common, flags: Serve) -> Result<()> {
             eprintln!("no .local name claimed (no multicast?): give other machines an address above");
         });
     }
+
+    let mut update = update::spawn_check(&dir);
+    tokio::spawn(async move {
+        if update.wait_for(Option::is_some).await.is_ok()
+            && let Some(notice) = update.borrow().as_deref()
+        {
+            eprintln!("{notice}");
+        }
+    });
 
     let requests = server.take_pairing_requests().context("pairing requests already taken")?;
     let prompt = tokio::spawn(inkup_tui::prompt_pairing(requests, print_pairing_codes));

@@ -60,9 +60,15 @@ pub fn render(frame: &mut Frame, app: &App) {
         View::Tokens => tokens(frame, body, app),
     }
 
-    let footer_text = match &app.status {
-        Some(status) => Line::from(vec![Span::raw(status.clone()).bold(), Span::raw("   "), Span::raw(KEYS).dim()]),
-        None => Line::from(KEYS).dim(),
+    // A command's outcome first; else a newer release, quietly; else just the keys.
+    let footer_text = match (&app.status, &app.update) {
+        (Some(status), _) => {
+            Line::from(vec![Span::raw(status.clone()).bold(), Span::raw("   "), Span::raw(KEYS).dim()])
+        }
+        (None, Some(update)) => {
+            Line::from(vec![Span::raw(update.clone()).fg(Color::Cyan), Span::raw("   "), Span::raw(KEYS).dim()])
+        }
+        (None, None) => Line::from(KEYS).dim(),
     };
     frame.render_widget(footer_text, footer);
 

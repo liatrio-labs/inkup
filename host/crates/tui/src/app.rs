@@ -120,6 +120,8 @@ pub struct App {
     pub network: Option<NetworkView>,
     /// The last command's outcome, or a hint.
     pub status: Option<String>,
+    /// A newer inkup release and what to run for it, shown quietly in the key line while there is no status.
+    pub update: Option<String>,
     /// Draw mode as last set from here, per Session (a Session starts with it off).
     draw_mode: HashMap<String, bool>,
     /// Epoch ms, for "3 min ago".
@@ -137,6 +139,7 @@ impl App {
             pairing: VecDeque::new(),
             network: None,
             status: None,
+            update: None,
             draw_mode: HashMap::new(),
             now_ms: 0,
         }
