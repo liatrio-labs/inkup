@@ -385,6 +385,16 @@ Design so these are possible; do not build them now.
 - **Diff-aware re-review**: run the same Session against a new deploy. Keep selectors, screenshots, and element text.
 - **Design-tool import**: reference Figma frames in Locations. Keep `locations[]` extensible beyond DOM selectors.
 - **Agent execution**: a "fix with agent" button. Explicit non-goal now; `agent_prompt` is the seam.
+- **Mobile review app (iOS, then Android).** Extensions do not run in Chrome on Android or iOS, so real-device reviews
+  need an app with a built-in browser: the page in a WKWebView or Android WebView, a drawing layer over it, the
+  microphone with on-device speech (Apple Speech, Android SpeechRecognizer) as the free tier, web view snapshots for
+  screenshots and ReplayKit or MediaProjection for video. An injected script finds the element under each Stroke, as
+  the content script does. Likely stack: Skip (SwiftUI to Android), as in dbhagen/baby-ot; Tauri 2 mobile and React
+  Native are the alternatives. Known limits: the web view does not share the user's browser logins, and iOS shows a
+  banner while recording. Thinnest slice: iOS, load a URL, draw, record the mic, snap, export `session.json`, and
+  Process it unchanged; pairing with a host and Android follow. Keep these seams: grouping, shape recognition and the
+  Candidate finder in `packages/core` with no extension APIs, so they can be injected into a web view; and
+  `session.json` and the host protocol free of extension-only fields, so the app is one more paired Client.
 
 ## 7. Technical Approach
 
