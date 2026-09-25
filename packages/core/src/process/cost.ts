@@ -98,6 +98,16 @@ export function estimateOutputTokens(annotations: number, segments: number): num
   return 600 + items * 700;
 }
 
+/**
+ * Rough input tokens of an attached recording, per second: Gemini's token-counting guide gives 263 for video at
+ * the default resolution and 32 for audio. Other models differ; the estimate is rough either way.
+ */
+export const MEDIA_TOKENS_PER_SECOND = { video: 263, audio: 32 } as const;
+
+export function mediaTokens(videoMs: number, audioMs: number): number {
+  return Math.ceil((videoMs / 1000) * MEDIA_TOKENS_PER_SECOND.video + (audioMs / 1000) * MEDIA_TOKENS_PER_SECOND.audio);
+}
+
 export interface CostEstimate {
   model: string;
   input_tokens: number;
@@ -106,6 +116,10 @@ export interface CostEstimate {
   chunks?: number;
   /** Each call's own tokens, in order (the limits apply per call); absent: the totals are one call's. */
   chunk_tokens?: { input: number; output: number }[];
+  /** The estimate includes checking the items against the recording (./vet.ts). */
+  vet?: boolean;
+  /** The recording goes with the calls (./video.ts): its tokens are included, roughly. */
+  video?: boolean;
   /** null when neither PRICES nor the cached model list prices the model. */
   usd: number | null;
   /** PRICES_AS_OF, or the day the model list that priced it was fetched. */

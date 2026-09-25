@@ -1,13 +1,18 @@
-// Anthropic adapter (PRD P0-10, P0-11, D4): structured output through `messages.stream` + `zodOutputFormat`, one
-// repair retry when the output fails validation, and a second pass with screenshots for low-confidence items.
-// Live Draft Item passes use the same call path with a smaller schema and model, and so does a review-page Combine
-// (two merged items rewritten as one, packages/core/src/process/combine.ts). Pinned Draft Items are enforced
-// on the Process output in code (packages/core/src/process/pins.ts).
+// Anthropic adapter (PRD P0-10, P0-11, D4): structured output (`zodOutputFormat`), validated in code whatever the
+// transport, with one repair retry when the output fails validation. Live Draft Item passes use the same call path
+// with a smaller schema and model, and so does a review-page Combine (two merged items rewritten as one,
+// packages/core/src/process/combine.ts). Pinned Draft Items are enforced on the Process output in code
+// (packages/core/src/process/pins.ts).
 //
 // Process (feedback batch 1, U4): the Session is cut into budgeted chunks (packages/core/src/process/sections.ts), run two at
 // a time, each streamed with max_tokens at the model's output cap. Completed items are reported as they arrive
 // (`onProgress`). A chunk that stops at max_tokens is split in two and both halves run; a truncated answer is never
 // sent back for repair.
+// Video-grounded Process (packages/core/src/process/video.ts): with `media`, the recording goes with each window's
+// call through the Gateway's chat endpoint (./chat.ts), the only one that takes video.
+// Vetting (packages/core/src/process/vet.ts): with `vet`, every item is then checked against the recording, or its
+// screenshots and crops when there is no video, one call per window, and flagged confirmed, corrected or unverified.
+// It replaced the second pass that re-sent low-confidence items with their screenshots.
 // Runs in the service worker (dangerouslyAllowBrowser: the key is the user's own, stored locally) and in Node
 // for `pnpm eval`. The Vercel AI Gateway serves the same Messages API, so a Gateway role uses this adapter with the
 // Gateway's base URL and key (`vendor` names it in errors).
@@ -15,12 +20,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { partialParse } from '@anthropic-ai/sdk/_vendor/partial-json-parser/parser';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { processEvents } from '@inkup/core/process/align';
-import {
-  type ChangeItem,
-  ChangeItemSchema,
-  ChangeItemsOutputSchema,
-  isLowConfidence,
-} from '@inkup/core/process/change-item';
+import { type ChangeItem, ChangeItemSchema, ChangeItemsOutputSchema } from '@inkup/core/process/change-item';
 import {
   buildCombinePrompt,
   buildCombineRepairMessage,
@@ -29,7 +29,13 @@ import {
   combinedChanges,
   missingCitations,
 } from '@inkup/core/process/combine';
-import { estimateCost, estimateOutputTokens, type ModelCatalog, outputCapFor } from '@inkup/core/process/cost';
+import {
+  estimateCost,
+  estimateOutputTokens,
+  type ModelCatalog,
+  mediaTokens,
+  outputCapFor,
+} from '@inkup/core/process/cost';
 import {
   buildDraftPrompt,
   checkDraftOutput,
@@ -43,7 +49,6 @@ import { mergePinnedDrafts } from '@inkup/core/process/pins';
 import {
   aliasScreenshotIds,
   buildRepairMessage,
-  buildSecondPassMessage,
   checkAgainstSession,
   restoreScreenshotIds,
   type ScriptContext,
@@ -51,6 +56,15 @@ import {
 import { planChunks, renumberWindows, splitWindow } from '@inkup/core/process/sections';
 import { attachStyleChanges } from '@inkup/core/process/style-changes';
 import { mergeTextComments, needsModel } from '@inkup/core/process/text-comments';
+import {
+  applyVetResults,
+  buildVetMessage,
+  buildVetRepairMessage,
+  buildVetSystemPrompt,
+  markUnverified,
+  VetOutputSchema,
+} from '@inkup/core/process/vet';
+import { mediaTimingBlock, videoSystemSection } from '@inkup/core/process/video';
 import { withViewportSizes } from '@inkup/core/process/viewport';
 import {
   buildWindowPrompt,
@@ -92,6 +106,11 @@ export interface AnthropicAdapterOptions {
   /** Override for tests. */
   fetch?: typeof fetch;
   maxRetries?: number;
+  /**
+   * The Gateway's Chat Completions (./chat.ts): the only way to send video. A Process run with `media` uses it for its
+   * main and vetting calls; everything else stays on the Messages API.
+   */
+  chat?: Transport | null;
 }
 
 const DRAFT_MAX_TOKENS = 2_000;
@@ -99,7 +118,7 @@ const COMBINE_MAX_TOKENS = 4_000;
 /** The CallRecord kind of a call's repair retry. */
 const REPAIR_KIND = {
   main: 'repair',
-  second_pass: 'second_pass_repair',
+  vet: 'vet_repair',
   draft: 'draft_repair',
   combine: 'combine_repair',
 } as const;
@@ -109,6 +128,8 @@ const CONCURRENCY = 2;
 const MAX_SPLITS = 3;
 /** Re-parse the streamed answer for completed items after this many new characters. */
 const PARSE_EVERY_CHARS = 400;
+/** Most images one vetting call carries without video; the window's items take them in order. */
+export const VET_MAX_IMAGES = 20;
 
 type Messages = Turn[];
 
@@ -173,6 +194,7 @@ export function processWithoutModel(doc: SessionDocument, model: string): Proces
     model,
     calls: [],
     second_pass: [],
+    video: false,
     pins_converted: pins.pins_converted,
     pins_dropped: pins.pins_dropped,
     windows: 1,
@@ -194,7 +216,8 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
   const catalog = opts.catalog ?? null;
   const toError = (e: unknown) => toProcessError(e, vendor);
   const capFor = (model: string) => outputCapFor(model, catalog);
-  const messages = createMessagesTransport(client, toError);
+  const messagesApi = createMessagesTransport(client, toError);
+  const chat = opts.chat ?? null;
 
   /**
    * One structured-output call through its transport. Validation problems come back as issues, a max_tokens stop
@@ -220,7 +243,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
         if (ok.success) call.onItem.emit(ok.data, emitted);
       }
     };
-    const { raw, usage, stop } = await (call.transport ?? messages).send({
+    const { raw, usage, stop } = await (call.transport ?? messagesApi).send({
       model: call.model,
       effort: call.effort,
       system: call.system,
@@ -300,8 +323,10 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
       expectCount?: number;
       coverage?: { owned: number[] };
       onItem?: (item: ChangeItem, index: number) => void;
+      transport?: Transport;
     } = {},
   ): Call<ProcessOutput, ChangeItem> => ({
+    transport: opts.transport,
     model,
     effort,
     system,
@@ -339,12 +364,14 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
     );
 
   return {
-    async estimate({ doc, model, effort }) {
+    async estimate({ doc, model, effort, vet = false, video = false }) {
       // Every chunk is its own call, so the estimate sums them all.
       const calls: { input: number; output: number }[] = [];
       // Only explicit Text Comments: converted in code, no call to pay for.
       if (!needsModel(processEvents(doc.events))) return { ...estimateCost(model, 0, 0, catalog), chunks: 0 };
       const { windows } = planFor(doc, model);
+      // The whole recording goes with every window's call (and its vetting call), counted roughly by length.
+      const media = video ? mediaTokens(doc.media.video?.duration_ms ?? 0, doc.media.audio?.duration_ms ?? 0) : 0;
       for (const window of windows) {
         const { system, script, owned } = buildWindowPrompt(doc, window);
         const count = await client.messages
@@ -357,17 +384,57 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
           .catch((e: unknown) => {
             throw toError(e);
           });
-        calls.push({ input: count.input_tokens, output: windowEstimate(doc, window, owned) });
+        calls.push({ input: count.input_tokens + media, output: windowEstimate(doc, window, owned) });
       }
-      const input = calls.reduce((n, c) => n + c.input, 0);
-      const output = calls.reduce((n, c) => n + c.output, 0);
-      return { ...estimateCost(model, input, output, catalog), chunks: windows.length, chunk_tokens: calls };
+      // Vetting, roughly: one more call per window with the same input and an answer the size of its items. Its
+      // calls are no larger than the main ones, so the per-call limits (chunk_tokens) stay those of the main calls.
+      const rounds = vet ? 2 : 1;
+      const input = rounds * calls.reduce((n, c) => n + c.input, 0);
+      const output = rounds * calls.reduce((n, c) => n + c.output, 0);
+      return {
+        ...estimateCost(model, input, output, catalog),
+        chunks: windows.length,
+        chunk_tokens: calls,
+        ...(vet ? { vet } : {}),
+        ...(video ? { video } : {}),
+      };
     },
 
-    async process({ doc, model, effort, loadScreenshot, onProgress }): Promise<ProcessResult> {
+    async process({ doc, model, effort, loadScreenshot, onProgress, media, vet }): Promise<ProcessResult> {
       if (!needsModel(processEvents(doc.events))) return processWithoutModel(doc, model);
       const { events: planned, length, windows: initial } = planFor(doc, model);
       const calls: CallRecord[] = [];
+      // Video-grounded: the recording goes to the Gateway's chat endpoint, the only one that takes video.
+      const video = media && chat ? media : null;
+      const transport = video ? chat! : messagesApi;
+      const record: Partial<CallRecord> = video ? { video: true } : {};
+      const mediaBlock = video
+        ? mediaTimingBlock(
+            [video.video, ...(video.audio ? [video.audio] : [])].map((f) => ({
+              kind: f.media_type.startsWith('video/') ? ('video' as const) : ('audio' as const),
+              filename: f.filename,
+              start_offset_ms: f.start_offset_ms,
+              duration_ms: f.duration_ms,
+            })),
+            planned,
+          )
+        : '';
+      // The files, before the text that refers to them. A windowed Session sends the whole recording with each
+      // window's call: simple, and fine at these sizes (a few MB for ten minutes); cutting it per window can come later.
+      const mediaParts: Part[] = video
+        ? [video.video, ...(video.audio ? [video.audio] : [])].map((f) => ({
+            type: 'file',
+            media_type: f.media_type,
+            filename: f.filename,
+            data: f.data,
+          }))
+        : [];
+      /** A user turn: the recording and its timing first when attached, else the text alone. */
+      const userTurn = (text: string): Turn => ({
+        role: 'user',
+        content: video ? [...mediaParts, { type: 'text', text: `${mediaBlock}\n\n${text}` }] : text,
+      });
+      const withVideo = (system: string) => (video ? `${system}\n\n${videoSystemSection()}` : system);
       const report = (p: ChunkProgress) => {
         try {
           onProgress?.(p);
@@ -399,29 +466,23 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
           report({ chunk: chunk.id, start: window.start, end: coreEnd(window), status: 'streaming', items: [] });
           try {
             const out = await withRepair(
-              changeItemsCall(
-                model,
-                effort,
-                prompt.system,
-                [{ role: 'user', content: prompt.script }],
-                prompt.context,
-                {
-                  ...(windowed ? { coverage: { owned: prompt.owned } } : {}),
-                  onItem: (item) => {
-                    streamed.push(restoreScreenshotIds(item, prompt.context));
-                    report({
-                      chunk: chunk.id,
-                      start: window.start,
-                      end: coreEnd(window),
-                      status: 'streaming',
-                      items: [...streamed],
-                    });
-                  },
+              changeItemsCall(model, effort, withVideo(prompt.system), [userTurn(prompt.script)], prompt.context, {
+                transport,
+                ...(windowed ? { coverage: { owned: prompt.owned } } : {}),
+                onItem: (item) => {
+                  streamed.push(restoreScreenshotIds(item, prompt.context));
+                  report({
+                    chunk: chunk.id,
+                    start: window.start,
+                    end: coreEnd(window),
+                    status: 'streaming',
+                    items: [...streamed],
+                  });
                 },
-              ),
+              }),
               calls,
               'main',
-              { chunk: chunk.id, estimated_output: windowEstimate(doc, window, prompt.owned) },
+              { chunk: chunk.id, estimated_output: windowEstimate(doc, window, prompt.owned), ...record },
               chunk.depth < MAX_SPLITS,
             );
             const items = out.items.map((item) => restoreScreenshotIds(item, prompt.context));
@@ -478,38 +539,116 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
       // Windowed: the pin merge can drop rewrites, so number the final list again (item_0001… in time order).
       const final = windowed ? renumberItems(pins.items) : { items: pins.items, from: {} as Record<string, string> };
       const items = final.items;
-      const secondPass: string[] = [];
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i]!;
-        if (item.pinned || !isLowConfidence(item) || !loadScreenshot) continue;
-        const { script, context } = prompts[merged.source[final.from[item.id] ?? item.id] ?? 0] ?? prompts[0]!;
-        const images: Part[] = [];
-        const attached: string[] = [];
-        for (const id of item.evidence.screenshots) {
-          const img = await loadScreenshot(id);
-          if (!img) continue;
-          const alias = Object.entries(context.aliases).find(([, stored]) => stored === id)?.[0] ?? id;
-          images.push(
-            { type: 'text', text: `Screenshot ${alias}:` },
-            { type: 'image', media_type: img.media_type, data: img.data },
+      // Vetting: every item checked against the recording (or its screenshots), one call per window. It runs on the
+      // final list, after the pins, so a pinned item is flagged but never rewritten, and before the style changes
+      // and grounding, which then apply to corrected items exactly as to the others.
+      if (vet && items.length) {
+        const byWindow = new Map<number, number[]>();
+        const owner = (item: ChangeItem) => {
+          const source = merged.source[final.from[item.id] ?? item.id];
+          if (source !== undefined) return source;
+          // Items added in code (pins, Text Comments) belong to the window their time falls in.
+          const t = (item.evidence.video?.start ?? 0) * 1000;
+          return Math.max(
+            0,
+            results.findIndex((r) => owns(r.window, t)),
           );
-          attached.push(alias);
-        }
-        if (attached.length === 0) continue;
-        const content: Part[] = [
-          ...images,
-          { type: 'text', text: buildSecondPassMessage(script, aliasScreenshotIds(item, context), attached) },
-        ];
-        const {
-          items: [revised],
-        } = await withRepair(
-          changeItemsCall(model, effort, prompts[0]!.system, [{ role: 'user', content }], context, { expectCount: 1 }),
-          calls,
-          'second_pass',
+        };
+        items.forEach((item, i) => {
+          const w = owner(item);
+          byWindow.set(w, [...(byWindow.get(w) ?? []), i]);
+        });
+        // Crops come from grounding, which runs after vetting: look them up now for the screenshot check.
+        const crops = new Map(groundItems(items, events).map((g) => [g.id, g.evidence.crops ?? []]));
+        const vetLimit = pLimit(CONCURRENCY);
+        await Promise.all(
+          [...byWindow].map(([w, indices]) =>
+            vetLimit(async () => {
+              const prompt = prompts[w] ?? prompts[0]!;
+              const batch = indices.map((i) => items[i]!);
+              const checked = await vetWindow(prompt, batch, w, crops);
+              indices.forEach((i, k) => {
+                items[i] = checked[k]!;
+              });
+            }),
+          ),
         );
-        items[i] = { ...restoreScreenshotIds(revised!, context), id: item.id, pinned: item.pinned };
-        secondPass.push(item.id);
+      }
+
+      /** One window's vetting call; a failure leaves its items unverified, never fails the run. */
+      async function vetWindow(
+        prompt: WindowPrompt,
+        batch: ChangeItem[],
+        window: number,
+        crops: ReadonlyMap<string, string[]>,
+      ): Promise<ChangeItem[]> {
+        const ctx = prompt.context;
+        const aliased = batch.map((item) => aliasScreenshotIds(item, ctx));
+        let content: Part[];
+        if (video) {
+          content = [
+            ...mediaParts,
+            { type: 'text', text: buildVetMessage(prompt.script, aliased, { media: mediaBlock }) },
+          ];
+        } else {
+          const { parts, attached } = await vetImages(batch, ctx, crops);
+          content = [...parts, { type: 'text', text: buildVetMessage(prompt.script, aliased, { attached }) }];
+        }
+        try {
+          const out = await withRepair(
+            {
+              transport,
+              model,
+              effort,
+              system: buildVetSystemPrompt(!!video),
+              messages: [{ role: 'user', content }],
+              schema: VetOutputSchema,
+              check: () => [],
+              maxTokens: capFor(model),
+              repairMessage: buildVetRepairMessage,
+            },
+            calls,
+            'vet',
+            { chunk: window, ...record },
+          );
+          return applyVetResults(batch, out.results, ctx);
+        } catch (e) {
+          const err = toError(e);
+          return markUnverified(batch, `The check against the recording failed: ${err.message}`);
+        }
+      }
+
+      /** Each item's screenshots and element crops as labelled images, in item order, at most VET_MAX_IMAGES. */
+      async function vetImages(batch: ChangeItem[], ctx: ScriptContext, crops: ReadonlyMap<string, string[]>) {
+        const parts: Part[] = [];
+        const attached: string[] = [];
+        const seen = new Set<string>();
+        if (!loadScreenshot) return { parts, attached };
+        for (const item of batch) {
+          const ids = [
+            ...item.evidence.screenshots.map((id) => ({ id, crop: false })),
+            ...(crops.get(item.id) ?? []).map((id) => ({ id, crop: true })),
+          ];
+          for (const { id, crop } of ids) {
+            if (attached.length >= VET_MAX_IMAGES) return { parts, attached };
+            if (seen.has(id)) continue;
+            seen.add(id);
+            const img = await loadScreenshot(id);
+            if (!img) continue;
+            const alias = Object.entries(ctx.aliases).find(([, stored]) => stored === id)?.[0] ?? id;
+            const label = crop ? `close-up ${alias} (${item.id})` : alias;
+            parts.push(
+              {
+                type: 'text',
+                text: crop ? `Close-up of the marked element for ${item.id} (${alias}):` : `Screenshot ${alias}:`,
+              },
+              { type: 'image', media_type: img.media_type, data: img.data },
+            );
+            attached.push(label);
+          }
+        }
+        return { parts, attached };
       }
       // Recorded style changes are exact: passed through from the timeline, whatever the model wrote.
       const styled = attachStyleChanges(items, events, doc.session.start_url).items;
@@ -520,7 +659,8 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
         items: grounded,
         model,
         calls,
-        second_pass: secondPass,
+        second_pass: [],
+        video: !!video,
         pins_converted: pins.converted,
         pins_dropped: pins.dropped,
         windows: results.length,

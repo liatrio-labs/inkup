@@ -10,7 +10,13 @@ import type { Effort, ScreenshotImage } from './types';
 export type Part =
   | { type: 'text'; text: string }
   | { type: 'image'; media_type: ScreenshotImage['media_type']; data: string }
-  | { type: 'file'; media_type: string; filename: string /** base64, no data: prefix. */; data: string };
+  | {
+      type: 'file';
+      media_type: string;
+      filename: string;
+      /** base64, no data: prefix. */
+      data: string;
+    };
 
 export interface Turn {
   role: 'user' | 'assistant';

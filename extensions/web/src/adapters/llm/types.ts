@@ -20,12 +20,44 @@ export interface ScreenshotImage {
  */
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
+/** One recording sent with a video-grounded Process call. */
+export interface MediaFile {
+  /** e.g. video/webm, audio/webm. */
+  media_type: string;
+  /** The file part's name, e.g. video.webm. */
+  filename: string;
+  /** base64, no data: prefix. */
+  data: string;
+  /** Decoded size. */
+  bytes: number;
+  /** Recorder start, ms since t0. */
+  start_offset_ms: number;
+  duration_ms: number | null;
+}
+
+/** The Session's recording, for a Process model that takes video. */
+export interface ProcessMedia {
+  video: MediaFile;
+  /** The microphone; null when the Session has none. */
+  audio: MediaFile | null;
+}
+
 export interface ProcessInput {
   doc: SessionDocument;
   model: string;
   effort?: Effort;
-  /** Screenshot bytes by stored id, for the low-confidence second pass. Absent or null: text-only. */
+  /**
+   * Screenshot and element-crop bytes by stored id, for vetting against screenshots. Absent or null for an id: that
+   * image is left out.
+   */
   loadScreenshot?: (screenshotId: string) => Promise<ScreenshotImage | null>;
+  /**
+   * The recording, when the Process model takes video (the Gateway's chat endpoint): each window's main call and its
+   * vetting call carry it. Absent: the script alone, and screenshots for vetting.
+   */
+  media?: ProcessMedia | null;
+  /** Check every item against the recording after Process (vetting). Default false. */
+  vet?: boolean;
   /** Called as chunks are planned, stream items, finish or split (the review page's in-progress cards). */
   onProgress?: (progress: ChunkProgress) => void;
 }
@@ -52,11 +84,15 @@ export interface CallRecord {
     | 'draft_repair'
     | 'combine'
     | 'combine_repair'
+    | 'vet'
+    | 'vet_repair'
     | 'truncated';
   input_tokens: number;
   output_tokens: number;
-  /** Process: the chunk this call ran for. */
+  /** Process: the chunk this call ran for (vetting: the window). */
   chunk?: number;
+  /** The call went to the Gateway's chat endpoint with the recording attached. */
+  video?: boolean;
   /** Process: estimateOutputTokens for the chunk, to calibrate it against output_tokens. */
   estimated_output?: number;
 }
@@ -65,8 +101,10 @@ export interface ProcessResult {
   items: ChangeItem[];
   model: string;
   calls: CallRecord[];
-  /** Ids of items that went through the screenshot pass. */
+  /** Ids of items that went through the old low-confidence screenshot pass; vetting replaced it, so always empty. */
   second_pass: string[];
+  /** The recording went with the calls (video-grounded Process). */
+  video: boolean;
   /** Pinned Draft Items the model left out, added in code (packages/core/src/process/pins.ts). */
   pins_converted: string[];
   /** Model items dropped as rewrites of a pinned Draft Item. */
@@ -125,9 +163,14 @@ export interface ConnectionTest {
   message: string;
 }
 
+export interface EstimateInput extends Omit<ProcessInput, 'loadScreenshot' | 'media' | 'onProgress'> {
+  /** The recording will go with the calls: its length is added as media tokens. */
+  video?: boolean;
+}
+
 export interface LlmAdapter {
-  /** Token count from the provider's counter × the dated price table. */
-  estimate(input: Omit<ProcessInput, 'loadScreenshot'>): Promise<CostEstimate>;
+  /** Token count from the provider's counter × the dated price table, with vetting and media when set. */
+  estimate(input: EstimateInput): Promise<CostEstimate>;
   process(input: ProcessInput): Promise<ProcessResult>;
   /** One live Draft Item pass (P0-10): text only, small model, same structured output and repair retry. */
   draft(input: DraftInput): Promise<DraftResult>;

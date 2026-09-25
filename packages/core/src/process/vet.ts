@@ -110,3 +110,8 @@ export function applyVetResults(
 /** Every item unverified with one reason (the check failed, or was not possible). */
 export const markUnverified = (items: readonly ChangeItem[], reason: string): ChangeItem[] =>
   items.map((item) => ({ ...item, vetting: unverified(reason) }));
+
+/** The vetting call's repair turn (its root is `results`, not `items`). */
+export function buildVetRepairMessage(issues: readonly string[]): string {
+  return `Your answer did not pass validation:\n${issues.map((i) => `- ${i}`).join('\n')}\nReturn the complete corrected JSON ({"results": [...]}), fixing only what is listed.`;
+}

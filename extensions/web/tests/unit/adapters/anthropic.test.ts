@@ -1,14 +1,18 @@
 // @vitest-environment node
-// The real Anthropic adapter (SDK, structured output, repair, second pass) against the local stub server.
+// The real Anthropic adapter (SDK, structured output, repair, vetting, the chat transport with video) against the
+// local stub server.
 import { readFileSync } from 'node:fs';
 import { SessionDocumentSchema } from '@inkup/core/session-document';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createAnthropicAdapter, ProcessError } from '@/adapters/llm';
+import { createChatTransport } from '@/adapters/llm/chat';
 import { fixtureFile } from '../../../../../scripts/gen-session-fixtures.ts';
 import {
   type AnthropicStub,
+  chatReply,
   errorReply,
   isDraftRequest,
+  isVetRequest,
   messageReply,
   scriptOf,
   startAnthropicStub,
@@ -122,38 +126,179 @@ describe('Anthropic adapter against the stub', () => {
     expect(stub.messages()[1]!.body.messages[2].content).toContain('JSON');
   });
 
-  it('re-sends low-confidence items with their screenshots and replaces them', async () => {
-    const secondAmbiguity = 'Second pass: the ink circles the nav, not the Docs link.';
-    const revised = lowItem({ confidence: 0.55, ambiguity: secondAmbiguity });
+  it('vets every item against its screenshots and crops, and applies a correction', async () => {
+    const corrected = lowItem({ confidence: 0.8, ambiguity: undefined, title: 'Move the nav links right' });
     stub = await startAnthropicStub({
-      onMessage: (_r, i) => messageReply(MODEL, JSON.stringify({ items: i === 0 ? [item(), lowItem()] : [revised] })),
+      onMessage: (req) =>
+        messageReply(
+          MODEL,
+          JSON.stringify(
+            isVetRequest(req)
+              ? {
+                  results: [
+                    { id: 'item_0001', verdict: 'confirmed', reason: 'The circle is on the button.' },
+                    { id: 'item_0002', verdict: 'corrected', reason: 'The ink is on the nav.', item: corrected },
+                  ],
+                }
+              : { items: [item(), lowItem()] },
+          ),
+        ),
     });
     const loaded: string[] = [];
     const r = await adapter().process({
       doc,
       model: MODEL,
+      vet: true,
       loadScreenshot: async (id) => {
         loaded.push(id);
         return { media_type: 'image/png', data: Buffer.from(`png-${id}`).toString('base64') };
       },
     });
     expect(stub.messages()).toHaveLength(2);
-    const content = stub.messages()[1]!.body.messages[0].content;
+    const vetReq = stub.messages()[1]!;
+    expect(isVetRequest(vetReq)).toBe(true);
+    expect(vetReq.body.output_config.format.schema.properties.results.type).toBe('array');
+    const content = vetReq.body.messages[0].content;
+    // Both items cite the same two screenshots: each goes once, labelled with its alias.
     expect(content.filter((b: { type: string }) => b.type === 'image')).toHaveLength(2);
     expect(content[0]).toEqual({ type: 'text', text: 'Screenshot s1:' });
+    expect(content.at(-1).text).toContain('Screenshots attached above, in order: s1, s2.');
     expect(content.at(-1).text).toContain('"id": "item_0002"');
     expect(content.at(-1).text).toContain('screenshots/s1.png');
     expect(loaded).toEqual(shots);
-    expect(r.second_pass).toEqual(['item_0002']);
-    expect(r.items[1]).toMatchObject({ id: 'item_0002', confidence: 0.55, ambiguity: secondAmbiguity });
-    expect(r.calls.map((c) => c.kind)).toEqual(['main', 'second_pass']);
+    expect(r.calls.map((c) => c.kind)).toEqual(['main', 'vet']);
+    expect(r.second_pass).toEqual([]);
+    expect(r.video).toBe(false);
+    expect(r.items[0]!.vetting).toEqual({ verdict: 'confirmed', reason: 'The circle is on the button.' });
+    expect(r.items[1]).toMatchObject({
+      id: 'item_0002',
+      title: 'Move the nav links right',
+      vetting: { verdict: 'corrected', reason: 'The ink is on the nav.' },
+    });
+    expect(r.items[1]!.evidence.screenshots).toEqual(shots);
   });
 
-  it('skips the second pass when no screenshot bytes are available', async () => {
-    stub = await startAnthropicStub({ onMessage: () => messageReply(MODEL, JSON.stringify({ items: [lowItem()] })) });
-    const r = await adapter().process({ doc, model: MODEL, loadScreenshot: async () => null });
-    expect(stub.messages()).toHaveLength(1);
-    expect(r.second_pass).toEqual([]);
+  it('a failed vetting call keeps the items, unverified; without vet there is no check', async () => {
+    stub = await startAnthropicStub({
+      onMessage: (req) =>
+        isVetRequest(req)
+          ? errorReply(400, 'invalid_request_error', 'stub: vetting refused')
+          : messageReply(MODEL, JSON.stringify({ items: [item()] })),
+    });
+    const r = await adapter().process({ doc, model: MODEL, vet: true, loadScreenshot: async () => null });
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0]!.title).toBe(item().title);
+    expect(r.items[0]!.vetting).toEqual({
+      verdict: 'unverified',
+      reason: expect.stringContaining('The check against the recording failed: Anthropic API error 400'),
+    });
+    const plain = await adapter().process({ doc, model: MODEL });
+    expect(plain.items[0]).not.toHaveProperty('vetting');
+    expect(plain.calls.map((c) => c.kind)).toEqual(['main']);
+  });
+
+  it('with the recording, the main and vetting calls go to the chat endpoint with the video and audio files', async () => {
+    stub = await startAnthropicStub({
+      onMessage: () => errorReply(500, 'api_error', 'the Messages API must not be used'),
+      onChat: (req) =>
+        chatReply(
+          'google/gemini-3.1-pro-preview',
+          JSON.stringify(
+            isVetRequest(req)
+              ? { results: [{ id: 'item_0001', verdict: 'confirmed', reason: 'Seen at 0:03.' }] }
+              : { items: [item()] },
+          ),
+          { prompt_tokens: 20_000, completion_tokens: 700 },
+        ),
+    });
+    const file = (media_type: string, filename: string, text: string, start: number) => ({
+      media_type,
+      filename,
+      data: Buffer.from(text).toString('base64'),
+      bytes: text.length,
+      start_offset_ms: start,
+      duration_ms: 12_000,
+    });
+    const chat = createChatTransport({ apiKey: 'vck-test', baseURL: stub.baseURL, maxRetries: 0 });
+    const r = await createAnthropicAdapter({ apiKey: 'vck-test', baseURL: stub.baseURL, maxRetries: 0, chat }).process({
+      doc,
+      model: 'google/gemini-3.1-pro-preview',
+      vet: true,
+      media: {
+        video: file('video/webm', 'video.webm', 'webm-video', 350),
+        audio: file('audio/webm', 'audio.webm', 'webm-audio', 120),
+      },
+    });
+    expect(stub.messages()).toHaveLength(0);
+    expect(stub.chats()).toHaveLength(2);
+    for (const req of stub.chats()) {
+      const content = req.body.messages[1].content;
+      expect(content.slice(0, 2)).toEqual([
+        {
+          type: 'file',
+          file: {
+            filename: 'video.webm',
+            file_data: `data:video/webm;base64,${Buffer.from('webm-video').toString('base64')}`,
+          },
+        },
+        {
+          type: 'file',
+          file: {
+            filename: 'audio.webm',
+            file_data: `data:audio/webm;base64,${Buffer.from('webm-audio').toString('base64')}`,
+          },
+        },
+      ]);
+      expect(content[2].text).toContain('video.webm: the reviewed browser tab');
+      expect(content[2].text).toContain('(start_offset_ms 350)');
+      expect(content[2].text).toContain('RULE: media time t_m');
+      expect(req.body.stream).toBe(true);
+    }
+    const main = stub.chats()[0]!;
+    expect(main.body.messages[0].content).toContain('## Recording (attached)');
+    expect(main.body.response_format.json_schema.schema.properties.items.type).toBe('array');
+    expect(isVetRequest(stub.chats()[1]!)).toBe(true);
+    expect(r.video).toBe(true);
+    expect(r.calls).toEqual([
+      expect.objectContaining({ kind: 'main', input_tokens: 20_000, output_tokens: 700, video: true }),
+      expect.objectContaining({ kind: 'vet', input_tokens: 20_000, output_tokens: 700, video: true }),
+    ]);
+    expect(r.items[0]!.vetting).toEqual({ verdict: 'confirmed', reason: 'Seen at 0:03.' });
+  });
+
+  it('the estimate adds vetting (the same input again, an items-sized answer) and the recording as media tokens', async () => {
+    stub = await startAnthropicStub({
+      onMessage: () => errorReply(500, 'api_error', 'unused'),
+      inputTokens: () => 5000,
+    });
+    const withMedia = {
+      ...doc,
+      media: {
+        audio: {
+          blob_id: 'a',
+          mime: 'audio/webm',
+          start_offset_ms: 0,
+          duration_ms: 10_000,
+          chunk_count: 1,
+          path: 'audio.webm',
+        },
+        video: {
+          blob_id: 'v',
+          mime: 'video/webm',
+          start_offset_ms: 0,
+          duration_ms: 10_000,
+          chunk_count: 1,
+          seekable: true,
+          path: 'video.webm',
+        },
+      },
+    } as typeof doc;
+    const plain = await adapter().estimate({ doc: withMedia, model: MODEL });
+    const vetted = await adapter().estimate({ doc: withMedia, model: MODEL, vet: true });
+    expect(vetted).toMatchObject({ input_tokens: 10_000, output_tokens: 2 * plain.output_tokens, vet: true });
+    const video = await adapter().estimate({ doc: withMedia, model: MODEL, vet: true, video: true });
+    // 10 s of video at 263 tokens a second and 10 s of audio at 32, with each of the two calls.
+    expect(video).toMatchObject({ input_tokens: 2 * (5000 + 2630 + 320), video: true, vet: true });
   });
 
   it('estimates from count_tokens and the price table', async () => {
