@@ -1,0 +1,544 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://inkup.dev/schema/host-control.schema.json",
+  "title": "inkup host control API",
+  "description": "Control API version 1 (host.json and /api/host/*). Generated from packages/protocol/src/host-control.ts by `pnpm schema`; do not edit.",
+  "definitions": {
+    "HostFile": {
+      "type": "object",
+      "properties": {
+        "pid": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "kind": {
+          "$ref": "#/definitions/HostKind"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "control_token": {
+          "type": "string",
+          "minLength": 1,
+          "description": "the Bearer token /api/host/* takes"
+        },
+        "control_api": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "the control API version the holder speaks; a number, not a literal, so a client of another version can read it and say so"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "the holder's release, e.g. \"0.1.0\""
+        },
+        "started_at": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "epoch ms"
+        }
+      },
+      "required": [
+        "pid",
+        "kind",
+        "port",
+        "control_token",
+        "control_api",
+        "version",
+        "started_at"
+      ],
+      "description": "host.json in the data dir, written by the Host holding host.lock once its server has bound"
+    },
+    "ControlState": {
+      "type": "object",
+      "properties": {
+        "control_api": {
+          "type": "integer",
+          "enum": [
+            1
+          ]
+        },
+        "kind": {
+          "$ref": "#/definitions/HostKind"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "address": {
+          "type": "string",
+          "description": "127.0.0.1:<port>"
+        },
+        "network": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NetworkView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "set in network mode"
+        },
+        "update": {
+          "description": "a newer release, once the background check finds one",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/definitions/HostState"
+        }
+      },
+      "required": [
+        "control_api",
+        "kind",
+        "version",
+        "address",
+        "network",
+        "update",
+        "state"
+      ],
+      "description": "GET /api/host/state?timeline=<session id>"
+    },
+    "Activated": {
+      "type": "object",
+      "properties": {
+        "handled": {
+          "type": "boolean",
+          "description": "false when the Host has no window to bring forward (the TUI, serve)"
+        }
+      },
+      "required": [
+        "handled"
+      ],
+      "description": "POST /api/host/activate"
+    },
+    "HostKind": {
+      "type": "string",
+      "enum": [
+        "tui",
+        "serve",
+        "desktop"
+      ],
+      "description": "which kind of Host holds the data dir"
+    },
+    "HostState": {
+      "type": "object",
+      "properties": {
+        "clients": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ClientView"
+          }
+        },
+        "sessions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SessionOverview"
+          },
+          "description": "most recently updated first"
+        },
+        "timeline": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Timeline"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "of the Session asked for, else of the newest live Session"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ItemView"
+          }
+        },
+        "watchers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Watcher"
+          }
+        },
+        "agent_tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AgentToken"
+          }
+        }
+      },
+      "required": [
+        "clients",
+        "sessions",
+        "timeline",
+        "items",
+        "watchers",
+        "agent_tokens"
+      ],
+      "description": "what the TUI shows (inkup_server::HostState)"
+    },
+    "ClientView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "connected": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "epoch ms"
+        },
+        "last_seen_at": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "epoch ms"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "connected",
+        "created_at",
+        "last_seen_at"
+      ]
+    },
+    "SessionOverview": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "client_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "t0": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "epoch ms"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "epoch ms"
+        },
+        "updated_at": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "epoch ms"
+        },
+        "live": {
+          "type": "boolean",
+          "description": "no session_end yet"
+        },
+        "paused": {
+          "type": "boolean",
+          "description": "live, and its latest pause is not followed by a resume"
+        },
+        "items": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "current Change Items"
+        },
+        "open_items": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "current Change Items with no Resolution"
+        },
+        "annotations": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "draft_items": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "id",
+        "client_id",
+        "url",
+        "title",
+        "t0",
+        "created_at",
+        "updated_at",
+        "live",
+        "paused",
+        "items",
+        "open_items",
+        "annotations",
+        "draft_items"
+      ]
+    },
+    "Timeline": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "type": "string"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TimelineEntry"
+          }
+        }
+      },
+      "required": [
+        "session_id",
+        "entries"
+      ]
+    },
+    "TimelineEntry": {
+      "type": "object",
+      "properties": {
+        "t": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "ms since the Session t0"
+        },
+        "kind": {
+          "type": "string",
+          "description": "said, annotation, command, draft, comment or session"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "t",
+        "kind",
+        "text"
+      ]
+    },
+    "ItemStatus": {
+      "type": "string",
+      "enum": [
+        "open",
+        "in_progress",
+        "resolved",
+        "wont_fix",
+        "needs_info"
+      ]
+    },
+    "ItemView": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "item-<seq>, as agents see it"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/ItemStatus"
+        },
+        "note": {
+          "description": "the latest resolution's note",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "agent": {
+          "description": "the agent behind the latest resolution",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "since": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "epoch ms"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the latest resolution was made"
+        },
+        "prompt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "session_id",
+        "title",
+        "category",
+        "status",
+        "note",
+        "agent",
+        "since",
+        "prompt"
+      ]
+    },
+    "Watcher": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "since": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "epoch ms"
+        }
+      },
+      "required": [
+        "id",
+        "url",
+        "session_id",
+        "since"
+      ],
+      "description": "an agent blocked in watch_items"
+    },
+    "AgentToken": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991,
+          "description": "epoch ms"
+        },
+        "last_used_at": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "epoch ms"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "created_at",
+        "last_used_at"
+      ],
+      "description": "an agent token not revoked; never its secret"
+    },
+    "NetworkView": {
+      "type": "object",
+      "properties": {
+        "claimed": {
+          "description": "the .local name, once claimed on mDNS",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "this machine's LAN addresses"
+        },
+        "base_url": {
+          "type": "string",
+          "description": "where another machine reaches the Host"
+        }
+      },
+      "required": [
+        "claimed",
+        "addresses",
+        "base_url"
+      ],
+      "description": "network mode as the header shows it"
+    }
+  }
+}

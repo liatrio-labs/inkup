@@ -18,6 +18,7 @@ const CONTRACT = join(dirname(fileURLToPath(import.meta.url)), '..', 'contract')
 export const SCHEMAS: Record<string, (schema: Schema) => unknown> = {
   'protocol.schema.json': (s) => at(s, 'definitions', 'HelloMessage', 'properties', 'v', 'enum'),
   'session.schema.json': (s) => at(s, 'properties', 'schema_version', 'const'),
+  'host-control.schema.json': (s) => at(s, 'definitions', 'ControlState', 'properties', 'control_api', 'enum'),
 };
 
 const ANNOTATIONS = new Set(['$schema', '$id', '$comment', 'title', 'description', 'examples']);

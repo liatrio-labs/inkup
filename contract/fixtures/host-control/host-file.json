@@ -1,0 +1,9 @@
+{
+  "pid": 4242,
+  "kind": "desktop",
+  "port": 47823,
+  "control_token": "fixture-control-token",
+  "control_api": 1,
+  "version": "0.1.0",
+  "started_at": 1790347514041
+}

@@ -1,0 +1,4 @@
+# The host's toolchain (host/rust-toolchain.toml): the app builds the host crates from source.
+[toolchain]
+channel = "1.98"
+components = ["rustfmt", "clippy"]

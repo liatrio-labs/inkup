@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - extensions/*
+  - apps/*
 
 # onnxruntime-node is a Node-only transitive dep of @huggingface/transformers; the extension never uses it.
 allowBuilds:

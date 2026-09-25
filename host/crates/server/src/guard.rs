@@ -9,6 +9,8 @@
 //!   /mcp refuses web page origins too; agents send no Origin.
 //! - Another machine: /mcp, /api and /blobs need a Bearer token, a paired Client's or an agent token. From this
 //!   machine /mcp needs none (a local process can read the data dir anyway).
+//! - The control API (`/api/host/*`, control.rs) is refused to another machine whatever token it brings, in network
+//!   mode too, and to any request with an Origin: web pages and extensions have no business there.
 
 use std::net::{IpAddr, SocketAddr};
 
@@ -45,6 +47,10 @@ pub(crate) async fn guard(State(state): State<AppState>, mut request: Request, n
         return (StatusCode::FORBIDDEN, "Origin not allowed").into_response();
     }
     let peer = peer(&request, state.config.every_peer_is_remote);
+    if is_control(&path) && (peer.remote || request.headers().contains_key(header::ORIGIN)) {
+        tracing::warn!(peer = %peer.ip, path, "refused a control API request from another machine or a web origin");
+        return (StatusCode::FORBIDDEN, "the control API is for this machine only").into_response();
+    }
     if peer.remote && (mcp || path.starts_with("/api/") || path.starts_with("/blobs/")) {
         let known = match bearer(request.headers()) {
             Some(token) => blocking(&state.store, move |store| store.authenticate_bearer(&token)).await,
@@ -63,6 +69,12 @@ pub(crate) async fn guard(State(state): State<AppState>, mut request: Request, n
     }
     request.extensions_mut().insert(peer);
     next.run(request).await
+}
+
+/// `/api/host` and below. Matched on the path as sent: the router does not decode or normalise it either, so a
+/// path that routes to a control handler also matches here.
+fn is_control(path: &str) -> bool {
+    path == "/api/host" || path.starts_with("/api/host/")
 }
 
 /// Fails closed: a request whose peer address is unknown (a router served without `ConnectInfo`) is from another

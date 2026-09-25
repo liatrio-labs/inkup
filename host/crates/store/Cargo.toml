@@ -19,6 +19,8 @@ thiserror.workspace = true
 toml_edit.workspace = true
 
 [dev-dependencies]
+# The contract's host.json type (contract/host-control.schema.json), which `instance::HostInfo` must match.
+inkup-protocol.workspace = true
 tempfile.workspace = true
 
 [lints]

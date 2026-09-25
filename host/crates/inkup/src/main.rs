@@ -3,11 +3,14 @@
 //! - no subcommand: the server with the TUI, where pairing requests are answered. Logs go to `inkup.log` in
 //!   the data dir, since the screen is the TUI's.
 //! - `serve`: the headless server. Pairing requests are asked on the terminal.
-//! - `status`: whether a host is running, and what its store holds.
+//! - `status`: whether a host is running, which one holds the data dir, and what its store holds.
 //! - `mcp install`: point Claude Code, Cursor or Codex at the host's `/mcp` (mcp_install.rs).
 //! - `token create|list|revoke`: agent tokens, for agents on other machines in network mode (ADR 0006).
 //! - `update`: install a newer inkup release, or say how (update.rs, ADR 0008). The TUI and `serve` check for one
 //!   in the background at most once a day.
+//!
+//! One host per data dir (`inkup_store::instance`): the TUI and `serve` take the data dir's lock before they start.
+//! If another host holds it they say which and exit 1, first asking a desktop app holder to come forward.
 //!
 //! Network mode (`--network`, or `network = true` in the data dir's config.toml, which the TUI's N key writes)
 //! binds every interface; the default is 127.0.0.1 only.
@@ -16,14 +19,17 @@ mod mcp_install;
 mod update;
 
 use std::io::{IsTerminal, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
 use inkup_protocol::Health;
-use inkup_server::{Config, DEFAULT_PORT, NETWORK_WARNING, NetworkConfig, Server, lan_addresses};
+use inkup_server::{Config, Control, DEFAULT_PORT, NETWORK_WARNING, NetworkConfig, Server, VERSION, lan_addresses};
+use inkup_store::instance::{HostInfo, HostKind, HostLock, LockError};
 use inkup_store::{DB_FILE, HostConfig, Store};
+use tokio::sync::watch;
 
 const DEFAULT_LOG: &str = "warn,inkup=info,inkup_server=info,inkup_store=info,inkup_tui=info";
 
@@ -145,14 +151,16 @@ async fn main() -> Result<()> {
             }
         }
         None => {
+            let dir = cli.common.data_dir()?;
+            std::fs::create_dir_all(&dir).with_context(|| format!("create {}", dir.display()))?;
+            // Before the terminal check: whoever runs `inkup` where a host already runs is told so.
+            let lock = lock(&dir, HostKind::Tui).await?;
             if !std::io::stdout().is_terminal() {
                 bail!("the TUI needs a terminal; run `inkup serve` for the headless host");
             }
-            let dir = cli.common.data_dir()?;
-            std::fs::create_dir_all(&dir).with_context(|| format!("create {}", dir.display()))?;
             let log = std::fs::OpenOptions::new().create(true).append(true).open(dir.join(LOG_FILE))?;
             tracing_subscriber::fmt().with_writer(Arc::new(log)).with_ansi(false).with_env_filter(filter()).init();
-            tui(cli.common, cli.network, dir).await
+            tui(cli.common, cli.network, dir, lock).await
         }
     }
 }
@@ -167,30 +175,88 @@ fn hub_name() -> String {
     if host.is_empty() { "inkup".into() } else { format!("inkup on {host}") }
 }
 
+/// Takes the data dir's host lock. If another host holds it: says which (asking a desktop app to come forward
+/// first) and exits 1.
+async fn lock(dir: &Path, kind: HostKind) -> Result<HostLock> {
+    let found = match HostLock::acquire(dir, kind) {
+        Ok(lock) => return Ok(lock),
+        Err(LockError::Store(error)) => return Err(error).context("lock the data dir"),
+        Err(LockError::Held(found)) => found,
+    };
+    let found = match found {
+        Some(found) => Some(found),
+        None => published(dir).await,
+    };
+    if let Some(holder) = found.as_ref().filter(|holder| holder.kind == HostKind::Desktop) {
+        activate(holder).await;
+    }
+    let who = found.as_ref().map_or_else(|| "starting up".to_owned(), HostInfo::describe);
+    eprintln!("InkUp is already running ({who}). Use --data-dir for a separate instance.");
+    std::process::exit(1);
+}
+
+/// A holder that has just taken the lock writes `host.json` once its server binds: wait a moment for it.
+async fn published(dir: &Path) -> Option<HostInfo> {
+    for _ in 0..30 {
+        if let Ok(Some(found)) = inkup_store::instance::holder(dir) {
+            return Some(found);
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    None
+}
+
+/// Asks the host to come forward (`POST /api/host/activate`); best effort.
+async fn activate(holder: &HostInfo) {
+    let url = format!("http://127.0.0.1:{}/api/host/activate", holder.port);
+    let sent = reqwest::Client::new()
+        .post(url)
+        .bearer_auth(&holder.control_token)
+        .timeout(Duration::from_secs(2))
+        .send()
+        .await;
+    if let Err(error) = sent {
+        tracing::warn!(%error, "could not ask the running host to come forward");
+    }
+}
+
+/// The control API's settings for this process's lock.
+fn control(lock: &HostLock, update: &watch::Receiver<Option<String>>) -> Control {
+    Control {
+        token: lock.control_token().to_owned(),
+        kind: lock.kind(),
+        on_activate: None,
+        update: Some(update.clone()),
+    }
+}
+
 /// The server's config: network mode from the flag or the data dir's config.toml.
-fn config(common: &Common, dir: &std::path::Path, network_flag: bool) -> Result<Config> {
+fn config(common: &Common, dir: &Path, network_flag: bool, control: Control) -> Result<Config> {
     let settings = HostConfig::load(dir).with_context(|| format!("read the config in {}", dir.display()))?;
     let network = (network_flag || settings.network)
         .then(|| NetworkConfig { hub_id: settings.hub_id, ..NetworkConfig::default() });
-    Ok(Config { port: common.port, network, hub_name: Some(hub_name()), ..Config::default() })
+    Ok(Config { port: common.port, network, hub_name: Some(hub_name()), control: Some(control), ..Config::default() })
 }
 
-async fn start(store: Arc<Store>, config: Config) -> Result<Server> {
+/// Starts the server and writes `host.json` for it.
+async fn start(store: Arc<Store>, config: Config, lock: &HostLock) -> Result<Server> {
     let (port, network) = (config.port, config.network.is_some());
     let bind = if network { "0.0.0.0" } else { "127.0.0.1" };
-    inkup_server::start(store, config)
+    let server = inkup_server::start(store, config)
         .await
-        .with_context(|| format!("listen on {bind}:{port} (is another host running?)"))
+        .with_context(|| format!("listen on {bind}:{port} (is another host running?)"))?;
+    lock.publish(server.addr.port(), VERSION).context("write host.json")?;
+    Ok(server)
 }
 
-async fn tui(common: Common, mut network_flag: bool, dir: PathBuf) -> Result<()> {
+async fn tui(common: Common, mut network_flag: bool, dir: PathBuf, lock: HostLock) -> Result<()> {
     let store = Arc::new(Store::open(&dir).with_context(|| format!("open the store in {}", dir.display()))?);
     let update = update::spawn_check(&dir);
     let mut terminal = inkup_tui::init();
     let result = async {
         loop {
-            let config = config(&common, &dir, network_flag)?;
-            let mut server = start(Arc::clone(&store), config).await?;
+            let config = config(&common, &dir, network_flag, control(&lock, &update))?;
+            let mut server = start(Arc::clone(&store), config, &lock).await?;
             let running = inkup_tui::Running {
                 address: format!("127.0.0.1:{}", server.addr.port()),
                 store: Arc::clone(&store),
@@ -227,8 +293,10 @@ struct Serve {
 async fn serve(common: Common, flags: Serve) -> Result<()> {
     let Serve { auto_approve_pairing, network, print_pairing_codes, mdns_name } = flags;
     let dir = common.data_dir()?;
+    let lock = lock(&dir, HostKind::Serve).await?;
     let store = Store::open(&dir).with_context(|| format!("open the store in {}", dir.display()))?;
-    let mut config = Config { auto_approve_pairing, ..config(&common, &dir, network)? };
+    let mut update = update::spawn_check(&dir);
+    let mut config = Config { auto_approve_pairing, ..config(&common, &dir, network, control(&lock, &update))? };
     if let Some(network) = &mut config.network {
         network.mdns_name = mdns_name;
     }
@@ -238,7 +306,7 @@ async fn serve(common: Common, flags: Serve) -> Result<()> {
              (Tests pair by code with --print-pairing-codes.)"
         );
     }
-    let mut server = start(Arc::new(store), config).await?;
+    let mut server = start(Arc::new(store), config, &lock).await?;
     if auto_approve_pairing {
         tracing::warn!("--auto-approve-pairing: every pairing request from this machine is approved without asking");
     }
@@ -267,7 +335,6 @@ async fn serve(common: Common, flags: Serve) -> Result<()> {
         });
     }
 
-    let mut update = update::spawn_check(&dir);
     tokio::spawn(async move {
         if update.wait_for(Option::is_some).await.is_ok()
             && let Some(notice) = update.borrow().as_deref()
@@ -319,7 +386,11 @@ fn token(command: TokenCommand) -> Result<()> {
 }
 
 async fn status(common: Common) -> Result<()> {
-    let url = format!("http://127.0.0.1:{}/health", common.port);
+    let dir = common.data_dir()?;
+    // The data dir's host, if one wrote host.json: its port is where to look.
+    let holder = inkup_store::instance::holder(&dir)?;
+    let port = holder.as_ref().map_or(common.port, |holder| holder.port);
+    let url = format!("http://127.0.0.1:{port}/health");
     let health = match reqwest::get(&url).await {
         Ok(response) if response.status().is_success() => Some(response.json::<Health>().await?),
         _ => None,
@@ -328,17 +399,18 @@ async fn status(common: Common) -> Result<()> {
         Some(health) => {
             let capabilities: Vec<&str> = health.capabilities.iter().map(|c| c.as_str()).collect();
             println!(
-                "running: inkup {} on 127.0.0.1:{} (protocol {}; {})",
+                "running: inkup {} on 127.0.0.1:{port} (protocol {}; {})",
                 health.version.as_str(),
-                common.port,
                 health.protocol_version,
                 capabilities.join(", ")
             );
         }
-        None => println!("not running on 127.0.0.1:{}", common.port),
+        None => println!("not running on 127.0.0.1:{port}"),
+    }
+    if let Some(holder) = holder.as_ref().filter(|_| health.is_some()) {
+        println!("host: {}", holder.describe());
     }
 
-    let dir = common.data_dir()?;
     if dir.join(DB_FILE).exists() {
         let store = Store::open(&dir)?;
         println!(

@@ -1,0 +1,72 @@
+{
+  "control_api": 1,
+  "kind": "serve",
+  "version": "0.1.0",
+  "address": "127.0.0.1:47823",
+  "network": {
+    "claimed": "inkup.local",
+    "addresses": ["192.168.1.20"],
+    "base_url": "http://inkup.local:47823"
+  },
+  "update": "inkup 0.2.0 is out: run `inkup update`",
+  "state": {
+    "clients": [
+      {
+        "id": "c-1a2b3c4d",
+        "kind": "chrome",
+        "name": "Chrome on MacBook",
+        "connected": true,
+        "created_at": 1790124340000,
+        "last_seen_at": 1790124349836
+      },
+      {
+        "id": "c-5e6f7a8b",
+        "kind": "firefox",
+        "name": "Firefox on studio-mac",
+        "connected": false,
+        "created_at": 1790024340000,
+        "last_seen_at": null
+      }
+    ],
+    "sessions": [
+      {
+        "id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+        "client_id": "c-1a2b3c4d",
+        "url": "http://localhost:4401/pricing.html",
+        "title": "Pricing Fixture",
+        "t0": 1790124349836,
+        "created_at": 1790124349900,
+        "updated_at": 1790124359900,
+        "live": true,
+        "paused": false,
+        "items": 1,
+        "open_items": 0,
+        "annotations": 2,
+        "draft_items": 1
+      }
+    ],
+    "timeline": {
+      "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+      "entries": [
+        { "t": 0, "kind": "session", "text": "started on http://localhost:4401/pricing.html" },
+        { "t": 1200, "kind": "said", "text": "make this bigger" },
+        { "t": 1500, "kind": "annotation", "text": "#1 on button 'Get started'" }
+      ]
+    },
+    "items": [
+      {
+        "id": "item-1",
+        "session_id": "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90",
+        "title": "Make the Get started button bigger",
+        "category": "visual",
+        "status": "in_progress",
+        "note": null,
+        "agent": "claude-code",
+        "since": 1790124360000,
+        "prompt": "Increase the size of the Get started button on the pricing page."
+      }
+    ],
+    "watchers": [{ "id": 1, "url": "http://localhost:4401", "session_id": null, "since": 1790124350000 }],
+    "agent_tokens": [{ "id": "a-0f1e2d3c", "name": "codex on desktop", "created_at": 1790000000000, "last_used_at": null }]
+  }
+}

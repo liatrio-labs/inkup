@@ -164,9 +164,21 @@ describe('contract-compat: the real contract', () => {
   const load = (file: string): Schema =>
     JSON.parse(readFileSync(join(__dirname, '../../contract', file), 'utf8')) as Schema;
 
-  it.each(['protocol.schema.json', 'session.schema.json'])('%s has a version, and matches itself', (file) => {
-    const schema = load(file);
-    expect(check(file, schema, schema)).toEqual({ ok: true, lines: [] });
+  it.each(['protocol.schema.json', 'session.schema.json', 'host-control.schema.json'])(
+    '%s has a version, and matches itself',
+    (file) => {
+      const schema = load(file);
+      expect(check(file, schema, schema)).toEqual({ ok: true, lines: [] });
+    },
+  );
+
+  it('needs a control_api bump for a breaking change to the control API', () => {
+    const base = load('host-control.schema.json');
+    const head = clone(base);
+    delete props(head, 'HostState').sessions;
+    expect(check('host-control.schema.json', base, head).ok).toBe(false);
+    (props(head, 'ControlState').control_api as { enum: number[] }).enum = [2];
+    expect(check('host-control.schema.json', base, head).ok).toBe(true);
   });
 
   it('catches a removed field in the real protocol schema', () => {
