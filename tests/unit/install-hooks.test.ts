@@ -63,6 +63,12 @@ function isolatedEnv(bin: string): NodeJS.ProcessEnv {
     HOME: dir,
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_CEILING_DIRECTORIES: dir,
+    // No detached auto-maintenance after a commit: it writes objects/maintenance.lock while a snapshot reads the repo.
+    GIT_CONFIG_COUNT: '2',
+    GIT_CONFIG_KEY_0: 'maintenance.auto',
+    GIT_CONFIG_VALUE_0: 'false',
+    GIT_CONFIG_KEY_1: 'gc.auto',
+    GIT_CONFIG_VALUE_1: '0',
   };
 }
 
