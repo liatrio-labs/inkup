@@ -4,6 +4,7 @@
 //!   freely), blob metadata, Change Items (items.rs), Resolutions and paired Clients.
 //! - `blobs/<id>`: screenshot, audio and video bytes.
 //! - `config.toml`: the Host's settings (config.rs), which the user may edit.
+//! - `host.lock`, `host.json`: which process hosts this data dir (instance.rs).
 //!
 //! Calls are blocking; async callers run them on a blocking thread.
 
@@ -13,6 +14,7 @@ mod clients;
 mod config;
 mod events;
 pub mod fields;
+pub mod instance;
 mod items;
 mod schema;
 
