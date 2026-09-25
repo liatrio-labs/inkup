@@ -21,8 +21,9 @@ env:
 
 jobs:
   # Which side of the contract the change touches (scripts/ci-changes.ts, ADR 0007): contract/ runs both sides and
-  # the breaking-change guard, host/ the host, the rest of the workspace the extension, docs lint alone. A push with
-  # no usable base runs both sides.
+  # the breaking-change guard, host/ the host, the rest of the workspace the extension, docs lint alone. The desktop
+  # app runs for apps/desktop and for what it is built from (host/, packages/, the lockfile). A push with no usable
+  # base runs everything.
   changes:
     name: changes
     runs-on: ubuntu-latest
@@ -31,6 +32,7 @@ jobs:
       extension: ${{ steps.diff.outputs.extension }}
       host: ${{ steps.diff.outputs.host }}
       contract: ${{ steps.diff.outputs.contract }}
+      desktop: ${{ steps.diff.outputs.desktop }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -46,8 +48,8 @@ jobs:
         run: |
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! files=$(git diff --name-only "$BASE...$HEAD"); then
-            echo "No base to diff against; running both sides."
-            printf 'extension=true\nhost=true\ncontract=false\n' | tee -a "$GITHUB_OUTPUT"
+            echo "No base to diff against; running everything."
+            printf 'extension=true\nhost=true\ncontract=false\ndesktop=true\n' | tee -a "$GITHUB_OUTPUT"
             exit 0
           fi
           printf '%s\n' "$files"
@@ -300,11 +302,63 @@ jobs:
       # contract/protocol.schema.json.
       - run: cargo test --workspace --locked
 
+  # The desktop app (apps/desktop, ADR 0025): its own Cargo workspace, so the host's job never builds Tauri. fmt,
+  # clippy and tests for the app crate, and a debug build of the app with its UI, on all three platforms; the UI's
+  # typecheck and tests once, on Linux. No bundles: release packaging comes later.
+  desktop:
+    name: desktop (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # What Tauri needs on Linux: WebKitGTK 4.1 for the window, and appindicator for the tray.
+      - if: runner.os == 'Linux'
+        name: Install WebKitGTK and appindicator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev build-essential file
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - if: runner.os == 'Linux'
+        run: pnpm -C apps/desktop typecheck
+      - if: runner.os == 'Linux'
+        run: pnpm -C apps/desktop test
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master, 2026-09-12
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - working-directory: apps/desktop/src-tauri
+        run: cargo fmt --all --check
+      - working-directory: apps/desktop/src-tauri
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - working-directory: apps/desktop/src-tauri
+        run: cargo test --locked
+      # The UI (vite build) and the app binary, as `pnpm desktop:build` makes them.
+      - run: pnpm desktop:build
+
   # The one required check. Skipped jobs pass; a failed or cancelled one fails it.
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo]
+    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
