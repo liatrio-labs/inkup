@@ -1,0 +1,35 @@
+# cargo-dist (`dist`) config for the host release train. The host is released by pushing an `inkup-v<version>` tag;
+# see docs/releasing.md and docs/adr/0008-independent-releases-and-host-updates.md.
+# .github/workflows/inkup-v-release.yml is generated from this file: change settings here, then run `dist generate`.
+[workspace]
+members = ["cargo:host/"]
+
+[dist]
+cargo-dist-version = "0.33.0"
+ci = "github"
+installers = ["shell", "powershell", "homebrew"]
+targets = [
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+]
+checksum = "sha256"
+# The workflow triggers only on tags starting `inkup-v`, so `inkup-chrome-v*` and `inkup-firefox-v*` never start it.
+# dist names the workflow after this: inkup-v-release.yml.
+tag-namespace = "inkup-v"
+# Ship `inkup-update` next to `inkup` from the shell and PowerShell installers. The installers also write the install
+# receipt that an in-binary axoupdater reads.
+install-updater = true
+tap = "liatrio-labs/homebrew-tap"
+formula = "inkup"
+publish-jobs = ["homebrew"]
+# No release CI on pull requests; host-dist-check.yml checks this config on host changes instead.
+pr-run-mode = "skip"
+
+# Actions pinned by commit, as in the repo's other workflows. Keep these in step with ci.yml and release.yml.
+[dist.github-action-commits]
+"actions/checkout" = "3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+"actions/upload-artifact" = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" # v7.0.1
+"actions/download-artifact" = "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" # v8.0.1

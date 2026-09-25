@@ -8,6 +8,8 @@ edition = "2024"
 rust-version = "1.98"
 license = "MIT"
 publish = false
+repository = "https://github.com/liatrio-labs/inkup"
+homepage = "https://github.com/liatrio-labs/inkup"
 
 [workspace.dependencies]
 inkup-protocol = { path = "crates/protocol" }
@@ -56,3 +58,8 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+
+# The profile `dist` builds release artifacts with (see dist-workspace.toml at the repo root).
+[profile.dist]
+inherits = "release"
+lto = "thin"

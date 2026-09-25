@@ -6,6 +6,8 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [[bin]]
 name = "inkup"
@@ -32,3 +34,7 @@ tungstenite = "0.30"
 
 [lints]
 workspace = true
+
+# `publish = false` keeps the crate off crates.io; this opts the binary into dist releases anyway.
+[package.metadata.dist]
+dist = true

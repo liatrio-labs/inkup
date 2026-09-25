@@ -14,3 +14,5 @@ blob-report/
 extensions/web/public/ort/
 extensions/web/public/vad/
 fixtures/sessions/long-*.json
+# cargo-dist output (dist build)
+/target/
