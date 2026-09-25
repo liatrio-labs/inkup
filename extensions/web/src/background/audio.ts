@@ -3,13 +3,17 @@
 // the chunks written so far instead. What the recorder had not written yet (at most one chunk) is lost.
 import { AUDIO_PATH } from '@inkup/core/session-document';
 import { type AudioMedia, db } from '@/db';
+import { joinChunks } from '@/media/join-chunks';
 import { makeSeekable } from '@/media/seekable-webm';
 
 export async function salvageAudio(sessionId: string, chunkMs: number): Promise<AudioMedia | null> {
   const chunks = await db.blobs.where('[session_id+kind]').equals([sessionId, 'audio_chunk']).sortBy('seq');
   if (chunks.length === 0) return null;
   const mime = chunks[0]!.mime;
-  const joined = new Blob([await new Blob(chunks.map((c) => c.blob)).arrayBuffer()], { type: mime });
+  const joined = await joinChunks(
+    chunks.map((c) => c.blob),
+    mime,
+  );
   // Each chunk is written a timeslice after the audio it holds began.
   const start = Math.max(0, chunks[0]!.t - chunkMs);
   let blob = joined;

@@ -18,6 +18,7 @@ import {
 } from '@/adapters/transcription';
 import { type AudioMedia, db } from '@/db';
 import { getUserMediaWithRetry } from '@/lib/get-user-media';
+import { joinChunks } from '@/media/join-chunks';
 import { type OffscreenStartConfig, type OffscreenStartResult, sendMessage } from '@/messaging';
 import { type PcmGraph, startPcmGraph } from './pcm';
 import { pauseTabVideo, startTabVideo, stopTabVideo } from './video';
@@ -312,9 +313,9 @@ async function finalizeAudio(config: OffscreenStartConfig, m: Mic, durationMs: n
   const chunks = await db.blobs.where('[session_id+kind]').equals([sessionId, 'audio_chunk']).sortBy('seq');
   if (chunks.length === 0) return null;
   const mime = chunks[0]!.mime;
-  const joined = new Blob(
+  const joined = await joinChunks(
     chunks.map((c) => c.blob),
-    { type: mime },
+    mime,
   );
   const fixed = await fixWebmDuration(joined, durationMs, { logger: false });
   const id = `${sessionId}:audio`;
