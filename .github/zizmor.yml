@@ -20,13 +20,3 @@ rules:
   unpinned-images:
     ignore:
       - inkup-v-release.yml
-  # dist calls a custom job (post-announce-jobs: desktop-macos.yml, the desktop app's DMG) with `secrets: inherit`; no
-  # dist setting narrows it. The called workflow is in this repo, and the signing secrets it uses live in the `release`
-  # environment, which needs a maintainer's approval whatever the caller passes.
-  secrets-inherit:
-    ignore:
-      - inkup-v-release.yml
-  # dist writes a custom job's `uses:` as ./.github/workflows/<job>.yml, not the self-repository form.
-  self-repository:
-    ignore:
-      - inkup-v-release.yml

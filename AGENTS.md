@@ -12,6 +12,9 @@ Guidance for coding agents (Claude Code, Codex and others) working in this repos
 - Each worker runs in its own git worktree and builds the host into that worktree's own `host/target`. Don't share
   `CARGO_TARGET_DIR` between workers.
 - Workers don't merge PRs, change repository settings or rulesets, or skip or disable tests.
+- **Tests that run git clear every `GIT_*` variable.** Hooks export `GIT_DIR` (and friends), so a test's
+  `git init`/`config`/`commit` otherwise lands on the shared repo, which has twice reconfigured it as bare. Run git in
+  tests with an env stripped of `GIT_*`, and assert the repo you touch is inside the test's temp dir.
 
 ## Taking control of the desktop for tests
 

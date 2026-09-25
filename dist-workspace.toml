@@ -26,10 +26,8 @@ install-updater = true
 tap = "liatrio-labs/homebrew-tap"
 formula = "inkup"
 publish-jobs = ["homebrew"]
-# The desktop app's signed, notarized DMG (.github/workflows/desktop-macos.yml, ADR 0025), attached to the release once
-# it is published. After announce, not in publish-jobs: those skip pre-releases, and the host release never waits on
-# the `release` environment's approval or on Apple's notary.
-post-announce-jobs = ["./desktop-macos"]
+# The desktop app's DMG is not a dist job: .github/workflows/desktop-macos.yml runs on the same inkup-v* tag and attaches
+# it to the release (ADR 0025).
 # release-please creates the GitHub Release (with its changelog) and the tag that starts this workflow, so dist
 # uploads to that release instead of creating one (docs/releasing.md).
 create-release = false
