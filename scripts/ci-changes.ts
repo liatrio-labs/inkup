@@ -2,11 +2,13 @@
 // contract/ is the API between the extension and the host (ADR 0007), so it runs both; host/ runs the host; the rest
 // of the workspace is the extension side. A wire-affecting change in packages/ also changes contract/, or the drift
 // check fails. The desktop app (apps/desktop, ADR 0025) builds the host crates and imports @inkup/protocol, so
-// host/, packages/ and the workspace's install files run it too. Docs and release-please's files run lint alone, and a path no rule knows runs
-// everything. Prints `extension=`, `host=`, `contract=` and `desktop=` lines for $GITHUB_OUTPUT.
+// host/, packages/ and the workspace's install files run it too. The marketing site (apps/site, ADR 0026) runs for
+// itself and its deploy workflow, the workspace's install files and release-please's manifest, whose versions it shows, and nothing else runs
+// for it. Docs and the rest of release-please's files run lint alone, and a path no rule knows runs everything. Prints
+// `extension=`, `host=`, `contract=`, `desktop=` and `site=` lines for $GITHUB_OUTPUT.
 import { readFileSync } from 'node:fs';
 
-export type Sides = { extension: boolean; host: boolean; contract: boolean; desktop: boolean };
+export type Sides = { extension: boolean; host: boolean; contract: boolean; desktop: boolean; site: boolean };
 
 const DOCS = /\.md$|^LICENSE$|^docs\//;
 // release-please's own files: the versions it recorded and its config. They build nothing.
@@ -14,19 +16,23 @@ const RELEASE = /^(\.release-please-manifest|release-please-config)\.json$/;
 const EXTENSION = /^(extensions|packages|scripts|tests|fixtures)\/|^[^/]+$/;
 // What the desktop app is built from besides apps/desktop and host/.
 const DESKTOP_TOO = /^packages\/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$/;
+// What the site is built from besides apps/site: the workspace's install files, and the versions it shows.
+const SITE_TOO = /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.release-please-manifest\.json)$/;
 
 export function classify(files: string[]): Sides {
-  const sides: Sides = { extension: false, host: false, contract: false, desktop: false };
+  const sides: Sides = { extension: false, host: false, contract: false, desktop: false, site: false };
   for (const file of files) {
+    if (SITE_TOO.test(file)) sides.site = true;
     if (!file || DOCS.test(file) || RELEASE.test(file)) continue;
     if (file.startsWith('contract/'))
       Object.assign(sides, { extension: true, host: true, contract: true, desktop: true });
     else if (file.startsWith('host/')) Object.assign(sides, { host: true, desktop: true });
     else if (file.startsWith('apps/desktop/')) sides.desktop = true;
+    else if (file.startsWith('apps/site/') || file === '.github/workflows/site.yml') sides.site = true;
     else if (EXTENSION.test(file)) {
       sides.extension = true;
       if (DESKTOP_TOO.test(file)) sides.desktop = true;
-    } else Object.assign(sides, { extension: true, host: true, desktop: true });
+    } else Object.assign(sides, { extension: true, host: true, desktop: true, site: true });
   }
   return sides;
 }

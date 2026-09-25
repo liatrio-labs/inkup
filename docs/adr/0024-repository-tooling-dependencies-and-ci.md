@@ -21,7 +21,9 @@ warns when pre-commit is missing.
 
 **Biome, not Prettier and ESLint**: one fast tool for format, lint and imports, with no plugin tree. Its `recommended`
 rules apply except `noNonNullAssertion`. A finding that is wrong for a line is silenced on that line with a
-`biome-ignore` comment giving the reason, never turned off repo-wide. Biome does not format JSON (generated schemas and
+`biome-ignore` comment giving the reason, never turned off repo-wide. The one exception is by file type: Biome does
+not see an `.astro` file's template, so `noUnusedVariables` and `noUnusedImports` are off for `**/*.astro`, where
+every frontmatter binding would be flagged. Biome does not format JSON (generated schemas and
 fixtures keep their bytes) or CSS. **Markdown wraps at 120 columns** (`.markdownlint.yaml`); tables and code blocks may
 run longer. **gitleaks** allows the tests' fake tokens by exact value, never by path. **Workflows** drop checkout
 credentials and read build outputs through environment variables, never templated into shell.
@@ -77,3 +79,5 @@ kept: renaming classes injected into pages buys nothing.
 - 2026-09-24 (#32): renamed from the working title "Voice & Annotation Review" (`voice-review`).
 - 2026-09-24 (#33): pre-commit, Biome and Conventional Commits, before the repo opened to outside contributors.
 - 2026-09-24 (#34): Firefox CI on a desktop-like Linux.
+- 2026-09-25 (ADR 0026): the site's `.astro` files turned off Biome's two unused-binding rules for that file type,
+  since Biome reads only their frontmatter.

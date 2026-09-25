@@ -72,6 +72,7 @@
       "changelog-path": "host/CHANGELOG.md",
       "exclude-paths": [
         ".github",
+        "apps/site",
         "docs",
         "extensions",
         "fixtures",
