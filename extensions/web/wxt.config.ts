@@ -4,14 +4,14 @@ import { defineConfig } from 'wxt';
 import type { Browser } from 'wxt/browser';
 
 // ts-ebml requires `ebml`, whose package.json "browser" field points at an IIFE build that exports nothing when
-// bundled; the UMD build of the same version does (docs/decisions-log.md, Slice 4).
+// bundled; the UMD build of the same version does (ADR 0024).
 const fromTsEbml = createRequire(createRequire(import.meta.url).resolve('ts-ebml'));
 const EBML_UMD = fromTsEbml.resolve('ebml').replace(/ebml\.js$/, 'ebml.umd.js');
 
 // onnxruntime-web's bundles name their wasm with `new URL('ort-wasm-simd-threaded.asyncify.wasm', import.meta.url)`,
 // so Vite emitted a second 26.9 MB copy under assets/. The extension always sets `wasmPaths` to the copy in
 // public/ort (scripts/copy-wasm-assets.mjs), so point that default at it too and let Vite emit nothing
-// (docs/spikes/README.md "Build size", docs/decisions-log.md Slice 6).
+// (docs/spikes/README.md "Build size", ADR 0024).
 const ORT_WASM_REF = /new URL\((["'])(ort-wasm-simd-threaded\.asyncify\.wasm)\1,\s*import\.meta\.url\)/g;
 const dedupeOrtWasm = {
   name: 'var:dedupe-ort-wasm',
@@ -26,7 +26,7 @@ const dedupeOrtWasm = {
 // vad-web imports `onnxruntime-web/wasm` from the root dependency (1.30), whose plain wasm build shipped as a second
 // 14 MB file in public/vad. Resolve that import to the onnxruntime-web build transformers.js pins (1.31-dev), in its
 // WebGPU flavour, so the VAD loads the same public/ort/ort-wasm-simd-threaded.asyncify.wasm as Whisper and one ORT
-// wasm file ships (docs/decisions-log.md Slice 7). vad-web only uses InferenceSession, Tensor and env.wasm, which
+// wasm file ships (ADR 0024). vad-web only uses InferenceSession, Tensor and env.wasm, which
 // are unchanged across these versions; tests/e2e/ort-assets.spec.ts and the Voice Command e2e run the VAD on it.
 const fromTransformers = createRequire(createRequire(import.meta.url).resolve('@huggingface/transformers'));
 const TRANSFORMERS_ORT = fromTransformers
@@ -71,8 +71,8 @@ export default defineConfig({
     name: 'InkUp',
     description: 'Record a spoken, drawn-on review of a web page and turn it into located Change Items.',
     // `scripting` is beyond P0-14's list: it injects the content script into tabs already open at install
-    // (docs/decisions-log.md). `activeTab` lets the `snap` shortcut screenshot pages `<all_urls>` does not cover
-    // (other extensions' pages, chrome://); it adds no install warning (decisions log, feedback batch 1 U5).
+    // (ADR 0003). `activeTab` lets the `snap` shortcut screenshot pages `<all_urls>` does not cover
+    // (other extensions' pages, chrome://); it adds no install warning (ADR 0003).
     // `tabCapture` records the tab's video for a Session started from the page toolbar or Alt+Shift+R, where no
     // panel click can open the picker (docs/spikes/toolbar-start.md); Chrome only.
     permissions: [

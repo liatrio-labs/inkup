@@ -26,8 +26,8 @@ limit · ❌ missing: the UI hides it or says why.
 | Screenshots | ✅ captureVisibleTab | ✅ | `tabs.captureVisibleTab`, the same API |
 | Strokes, Annotations, Candidates on the page | ✅ | ✅ | The same content script |
 | Tab video, Start in the panel | ✅ getDisplayMedia, tab picker | ⚠️ | `getDisplayMedia` from the panel. Firefox has no tab sharing, so the reviewer picks a window or a screen, and it can't leave the extension's own windows out. Automation can't click a picker in the panel, so that Firefox e2e runs with video off. Manual check F3 |
-| Tab video, Start on the toolbar or Alt+Shift+R (`toolbarVideo`) | ✅ `tab_capture`: the tab itself, no picker, follows navigations; needs the icon click or the shortcut on that tab since it last navigated. Without that, a small picker window offers "Choose what to record" (the panel's picker; the window records the video and closes with the Session) or "Record without video" (`tests/e2e/toolbar-session.spec.ts`, decisions log #41) | ⚠️ `frame_picker` | Start is an extension frame in the toolbar; its click opens the window/screen picker and the frame records. The video ends if the tab navigates. `tests/e2e-firefox/toolbar.spec.ts`; manual check F6. See `docs/spikes/toolbar-start.md` |
-| Viewport sizes from the toolbar | ✅ the frame host. No `debugger` permission, so no install warning and no debugging bar (decisions log, E6) | ✅ | The same frame host: the tab reloads into our `viewport.html`, which frames the page at the size, centred, scaled to fit. The overlay runs in the frame; Snaps are the tab cropped to it. Pages that refuse framing (X-Frame-Options, CSP `frame-ancestors`) say so in the menu. `tests/e2e-firefox/viewport.spec.ts`: a Snap stands in for drawing, which Playwright's Firefox cannot do inside our page. See `docs/spikes/viewport.md` |
+| Tab video, Start on the toolbar or Alt+Shift+R (`toolbarVideo`) | ✅ `tab_capture`: the tab itself, no picker, follows navigations; needs the icon click or the shortcut on that tab since it last navigated. Without that, a small picker window offers "Choose what to record" (the panel's picker; the window records the video and closes with the Session) or "Record without video" (`tests/e2e/toolbar-session.spec.ts`, ADR 0010) | ⚠️ `frame_picker` | Start is an extension frame in the toolbar; its click opens the window/screen picker and the frame records. The video ends if the tab navigates. `tests/e2e-firefox/toolbar.spec.ts`; manual check F6. See `docs/spikes/toolbar-start.md` |
+| Viewport sizes from the toolbar | ✅ the frame host. No `debugger` permission, so no install warning and no debugging bar (ADR 0023) | ✅ | The same frame host: the tab reloads into our `viewport.html`, which frames the page at the size, centred, scaled to fit. The overlay runs in the frame; Snaps are the tab cropped to it. Pages that refuse framing (X-Frame-Options, CSP `frame-ancestors`) say so in the menu. `tests/e2e-firefox/viewport.spec.ts`: a Snap stands in for drawing, which Playwright's Firefox cannot do inside our page. See `docs/spikes/viewport.md` |
 | Free live captions (Web Speech) | ✅ on-device, or server with the opt-in | ❌ | Firefox has no `SpeechRecognition`. The Session records audio, Strokes and screenshots without captions, logs `transcription_fallback` (`webspeech` → `none`, `speech_recognition_unsupported`), and the panel, onboarding and options say so. Onboarding hides the server-speech opt-in |
 | Free captions with Whisper | ✅ | ☑️ | With no Web Speech, a downloaded Whisper model becomes the free engine. Options offers Whisper in place of Web Speech. Not run in Firefox yet: manual check F4 |
 | Paid captions (Deepgram, ElevenLabs) | ✅ | ☑️ | The same WebSocket adapters. If they fall back, they go to "no captions" instead of Web Speech |
@@ -76,13 +76,13 @@ reach a more private address), could block that.
   log, F1). After its picker it hands the keyboard back to the page.
 - **No storage.session in content scripts either.** `@wxt-dev/storage` reads an item the moment it is defined, so a
   content script or the Start frame must not even import a `session:` item: those live in `src/session-state.ts`,
-  and `page-storage.spec.ts` checks the built bundles (decisions log, #31).
+  and `page-storage.spec.ts` checks the built bundles (ADR 0011).
 - **Mic permission.** Onboarding still asks for the mic in a visible tab. The e2e skips prompts, so whether
   Firefox lets the background page's iframe reuse that grant without a prompt is manual check F1.
 - **Overlay over modal dialogs and fullscreen.** While the toolbar's Start frame records video, the overlay host
   cannot move into a page's modal dialog or fullscreen element (Firefox reloads a moved iframe in a shadow root),
   so the toolbar stays painted on top but cannot be clicked until the dialog or fullscreen ends. Sessions started
-  from the sidebar are not affected (docs/decisions-log.md, "The overlay stays on top of the page").
+  from the sidebar are not affected (ADR 0011).
 - **Drift rule.** `platform/firefox` is 85 lines, about 1% of the extension's 8.7k lines of TypeScript. It needs
   no entrypoints or UI of its own. The only Firefox-driven code outside it is the capability-based "no Web Speech"
   path (`adapters/transcription/none.ts` and three UI notes), which any browser without the API would use. So

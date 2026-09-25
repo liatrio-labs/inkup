@@ -1,4 +1,4 @@
-// One review tab per Session (decisions log #40): Stop and every "Open review" link focus the tab already showing
+// One review tab per Session (ADR 0019): Stop and every "Open review" link focus the tab already showing
 // that Session's review, and open one only when there is none.
 //
 // Finding it: the extension holds the `tabs` permission (wxt.config.ts), so `tabs.query` returns each tab's `url` in

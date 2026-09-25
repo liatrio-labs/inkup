@@ -1,7 +1,7 @@
 // getUserMedia for every extension page that opens the microphone: the offscreen document (capture and the ORT
 // self-test) and onboarding. Chromium sometimes aborts a request it has already granted: the browser opens the
 // device, the page's promise rejects with AbortError "Failed due to shutdown", and the renderer closes the device
-// it no longer has a request for (docs/decisions-log.md Slice 7, "the microphone flake"). The page itself stays
+// it no longer has a request for (ADR 0010). The page itself stays
 // alive, and asking again succeeds. Only AbortError is retried; NotAllowedError, NotFoundError and the rest are real
 // answers and are returned at once.
 

@@ -74,6 +74,22 @@ harnesses. Even then a Client on another machine pairs only with its code.
 - CI cannot count on multicast. The mDNS browse test is skipped when `CI` is set. The peer-address rule is also tested
   with a switch that treats every peer as remote, and with a real bind reached through the machine's LAN address.
 
+## History
+
+- 2026-09-23 (H5): the Host side as above. A remote request takes the TUI's keyboard like a local one, but y does
+  nothing: approval is typing the code on the other machine. The terminal QR code uses a 2-module margin instead of 4
+  so it fits 32 rows, and on a shorter terminal only the code shows. A `--network` flag counts for the first run only;
+  after that `config.toml` decides. A Client's pairing token also authenticates `/mcp` from another machine, so a thick
+  Client can be its own agent.
+- 2026-09-23 (E14): the extension side. Find hubs probes `inkup.local` and `-2`…`-5` plus up to 10 addresses paired
+  with before (`hostAddresses`), 1.5 s each. The address field takes a bare host (port 47823 added), a URL with a port,
+  or a pair link. The code prompt appears only when the Host answers `pairing_code_required`. Scan QR uses
+  `BarcodeDetector` in the options page. The paired Host is labelled "Unencrypted network hub" wherever it shows when
+  its address is not loopback. Host permissions for the LAN are optional ones (ADR 0003). Chromium 153 and Firefox 155
+  let the extension's own origin reach a LAN address with no Local Network Access prompt (`docs/browsers.md`).
+- 2026-09-23 (E14 review): the guard fails closed. A request with no known peer address used to count as loopback and
+  needed no token; it now counts as another machine.
+
 ## Sources
 
 - mDNS host names and conflict renaming: <https://www.rfc-editor.org/rfc/rfc6762#section-9>

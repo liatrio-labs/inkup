@@ -30,9 +30,9 @@ must be the resized page, not the whole tab. The plan named two mechanisms behin
 
 The debugger (1) resizes the real page in place: no reload, no framing restrictions, and sessions, cookies and
 storage are untouched. It was built, but the user turned it down for its install warning and the bar (3), and it was
-removed. The frame host (2) is the mechanism in every browser; see the E6 entry in `docs/decisions-log.md`. Safari
-hides the control until manual check S6 confirms the frame host there. Probes 1–6 stay here in case the question
-comes back.
+removed. The frame host (2) is the mechanism in every browser; see
+[ADR 0023](../adr/0023-viewport-sizes-through-a-frame-host.md). Safari hides the control until manual check S6
+confirms the frame host there. Probes 1–6 stay here in case the question comes back.
 
 Proofs: `tests/e2e/viewport.spec.ts` (standalone and paired, and a page that refuses framing) and
 `tests/e2e-firefox/viewport.spec.ts`.

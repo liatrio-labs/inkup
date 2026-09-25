@@ -50,7 +50,7 @@ The repo is a pnpm workspace:
 | `packages/core` | `@inkup/core`: the pure TypeScript domain (timeline, grouping, shapes, Candidates, Process, export, the Zod schemas). No browser APIs, no DOM |
 | `extensions/web` | The WXT extension (package `inkup`). Browser-specific calls sit behind `src/platform` |
 | `scripts/`, `fixtures/`, `tests/e2e`, `tests/support` | Repo-level scripts, the fixture site and data, the Playwright e2e and shared test stubs |
-| `docs/` | PRD, plan, ADRs, decisions log, the generated `session.json` schema |
+| `docs/` | PRD, plan, ADRs, the generated `session.json` schema |
 
 Run every command from the repo root; the extension's commands delegate to `extensions/web`. To run one package on
 its own, use `pnpm -C packages/core test` or `pnpm -C extensions/web test`.
@@ -108,12 +108,11 @@ icon. Before a release, run the ordered checklist in `docs/manual-checks.md` in 
 ## Architecture
 
 - `docs/PLAN.md` covers the framework choices, the repo layout, the slices and the testing strategy.
-- `docs/adr/` records the larger decisions: media ownership across extension contexts, the screen picker over tab
-  capture, the all-sites host permission, the Rust host with extension clients, and loopback trust and pairing.
+- `docs/adr/` records the decisions that still govern the code, from media ownership and the Host's trust model to
+  the Process pipeline and the review page. `docs/adr/README.md` indexes them and says when to write or revise one.
 - `docs/spikes/` records what was tried and measured before building: Slice 0, Safari, and how a Session started
   from the toolbar gets video (`toolbar-start.md`), and how the toolbar resizes the page's viewport
   (`viewport.md`).
-- `docs/decisions-log.md` records the smaller decisions made while building each slice.
 - `packages/core` (`@inkup/core`) is pure TypeScript with no browser or vendor imports: the Session clock, the event
   log, grouping, Candidates, the Process script and windows, merging, and metrics.
 - In `extensions/web/src`, `adapters` wraps each vendor and `platform` wraps the browser-specific seams (the

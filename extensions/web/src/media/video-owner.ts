@@ -2,7 +2,7 @@
 // window (Chrome, when tabCapture is refused). It holds the panel Port as an owner that does not stop the Session
 // (stops_session: false), so Stop can ask for its last chunk, and follows the Session over that Port to pause with it
 // and to free the capture once it ends. Firefox gives an extension frame inside a web page no storage.session to
-// watch, hence the Port (decisions log, F1). If this document goes away the video ends there and the Session goes on.
+// watch, hence the Port (ADR 0010). If this document goes away the video ends there and the Session goes on.
 import { PANEL_PORT, type PanelToWorker, type WorkerToPanel } from '@/lib/panel-port';
 import { platform, type SurfacePort } from '@/platform';
 import type { TabVideoRecorder } from './tab-video';
