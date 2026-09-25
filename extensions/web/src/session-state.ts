@@ -18,6 +18,10 @@ export const frameHostLayouts = storage.defineItem<Record<string, FrameHostLayou
 /** Last error the service worker wants the panel to show (e.g. the microphone failed mid-Session). */
 export const panelNotice = storage.defineItem<string | null>('session:panelNotice', { fallback: null });
 export const hostStatus = storage.defineItem<HostStatus>('session:hostStatus', { fallback: { state: 'unpaired' } });
+/** The dot last drawn on the toolbar icon (src/background/host-dot.ts); the icon itself cannot be read back. */
+export const iconDot = storage.defineItem<'connected' | 'local' | 'offline' | null>('session:iconDot', {
+  fallback: null,
+});
 
 /**
  * What the paired Host can do right now, from its `welcome` (packages/protocol KNOWN_CAPABILITIES). The one gate for

@@ -357,13 +357,9 @@ test('a command from the host starts a Session in the browser, and the host show
   }
 });
 
-/** Which dot the toolbar icon shows, read back from the action badge's colour and title in the service worker. */
-async function iconDot(serviceWorker: Worker): Promise<'connected' | 'local' | 'offline' | string> {
-  return serviceWorker.evaluate(async () => {
-    const [r, g, b] = await chrome.action.getBadgeBackgroundColor({});
-    const text = await chrome.action.getBadgeText({});
-    const hex = `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
-    const byColor: Record<string, string> = { '#16a34a': 'connected', '#2563eb': 'local', '#d97706': 'offline' };
-    return text === ' ' ? (byColor[hex] ?? hex) : `no dot (${JSON.stringify(text)})`;
-  });
+/** Which dot the toolbar icon shows: src/background/host-dot.ts records the dot it drew (an icon cannot be read back). */
+async function iconDot(serviceWorker: Worker): Promise<string | null> {
+  return serviceWorker.evaluate(
+    async () => ((await chrome.storage.session.get('iconDot')).iconDot as string | undefined) ?? null,
+  );
 }
