@@ -52,6 +52,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm zip
+        env:
+          INKUP_RELEASE_BUILD: "1"
       - id: zip
         run: echo "name=$(basename extensions/web/.output/*-chrome.zip)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -12,6 +12,9 @@ Nothing is left half-working.
 | Firefox (MV3) | `pnpm build:firefox`, `pnpm zip:firefox` | `extensions/web/.output/firefox-mv3`, `…-firefox.zip` (plus `…-sources.zip` for AMO: the workspace the build reads; `bash scripts/verify-sources-zip.sh` rebuilds from it) |
 | Safari | see `docs/spikes/safari.md` | |
 
+Each of these is a development build: the toolbar and manifest icons sit on black-and-yellow construction stripes.
+Only the release workflows set `INKUP_RELEASE_BUILD=1`, which keeps the plain icon (`docs/releasing.md`).
+
 ## Capability matrix
 
 ✅ works and is covered by an automated test · ☑️ works, checked by hand or not yet automated · ⚠️ works with a

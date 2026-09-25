@@ -3,6 +3,8 @@
 # matches the build it was zipped with.
 #   bash scripts/verify-sources-zip.sh          # runs `pnpm zip:firefox` first
 #   bash scripts/verify-sources-zip.sh --no-zip # uses the zips already in extensions/web/.output
+# The rebuild sees the same INKUP_RELEASE_BUILD as the zip did: the release workflow sets it to 1 for both, as
+# SOURCE_BUILD.md tells reviewers to. Without it both are development builds, with the striped icons.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -18,7 +20,7 @@ trap 'rm -rf "$work"' EXIT
 unzip -q "$zip" -d "$work"
 files="$(find "$work" -type f | wc -l | tr -d ' ')"
 bytes="$(wc -c <"$zip" | tr -d ' ')"
-echo "sources zip: $(basename "$zip"), $bytes bytes, $files files"
+echo "sources zip: $(basename "$zip"), $bytes bytes, $files files, INKUP_RELEASE_BUILD=${INKUP_RELEASE_BUILD:-}"
 
 for name in node_modules .output .git tests test __tests__ fixtures '*.test.ts' '*.test.tsx'; do
   if [ -n "$(find "$work" -name "$name" -print -quit)" ]; then

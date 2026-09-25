@@ -1,8 +1,10 @@
 import { createRequire } from 'node:module';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'wxt';
 import type { Browser } from 'wxt/browser';
+import { writeDevIcons } from './scripts/dev-icons';
 
 // ts-ebml requires `ebml`, whose package.json "browser" field points at an IIFE build that exports nothing when
 // bundled; the UMD build of the same version does (ADR 0024).
@@ -41,6 +43,20 @@ const vadUsesTransformersOrt = {
     return null;
   },
 };
+
+// Only the release workflows set INKUP_RELEASE_BUILD=1. Every other build (`wxt dev`, `pnpm build`, build:firefox,
+// build:safari) is a development build: its icons carry construction stripes (src/lib/dev-stripes.ts). The
+// background reads it as __INKUP_RELEASE_BUILD__; the manifest's icons come from scripts/dev-icons.ts.
+const RELEASE_BUILD = process.env.INKUP_RELEASE_BUILD === '1';
+
+// A development build points the manifest's icons at striped copies of public/icon, made at build time. The action
+// has no default_icon of its own, so the browser shows these in the toolbar too until the background draws.
+function devIconsManifest(manifest: Browser.runtime.Manifest) {
+  if (!manifest.icons) return;
+  manifest.icons = Object.fromEntries(
+    Object.entries(manifest.icons).map(([size, path]) => [size, path.replace(/^\/?icon\//, 'icon-dev/')]),
+  );
+}
 
 /** A GUID, so no domain is claimed. */
 const FIREFOX_ADDON_ID = '{a8ef2c28-c5c9-44cb-af98-84c05d0a66c7}';
@@ -134,16 +150,25 @@ export default defineConfig({
       'packages/{core,protocol}/src/**',
       'extensions/web/{package.json,tsconfig.json,wxt.config.ts,components.json}',
       'extensions/web/{src,public,assets}/**',
-      'extensions/web/scripts/copy-wasm-assets.mjs',
+      'extensions/web/scripts/{copy-wasm-assets.mjs,dev-icons.ts}',
     ],
     excludeSources: ['extensions/web/public/{ort,vad}/**', '**/tests/**', '**/test/**', '**/fixtures/**'],
   },
   vite: () => ({
+    define: { __INKUP_RELEASE_BUILD__: JSON.stringify(RELEASE_BUILD) },
     plugins: [tailwindcss(), dedupeOrtWasm, vadUsesTransformersOrt],
     resolve: { alias: [{ find: /^ebml$/, replacement: EBML_UMD }] },
   }),
   hooks: {
+    'build:publicAssets': (wxt, files) => {
+      if (RELEASE_BUILD) return;
+      const out = join(wxt.config.wxtDir, 'dev-icons');
+      for (const size of writeDevIcons(join(wxt.config.publicDir, 'icon'), out)) {
+        files.push({ absoluteSrc: join(out, `${size}.png`), relativeDest: `icon-dev/${size}.png` });
+      }
+    },
     'build:manifestGenerated': (wxt, manifest) => {
+      if (!RELEASE_BUILD) devIconsManifest(manifest);
       if (wxt.config.browser === 'firefox') firefoxManifest(manifest);
       // Safari has no side panel, offscreen document or downloads API; its adapter uses windows and a download link
       // instead (src/platform/safari, docs/spikes/safari.md), so the manifest does not ask for them.

@@ -3,8 +3,11 @@
 // (captures queue in the outbox and sync when it is back). The dot is drawn into the icon itself (setIcon with
 // ImageData), in the bottom-right corner with a light ring so it reads on light and dark toolbars. The action badge
 // is not used: browsers size it for text, so even blank it covers most of the icon.
+// A development build draws the icon over construction stripes first (src/lib/dev-stripes.ts), so the dot sits on
+// top of both.
 
-import { hostStatus, iconDot } from '@/session-state';
+import { RELEASE_BUILD, stripedIcon } from '@/lib/dev-stripes';
+import { hostStatus, iconDev, iconDot } from '@/session-state';
 import type { HostStatus } from '@/settings';
 
 export type HostDotState = 'connected' | 'local' | 'offline';
@@ -50,22 +53,38 @@ async function iconBitmap(size: number): Promise<ImageBitmap> {
   return createImageBitmap(await res.blob());
 }
 
+/** The 2D context calls paintIcon makes, so a test can record them. */
+export type IconContext = Pick<
+  OffscreenCanvasRenderingContext2D,
+  'drawImage' | 'getImageData' | 'createImageData' | 'putImageData' | 'beginPath' | 'arc' | 'fill' | 'fillStyle'
+>;
+
+/** Paints one toolbar icon: the stripes (development builds only), then the icon, then the dot. */
+export function paintIcon(ctx: IconContext, icon: CanvasImageSource, size: number, dot: HostDot, dev: boolean): void {
+  ctx.drawImage(icon, 0, 0, size, size);
+  if (dev) {
+    const striped = ctx.createImageData(size, size);
+    striped.data.set(stripedIcon(ctx.getImageData(0, 0, size, size), size).data);
+    ctx.putImageData(striped, 0, 0);
+  }
+  const { cx, cy, r, ring } = dotGeometry(size);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + ring, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = dot.color;
+  ctx.fill();
+}
+
 async function drawIcon(dot: HostDot): Promise<Record<string, ImageData>> {
   const out: Record<string, ImageData> = {};
   for (const size of SIZES) {
     const canvas = new OffscreenCanvas(size, size);
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('no 2d context');
-    ctx.drawImage(await iconBitmap(size), 0, 0, size, size);
-    const { cx, cy, r, ring } = dotGeometry(size);
-    ctx.beginPath();
-    ctx.arc(cx, cy, r + ring, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = dot.color;
-    ctx.fill();
+    paintIcon(ctx, await iconBitmap(size), size, dot, !RELEASE_BUILD);
     out[String(size)] = ctx.getImageData(0, 0, size, size);
   }
   return out;
@@ -78,6 +97,7 @@ async function show(status: HostStatus): Promise<void> {
   if (typeof OffscreenCanvas === 'undefined') return;
   await chrome.action.setIcon({ imageData: await drawIcon(dot) });
   await iconDot.setValue(dot.state);
+  await iconDev.setValue(!RELEASE_BUILD);
 }
 
 export function initHostDot(): void {
