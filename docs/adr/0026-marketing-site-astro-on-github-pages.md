@@ -35,6 +35,13 @@ attributes on the calls to action, and their names are a contract that dashboard
 `install-firefox`, `download-dmg`, `copy-brew-cli`, `copy-brew-cask` and `github`, with `data-umami-event-location`
 (`hero`, `install` or `footer`) saying where. A rename is a new event, not an edit.
 
+**Product media is recorded from the real extension.** The site's screenshots and clips
+(`apps/site/src/assets/captures`, listed in its `manifest.json`) come from `tests/e2e/site-captures.spec.ts`, which
+drives the built extension on a fictional page (`fixtures/site/demo-store.html`) with scripted speech and the local
+Anthropic stub, never a paid API. `.github/workflows/site-captures.yml` runs it on Linux: on a pull request that
+changes its inputs it uploads the set as an artifact, and by hand or on an `inkup-extension-v*` release it opens a
+pull request with the refreshed files. Nobody edits the captures by hand.
+
 **Never released.** The site is not a release-please component, and `apps/site` is in the root component's
 `exclude-paths`, so site commits never bump the host's version or changelog.
 
@@ -55,6 +62,8 @@ attributes on the calls to action, and their names are a contract that dashboard
 ## History
 
 - 2026-09-25: first version, with a one-page site and Umami Cloud analytics (free Hobby tier; self-hosted later).
+- 2026-09-25: we planned hand-made placeholders for the product media; now it is recorded from the real extension
+  by `site-captures.yml`, so it cannot drift from the product.
 
 ## Sources
 
