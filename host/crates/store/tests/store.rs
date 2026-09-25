@@ -148,3 +148,25 @@ fn an_agent_token_works_until_revoked() {
     assert!(store.authenticate_bearer(&created.token).unwrap().is_none());
     assert!(store.agent_tokens().unwrap().is_empty());
 }
+
+#[test]
+fn a_rename_replaces_the_title_and_the_latest_wins() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path()).unwrap();
+    let title = |store: &Store| store.sessions().unwrap()[0].title.clone();
+    let rename = |id: &str, name: &str| event("session_rename", json!({ "id": id, "name": name }));
+
+    // A rename synced before the Session's start (an outbox resend) still wins over the start page's title.
+    store.upsert_event(None, "s1", &rename("r1", "Header pass")).unwrap();
+    let mut start = session_start();
+    start["title"] = json!("Pricing");
+    store.upsert_event(None, "s1", &start).unwrap();
+    assert_eq!(title(&store).as_deref(), Some("Header pass"));
+
+    store.upsert_event(None, "s1", &rename("r2", "Pricing header pass")).unwrap();
+    assert_eq!(title(&store).as_deref(), Some("Pricing header pass"));
+    // The same start resent changes nothing; a corrected one keeps the rename.
+    start["url"] = json!("http://localhost:4401/pricing.html?v=2");
+    store.upsert_event(None, "s1", &start).unwrap();
+    assert_eq!(title(&store).as_deref(), Some("Pricing header pass"));
+}
