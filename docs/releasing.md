@@ -78,8 +78,9 @@ The host's package in `release-please-config.json` (`"."`) uses release-please's
 | `true` | `0.2.0-rc.2` | `0.3.0-rc.1` after a `feat`, `0.2.1-rc.1` after a `fix` |
 | `false` | `0.2.0` | `0.3.0` after a `feat`, `0.2.1` after a `fix` |
 
-It is `true` while 0.2.0 is in release candidates. To ship the final release, set it to `false` in a pull request;
-the release pull request then proposes `0.2.0`. Set it back to `true` to start the next version's candidates.
+It is `false` since 0.2.0, so releases are stable. To start a version's candidates, set it to `true` in a pull
+request; to ship the final release, set it back to `false`, and the release pull request proposes the plain version.
+With no `feat` or `fix` since the last candidate, add a `Release-As: <version>` footer to that pull request's commit.
 
 A candidate is a GitHub pre-release. Homebrew skips it (dist's formula job and `desktop-macos`'s cask step), and
 `inkup update` does not offer it; the desktop app's DMG is still built.
