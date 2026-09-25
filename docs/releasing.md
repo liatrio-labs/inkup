@@ -377,7 +377,7 @@ or the organization does not hand its identity to a new one. `release.yml` names
 in plain text; neither is a secret.
 
 To rebuild it from nothing (after `gcloud projects create inkup-cws`, linking billing, and
-`gcloud services enable chromewebstore.googleapis.com iamcredentials.googleapis.com sts.googleapis.com`):
+`gcloud services enable chromewebstore.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com`):
 
 ```sh
 gcloud iam service-accounts create inkup-cws-upload --project=inkup-cws
@@ -388,7 +388,7 @@ gcloud iam workload-identity-pools create github --project=inkup-cws --location=
 gcloud iam workload-identity-pools providers create-oidc liatrio-labs-inkup --project=inkup-cws \
   --location=global --workload-identity-pool=github \
   --issuer-uri="https://token.actions.githubusercontent.com" \
-  --attribute-mapping="google.subject=assertion.sub,attribute.repository_owner_id=assertion.repository_owner_id,attribute.repository_id=assertion.repository_id,attribute.environment=assertion.environment" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.environment=assertion.environment,attribute.ref=assertion.ref" \
   --attribute-condition="assertion.repository_owner_id == '223510100' && assertion.repository_id == '1385938436' && assertion.environment == 'chrome-web-store'"
 
 gcloud iam service-accounts add-iam-policy-binding inkup-cws-upload@inkup-cws.iam.gserviceaccount.com \
