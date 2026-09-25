@@ -90,9 +90,11 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
           targets: aarch64-apple-darwin,x86_64-apple-darwin
+      # Ruby 3.3, not 4.0: under 4.0's openssl, match cannot decrypt the certificates repo ("AEAD authentication tag
+      # verification failed", reported as an invalid MATCH_PASSWORD). The other apps on the same match repo run 3.3.10.
       - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
         with:
-          ruby-version: "4.0"
+          ruby-version: "3.3.10"
           working-directory: apps/desktop
       # Gems exactly as Gemfile.lock pins them.
       - run: bundle install
