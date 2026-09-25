@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.2.0-rc.3...inkup-v0.2.0) (2026-09-25)
+
+
+### Chores
+
+* **release:** ship 0.2.0 as the first stable host release ([#40](https://github.com/liatrio-labs/inkup/issues/40)) ([43ea141](https://github.com/liatrio-labs/inkup/commit/43ea1417c50c097533ad8644ec3794669fa1e0dd))
+
 ## [0.2.0-rc.3](https://github.com/liatrio-labs/inkup/compare/inkup-v0.2.0-rc.2...inkup-v0.2.0-rc.3) (2026-09-25)
 
 
