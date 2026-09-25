@@ -51,10 +51,16 @@ pub struct Network {
 }
 
 impl Network {
-    pub(crate) fn start(config: &NetworkConfig, hub_name: &str, port: u16) -> Self {
+    /// Starts advertising; `on_claim` runs whenever the claimed name changes, so a window showing it refreshes.
+    pub(crate) fn start(
+        config: &NetworkConfig,
+        hub_name: &str,
+        port: u16,
+        on_claim: impl Fn() + Send + 'static,
+    ) -> Self {
         let claimed = Arc::new(RwLock::new(None));
         let daemon = if config.advertise {
-            match advertise(config, hub_name, port, Arc::clone(&claimed)) {
+            match advertise(config, hub_name, port, Arc::clone(&claimed), on_claim) {
                 Ok(daemon) => Some(daemon),
                 Err(error) => {
                     tracing::warn!(%error, "mDNS is unavailable: Clients must be given this Host's address");
@@ -127,6 +133,7 @@ fn advertise(
     hub_name: &str,
     port: u16,
     claimed: Arc<RwLock<Option<String>>>,
+    on_claim: impl Fn() + Send + 'static,
 ) -> Result<ServiceDaemon, mdns_sd::Error> {
     let daemon = ServiceDaemon::new()?;
     // The server listens on IPv4 only.
@@ -146,7 +153,7 @@ fn advertise(
     let handle = daemon.clone();
     std::thread::Builder::new()
         .name("mdns-monitor".into())
-        .spawn(move || watch_names(&handle, &events, host, fullname, &claimed))
+        .spawn(move || watch_names(&handle, &events, host, fullname, &claimed, on_claim))
         .map_err(|e| mdns_sd::Error::Msg(e.to_string()))?;
     Ok(daemon)
 }
@@ -159,8 +166,12 @@ fn watch_names(
     mut host: String,
     fullname: String,
     claimed: &RwLock<Option<String>>,
+    on_claim: impl Fn(),
 ) {
-    let set = |name: Option<String>| *claimed.write().unwrap_or_else(|p| p.into_inner()) = name;
+    let set = |name: Option<String>| {
+        *claimed.write().unwrap_or_else(|p| p.into_inner()) = name;
+        on_claim();
+    };
     while let Ok(event) = events.recv() {
         match event {
             DaemonEvent::NameChange(change) if change.original == host => {

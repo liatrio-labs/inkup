@@ -167,7 +167,8 @@ pub async fn start(store: Arc<Store>, config: Config) -> std::io::Result<Server>
     let hub = Arc::new(Hub::default());
     let network = config.network.as_ref().map(|network| {
         let hub_name = config.hub_name.clone().unwrap_or_else(|| "inkup".into());
-        Arc::new(Network::start(network, &hub_name, addr.port()))
+        let hub = Arc::clone(&hub);
+        Arc::new(Network::start(network, &hub_name, addr.port(), move || hub.view_changed()))
     });
     let mcp_shutdown = CancellationToken::new();
     let inbox = Arc::new(control::PairingInbox::default());
