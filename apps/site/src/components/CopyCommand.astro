@@ -7,10 +7,12 @@ interface Props {
   class?: string;
 }
 const { command, event, label, class: className } = Astro.props;
+// A long command wraps between words, never inside one (a hyphen in `liatrio-labs` is not a place to break).
+const words = command.split(' ');
 ---
 
 <div class:list={['copy', className]}>
-  <pre><code><span class="prompt" aria-hidden="true">$ </span>{command}</code></pre>
+  <pre><code><span class="prompt" aria-hidden="true">$ </span>{words.map((word, i) => [i > 0 ? ' ' : '', <span class="word">{word}</span>])}</code></pre>
   <button
     type="button"
     class="copy-button"
@@ -42,9 +44,13 @@ const { command, event, label, class: className } = Astro.props;
     margin: 0;
     flex: 1;
     min-width: 0;
+    white-space: pre-wrap;
     overflow-x: auto;
     font-size: var(--step--1);
-    scrollbar-width: thin;
+  }
+
+  .word {
+    white-space: nowrap;
   }
 
   .prompt {

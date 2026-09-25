@@ -12,11 +12,11 @@ import ChangeItem from './ChangeItem.astro';
       <h2 id="dock-title">Change Items</h2>
       <span class="count" data-count aria-live="polite">{items.length}</span>
     </div>
-    <p class="dock-note">From a review of this page</p>
+    <p class="dock-note">An example review of this page</p>
     <ol class="dock-list">
       {
         items.map((item, index) => (
-          <li data-dock-item={item.id} data-section={item.section}>
+          <li data-dock-item={item.id} data-section={item.section} data-ends={item.ends}>
             <ChangeItem item={item} compact={index > 0} />
           </li>
         ))
@@ -39,10 +39,9 @@ import ChangeItem from './ChangeItem.astro';
     .dock-inner {
       position: sticky;
       top: 5.5rem;
-      padding: var(--space-4);
-      border-radius: var(--radius-l);
-      background: var(--paper-2);
-      border: 1px solid var(--hairline);
+      padding: var(--space-1) 0 var(--space-4) var(--space-5);
+      border-left: 1px solid var(--hairline);
+      background: var(--paper);
       max-height: calc(100vh - 7rem);
       overflow: auto;
       overscroll-behavior: contain;
@@ -66,7 +65,7 @@ import ChangeItem from './ChangeItem.astro';
     border-radius: 999px;
     background: var(--ink);
     color: var(--on-ink);
-    font: 600 0.8rem / 1.4 var(--font-code);
+    font: 600 0.8rem / 1.4 var(--font-sans);
     text-align: center;
     font-variant-numeric: tabular-nums;
   }

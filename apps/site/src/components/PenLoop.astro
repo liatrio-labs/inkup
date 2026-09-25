@@ -1,7 +1,8 @@
 ---
 // A reviewer's red-pen Stroke: the mark's open loop, stretched around whatever it sits in (the parent needs
 // position: relative). It draws itself when an ancestor gains .is-inked; without JS or with reduced motion it is
-// simply there.
+// simply there. The stroke doesn't scale with the loop, so its dash is measured in screen pixels by the review script
+// (--len); until then, the loop shows whole.
 interface Props {
   class?: string;
 }
@@ -33,13 +34,20 @@ const { class: className } = Astro.props;
     stroke-linecap: round;
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
-    stroke-dasharray: 1;
-    stroke-dashoffset: 0;
+  }
+
+  /* On a phone the loop stays inside the gutter. */
+  @media (max-width: 40rem) {
+    .pen-loop {
+      left: -4%;
+      width: 108%;
+    }
   }
 
   @media (prefers-reduced-motion: no-preference) {
     :global(.js [data-ink]) .pen-loop path {
-      stroke-dashoffset: 1;
+      stroke-dasharray: var(--len) var(--len);
+      stroke-dashoffset: var(--len);
       transition: stroke-dashoffset 900ms var(--ease-out) 150ms;
     }
 

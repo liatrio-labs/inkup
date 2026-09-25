@@ -85,7 +85,7 @@ const year = new Date().getFullYear();
           </p>
         </div>
         <p class="hero-meta">
-          Free and open source. No account needed, and your sessions stay in your browser.{
+          It's free and open source, and you use your own AI keys. There's no account, and your sessions stay in your browser.{
             !chromeStore && ' While the Chrome Web Store listing is in review, you can install it from GitHub.'
           }
         </p>
@@ -193,8 +193,8 @@ const year = new Date().getFullYear();
         <h2>Private until you add a key</h2>
         <Inspect selector="p.promise" class="promise-box">
           <p class="promise">
-            On the free tier, transcription runs on your device and nothing is sent anywhere.
-            <PenLoop />
+            <span class="circled">Nothing leaves your device<PenLoop /></span> until you add a key. Without one,
+            transcription runs in your browser.
           </p>
         </Inspect>
         <ul class="facts">
@@ -367,6 +367,9 @@ const year = new Date().getFullYear();
             items.map((item) => (
               <li class="run-row" data-run={item.id} data-status="open">
                 <span class="run-title">{item.title}</span>
+                <span class="run-where code">
+                  <span class="run-selector">{item.selector}</span> {item.at}
+                </span>
                 <span class="run-agent" data-run-agent>
                   {item.agent}
                 </span>
@@ -498,6 +501,8 @@ const year = new Date().getFullYear();
     max-width: 80rem;
     margin: 0 auto;
     padding: 0 var(--gutter);
+    /* The inspector's measurement guides run to the gutter and stop. */
+    overflow-x: clip;
   }
 
   @media (min-width: 72rem) {
@@ -507,6 +512,10 @@ const year = new Date().getFullYear();
 
     .layout :global(.inline-item) {
       display: none;
+    }
+    /* Beside the dock, the guides stop just past the page column instead of running under the dock. */
+    main {
+      clip-path: polygon(-100vw -100vh, calc(100% + 1.5rem) -100vh, calc(100% + 1.5rem) calc(100% + 100vh), -100vw calc(100% + 100vh));
     }
   }
 
@@ -572,6 +581,13 @@ const year = new Date().getFullYear();
     margin-top: var(--space-2);
     color: var(--ink-2);
     font-size: var(--step--1);
+  }
+
+  /* On a phone the buttons stack: keep the quote with the button it was said about. */
+  @media (max-width: 40rem) {
+    .hero-actions > a.button {
+      order: 1;
+    }
   }
 
   .said-at {
@@ -729,6 +745,16 @@ const year = new Date().getFullYear();
     font-weight: 600;
   }
 
+  /* The reviewer circles the words that matter, kept on one line so the loop has one shape. */
+  .circled {
+    position: relative;
+    display: inline-block;
+    white-space: nowrap;
+    /* Room inside the loop, without moving the words. */
+    padding-inline: 0.35em;
+    margin-inline: -0.35em;
+  }
+
   .facts {
     display: grid;
     gap: var(--space-3);
@@ -805,6 +831,13 @@ const year = new Date().getFullYear();
 
   :global(.brew-box) {
     display: block;
+  }
+
+  /* Stacked on a phone, the tag above the command would sit on the host's description: give it room. */
+  @media (max-width: 48rem) {
+    :global(.install-row .brew-box) {
+      margin-top: calc(1.9rem + var(--space-2));
+    }
   }
 
   .brew-wrap {
@@ -893,7 +926,7 @@ const year = new Date().getFullYear();
 
   .run-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
     gap: var(--space-1) var(--space-4);
     align-items: baseline;
     padding-block: var(--space-4);
@@ -902,6 +935,15 @@ const year = new Date().getFullYear();
 
   .run-title {
     font-weight: 600;
+  }
+
+  .run-where {
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+
+  .run-selector {
+    color: var(--pen-ink);
   }
 
   .run-agent {
@@ -936,13 +978,19 @@ const year = new Date().getFullYear();
     visibility: visible;
   }
 
-  @media (max-width: 36rem) {
+  @media (max-width: 48rem) {
     .run-row {
       grid-template-columns: minmax(0, 1fr) auto;
     }
 
+    .run-where {
+      grid-row: 2;
+      grid-column: 1;
+    }
+
     .run-agent {
       grid-row: 2;
+      grid-column: 2;
     }
   }
 

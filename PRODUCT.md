@@ -53,9 +53,11 @@ Success over the next few months:
   it to a concrete element.
 - **The output is actionable Change Items, not a transcript or a recording.** A person can act on them, or a coding
   agent can claim and resolve them over MCP.
-- **It is local first and free to start.**
-  - Transcription runs on the device, and the free tier sends nothing anywhere.
-  - There is no backend and no sign-in. You bring your own keys for paid transcription or processing.
+- **It is free, open source and local first.**
+  - There is no paid plan. You bring your own AI keys, and they go from your browser straight to the provider.
+  - Without a key, transcription runs on the device and nothing is sent anywhere. Never call this a "free tier" in
+    user-facing copy: there is nothing to upgrade to.
+  - There is no backend and no sign-in.
 
 ## Operating Context
 

@@ -14,9 +14,12 @@ export type ReviewItem = {
   at: string;
   /** The Change Item's title: what should change. */
   title: string;
-  /** Which agent claimed it, and what it said when it resolved it. */
+  /** Which agent claimed it, and what it said when it resolved it (or, still in work, what it's doing). */
   agent: 'Claude Code' | 'Cursor' | 'Codex';
   resolution: string;
+  /** Where the agents section leaves it. Only true things are Done: the demo item stays In work until the real
+   * recording replaces the illustration. */
+  ends: 'working' | 'done';
 };
 
 export const items: ReviewItem[] = [
@@ -29,6 +32,7 @@ export const items: ReviewItem[] = [
     title: 'Make the install button the primary action',
     agent: 'Claude Code',
     resolution: 'Made a.cta the primary button and moved it into the first viewport.',
+    ends: 'done',
   },
   {
     id: 'item-demo',
@@ -38,7 +42,8 @@ export const items: ReviewItem[] = [
     at: '00:11',
     title: 'Show a real review in the demo slot',
     agent: 'Cursor',
-    resolution: 'Swapped the static screenshot for the recorded review clip.',
+    resolution: 'Recording the clip from the real extension. The illustration stays until it lands.',
+    ends: 'working',
   },
   {
     id: 'item-steps',
@@ -49,6 +54,7 @@ export const items: ReviewItem[] = [
     title: 'Lay out the flow as three steps',
     agent: 'Codex',
     resolution: 'Rebuilt the section as an ordered list of three steps.',
+    ends: 'done',
   },
   {
     id: 'item-privacy',
@@ -56,9 +62,10 @@ export const items: ReviewItem[] = [
     selector: 'p.promise',
     quote: 'Say plainly that nothing leaves the laptop.',
     at: '00:27',
-    title: 'State that the free tier sends nothing',
+    title: 'State that nothing is sent without a key',
     agent: 'Claude Code',
-    resolution: 'Added the free-tier promise above the key options.',
+    resolution: 'Added a line saying what stays on your device when you have no key.',
+    ends: 'done',
   },
   {
     id: 'item-install',
@@ -69,6 +76,7 @@ export const items: ReviewItem[] = [
     title: 'Add a copyable brew command',
     agent: 'Cursor',
     resolution: 'Added the brew command with a copy button.',
+    ends: 'done',
   },
 ];
 

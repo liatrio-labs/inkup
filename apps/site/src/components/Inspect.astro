@@ -51,6 +51,24 @@ const { selector, class: className, tagAt = 'top' } = Astro.props;
     z-index: 0;
   }
 
+  /* Measurement guides, like the inspector's: dashed hairlines along the box's edges, across the page and a little
+     past the box vertically. The page layout clips them at its gutter. */
+  .box::before,
+  .box::after {
+    content: '';
+    position: absolute;
+  }
+
+  .box::before {
+    inset: 0 -100vw;
+    border-block: 1px dashed var(--guide);
+  }
+
+  .box::after {
+    inset: -3rem 0;
+    border-inline: 1px dashed var(--guide);
+  }
+
   .m {
     inset: calc(var(--m) * -1);
     background: var(--box-margin);
@@ -106,7 +124,7 @@ const { selector, class: className, tagAt = 'top' } = Astro.props;
     border-bottom-color: var(--tag-bg);
   }
 
-  .inspect > :global(:not(.box, .inspect-tag)) {
+  .inspect > :global(:not(.box, .inspect-tag, .pen-loop)) {
     position: relative;
     z-index: 1;
   }

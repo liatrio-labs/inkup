@@ -11,12 +11,13 @@
   --paper-2: #f4f6fa;
   --paper-3: #e9edf4;
   --hairline: rgb(31 42 68 / 0.16);
+  --guide: rgb(31 42 68 / 0.24);
   --pen: #e5484d;
   --pen-ink: #c8323a; /* red-pen as text: AA on paper */
   --on-ink: #ffffff;
-  --box-margin: rgb(246 178 107 / 0.3);
-  --box-padding: rgb(147 196 125 / 0.3);
-  --box-content: rgb(111 168 220 / 0.16);
+  --box-margin: rgb(249 204 157 / 0.45); /* #F9CC9D */
+  --box-padding: rgb(195 208 139 / 0.4); /* #C3D08B */
+  --box-content: rgb(140 182 192 / 0.2); /* #8CB6C0 */
   --tag-bg: var(--ink);
   --tag-fg: #ffffff;
   --tag-dim: #aab4c8;
@@ -65,12 +66,13 @@
     --paper-2: #1a2238;
     --paper-3: #232d47;
     --hairline: rgb(231 235 243 / 0.14);
+    --guide: rgb(231 235 243 / 0.24);
     --pen: #ff6b70;
     --pen-ink: #ff8a8e;
     --on-ink: #141b2d;
-    --box-margin: rgb(246 178 107 / 0.2);
-    --box-padding: rgb(147 196 125 / 0.2);
-    --box-content: rgb(111 168 220 / 0.12);
+    --box-margin: rgb(249 204 157 / 0.2);
+    --box-padding: rgb(195 208 139 / 0.2);
+    --box-content: rgb(140 182 192 / 0.14);
     --tag-bg: #e7ebf3;
     --tag-fg: #141b2d;
     --tag-dim: #56607a;

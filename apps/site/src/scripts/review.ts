@@ -26,6 +26,30 @@ const resize = new ResizeObserver((entries) => {
 });
 for (const box of document.querySelectorAll<HTMLElement>('[data-inspect]')) resize.observe(box);
 
+// The pen loops draw on with a dash as long as the path on screen. Their stroke ignores the loop's stretch, so the
+// length is summed in screen pixels, not read from the path.
+const measureLoop = (path: SVGPathElement) => {
+  const ctm = path.getScreenCTM();
+  if (!ctm) return;
+  const total = path.getTotalLength();
+  const steps = 96;
+  let length = 0;
+  let prev: DOMPoint | null = null;
+  for (let i = 0; i <= steps; i++) {
+    const point = path.getPointAtLength((total * i) / steps).matrixTransform(ctm);
+    if (prev) length += Math.hypot(point.x - prev.x, point.y - prev.y);
+    prev = point;
+  }
+  path.style.setProperty('--len', `${Math.ceil(length) + 2}px`);
+};
+const loops = new ResizeObserver((entries) => {
+  for (const entry of entries) {
+    const path = entry.target.querySelector('path');
+    if (path) measureLoop(path);
+  }
+});
+if (!reduced) for (const svg of document.querySelectorAll('.pen-loop')) loops.observe(svg);
+
 const setCount = () => {
   if (count) count.textContent = String(dockItems.filter((li) => li.classList.contains('arrived')).length);
 };
@@ -43,12 +67,13 @@ const setStatus = (id: string, status: 'open' | 'working' | 'done') => {
     const pill = row.querySelector('[data-run-status]');
     if (pill) pill.textContent = label;
     const note = row.querySelector<HTMLElement>('[data-run-note]');
-    if (note && status === 'done') note.textContent = note.dataset.resolution ?? '';
+    if (note && status !== 'open') note.textContent = note.dataset.resolution ?? '';
   }
 };
 
+const endOf = (li: HTMLElement) => (li.dataset.ends === 'working' ? 'working' : 'done');
 const resolveAll = () => {
-  for (const li of dockItems) setStatus(li.dataset.dockItem!, 'done');
+  for (const li of dockItems) setStatus(li.dataset.dockItem!, endOf(li));
 };
 
 if (reduced) {
@@ -86,7 +111,7 @@ if (reduced) {
     dockItems.forEach((li, i) => {
       const id = li.dataset.dockItem!;
       setTimeout(() => setStatus(id, 'working'), 350 + i * 520);
-      setTimeout(() => setStatus(id, 'done'), 1100 + i * 520);
+      if (endOf(li) === 'done') setTimeout(() => setStatus(id, 'done'), 1100 + i * 520);
     });
   };
 

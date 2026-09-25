@@ -214,18 +214,78 @@ import PenLoop from './PenLoop.astro';
     position: absolute;
     top: 0.55rem;
     right: 0.8rem;
-    font: 400 0.7rem / 1.2 var(--font-code);
+    font: 500 0.72rem / 1.2 var(--font-sans);
     color: #6b7280;
   }
 
+  /* On a phone: one pricing card, bigger text, the toolbar and the spoken line stacked below it, and the label out of
+     the URL bar. */
+  @media (max-width: 40rem) {
+    .frame {
+      aspect-ratio: auto;
+    }
+  }
+
   @container (max-width: 34rem) {
+    .url {
+      max-width: none;
+    }
+
+    .page {
+      display: grid;
+      gap: 3.5cqi;
+      padding: 5cqi;
+    }
+
+    .demo-nav {
+      font-size: 3.4cqi;
+    }
+
+    .demo-h {
+      margin: 0;
+      font-size: 6cqi;
+    }
+
+    .tiers {
+      grid-template-columns: 1fr;
+    }
+
+    .tier:not(.main) {
+      display: none;
+    }
+
+    .tier {
+      font-size: 3.6cqi;
+      padding: 4cqi;
+      gap: 2cqi;
+      border-radius: 2.4cqi;
+    }
+
+    .tier strong {
+      font-size: 7cqi;
+    }
+
+    .tier i {
+      font-size: 3.6cqi;
+      padding: 1.6cqi 3cqi;
+      border-radius: 1.6cqi;
+    }
+
+    .toolbar,
+    .caption {
+      position: static;
+      justify-self: start;
+      max-width: none;
+    }
+
     .toolbar .btn:not(.on, .stop),
     .toolbar .grip {
       display: none;
     }
 
-    .caption {
-      display: none;
+    .label {
+      position: static;
+      padding: 0 5cqi 4cqi;
     }
   }
 </style>
