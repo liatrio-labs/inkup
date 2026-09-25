@@ -34,4 +34,12 @@ describe('normalizeProcessingSettings', () => {
       merge: { provider: 'anthropic', model: 'claude-haiku-4-5' },
     });
   });
+
+  it('keeps a positive auto-run threshold and reads anything else as off', () => {
+    expect(normalizeProcessingSettings({ autoRunBelowUsd: 0.5 }).autoRunBelowUsd).toBe(0.5);
+    expect(normalizeProcessingSettings(undefined)).not.toHaveProperty('autoRunBelowUsd');
+    // Values from an older or hand-edited storage.
+    for (const v of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, '0.5'])
+      expect(normalizeProcessingSettings({ autoRunBelowUsd: v as number })).not.toHaveProperty('autoRunBelowUsd');
+  });
 });

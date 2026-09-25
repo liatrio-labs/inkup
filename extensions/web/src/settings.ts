@@ -80,7 +80,17 @@ export interface RoleModel {
   effort?: Effort;
 }
 
-export type ProcessingSettings = Record<ModelRole, RoleModel>;
+export type ProcessingSettings = Record<ModelRole, RoleModel> & {
+  /**
+   * Process runs without its confirm step when the estimate is priced and under this many USD (and no call is near
+   * a model limit, and nothing would be replaced). Absent: always ask.
+   */
+  autoRunBelowUsd?: number;
+};
+
+/** A saved auto-run threshold as a positive dollar amount; anything else is off. */
+export const readAutoRunBelowUsd = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined;
 
 export const DEFAULT_MODELS: Readonly<Record<LlmProvider, Record<ModelRole, string>>> = {
   anthropic: { process: 'claude-sonnet-5', draft: 'claude-haiku-4-5-20251001', merge: 'claude-haiku-4-5-20251001' },
@@ -120,7 +130,13 @@ export function normalizeProcessingSettings(raw: StoredProcessingSettings | null
     const model = (typeof saved?.model === 'string' ? saved.model : legacy[r])?.trim() || DEFAULT_MODELS[provider][r];
     return { provider, model, ...(isEffort(saved?.effort) ? { effort: saved.effort } : {}) };
   };
-  return { process: role('process'), draft: role('draft'), merge: role('merge') };
+  const autoRunBelowUsd = readAutoRunBelowUsd(raw?.autoRunBelowUsd);
+  return {
+    process: role('process'),
+    draft: role('draft'),
+    merge: role('merge'),
+    ...(autoRunBelowUsd !== undefined ? { autoRunBelowUsd } : {}),
+  };
 }
 
 export const processingSettings = storage.defineItem<StoredProcessingSettings>('local:processingSettings', {

@@ -365,8 +365,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
   return {
     async estimate({ doc, model, effort }) {
       // Every chunk is its own call, so the estimate sums them all.
-      let input = 0;
-      let output = 0;
+      const calls: { input: number; output: number }[] = [];
       // Only explicit Text Comments: converted in code, no call to pay for.
       if (!needsModel(processEvents(doc.events))) return { ...estimateCost(model, 0, 0, catalog), chunks: 0 };
       const { windows } = planFor(doc, model);
@@ -382,10 +381,11 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
           .catch((e: unknown) => {
             throw toError(e);
           });
-        input += count.input_tokens;
-        output += windowEstimate(doc, window, owned);
+        calls.push({ input: count.input_tokens, output: windowEstimate(doc, window, owned) });
       }
-      return { ...estimateCost(model, input, output, catalog), chunks: windows.length };
+      const input = calls.reduce((n, c) => n + c.input, 0);
+      const output = calls.reduce((n, c) => n + c.output, 0);
+      return { ...estimateCost(model, input, output, catalog), chunks: windows.length, chunk_tokens: calls };
     },
 
     async process({ doc, model, effort, loadScreenshot, onProgress }): Promise<ProcessResult> {

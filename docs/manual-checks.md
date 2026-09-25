@@ -281,6 +281,8 @@ Needs a key. Back it up with the secrets-backup skill before first use.
 | 6 | Click "Copy agent prompt" and paste into a text editor. | It cites `screenshots/<id>.png` and names `button.cta`. |
 | 7 | Turn Wi-Fi off and click Process, then Run Process. | An error appears with Retry. The transcript, Annotations and the earlier items are unchanged. |
 | 8 | Download session.json and run `pnpm validate:session`. | `VALID`, and the file has `change_items` and no `sk-ant-`. |
+| 9 | In options, set "Run Process without asking when the estimate is under $" to 1.00 and Save. Record a short Session and click Process on its review page. | No estimate panel: a line says "Estimated $0.0…, under your $1.00 limit: processing…", then "processed without asking." and the items appear. |
+| 10 | Click Process again. | The estimate panel asks first, with the note that the items will be replaced, even under $1.00. Clear the options field and Save: Process asks every time again. |
 
 ## C7: editing and export (Slice 4)
 

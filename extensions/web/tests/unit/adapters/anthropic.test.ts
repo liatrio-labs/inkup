@@ -165,6 +165,8 @@ describe('Anthropic adapter against the stub', () => {
     expect(stub.requests.map((r) => r.path)).toEqual(['/v1/messages/count_tokens']);
     expect(stub.requests[0]!.body.system[0].text).toContain('Change Items');
     expect(e).toMatchObject({ model: MODEL, input_tokens: 5000, output_tokens: 600 + 2 * 700 });
+    // One call, counted on its own for the limit warnings.
+    expect(e.chunk_tokens).toEqual([{ input: 5000, output: 600 + 2 * 700 }]);
     expect(e.usd).toBeCloseTo((5000 * 2 + 2000 * 10) / 1e6, 10);
   });
 
