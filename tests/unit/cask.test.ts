@@ -23,8 +23,8 @@ describe('cask', () => {
     strategy :github_releases
   end
 
-  # tauri.conf.json sets no minimumSystemVersion, so the app takes Tauri's default, 10.13. That is older than any macOS
-  # Homebrew supports, and Homebrew refuses a floor it has dropped, so the cask names none.
+  # tauri.conf.json sets no minimumSystemVersion, so the app takes Tauri's default, 10.13. That is older than any
+  # macOS Homebrew supports, and Homebrew refuses a floor it has dropped, so the cask names none.
   depends_on :macos
 
   app "InkUp.app"
@@ -40,6 +40,10 @@ describe('cask', () => {
   ]
 end
 `);
+  });
+
+  it("keeps to brew style's line length", () => {
+    for (const line of renderCask('0.2.0', SHA).split('\n')) expect(line.length).toBeLessThanOrEqual(118);
   });
 
   it('points at the release asset the workflow uploads', () => {

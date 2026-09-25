@@ -28,8 +28,8 @@ export function renderCask(version: string, sha256: string): string {
     strategy :github_releases
   end
 
-  # tauri.conf.json sets no minimumSystemVersion, so the app takes Tauri's default, 10.13. That is older than any macOS
-  # Homebrew supports, and Homebrew refuses a floor it has dropped, so the cask names none.
+  # tauri.conf.json sets no minimumSystemVersion, so the app takes Tauri's default, 10.13. That is older than any
+  # macOS Homebrew supports, and Homebrew refuses a floor it has dropped, so the cask names none.
   depends_on :macos
 
   app "InkUp.app"
