@@ -59,12 +59,20 @@ version numbers can never be the compatibility rule. The rule is ADR 0007's: the
 and a breaking change to it bumps `PROTOCOL_VERSION`. A release on any train that changes the contract in a breaking
 way must carry that bump. Additive changes ship on any train alone.
 
-**Where a skew guard would go (not built).** Updating the host can lock out an installed extension when the new host
-raises `PROTOCOL_VERSION` past what the extension speaks. The guard belongs in `inkup update`, before it installs:
-publish each host release's protocol version with the release (a small `protocol-version.txt` added through dist's
-`extra-artifacts`, or a line in the release body), have the updater read it next to the version, and warn when it is
-newer than the protocol version the paired Clients last spoke in `hello`, which the store would need to keep. Neither
-half exists today, so this step only records the place.
+**Skew guard.** Updating the host can lock out an installed extension when the new host raises `PROTOCOL_VERSION`
+past what the extension speaks, so `inkup update` checks before it installs. Each host release carries its protocol
+version as a `protocol-version.txt` asset: dist's `extra-artifacts` (in the `inkup` crate's `[package.metadata.dist]`)
+runs the `inkup-protocol` crate's `protocol-version` example, which writes the crate constant, so the file cannot
+drift from the code. The store records the version each paired Client last spoke in `hello` (`clients.protocol_version`,
+migration 5, set on every handshake). After finding a newer release, `inkup update` reads the release's asset
+(`releases/tags/inkup-v<version>` on the same GitHub API axoupdater uses) and compares it with the versions spoken by
+Clients seen in the last 30 days. When the release's is higher than any of theirs, it names each Client behind, says to
+update the extension first, and asks "Update inkup anyway? [y/N]"; no answer is no. `--yes` goes on with the warning
+printed, and `--check` prints the warning without asking. The guard runs before every install path (installer,
+Homebrew, a dev build's install commands). A release without the asset (every release before the guard), no paired
+Client, or a Client not heard from since the version was recorded means no warning. The daily check caches the
+release's protocol version next to its version, and its notice says to update the extension first and names the
+Clients behind.
 
 ## Considered options
 
@@ -98,3 +106,8 @@ half exists today, so this step only records the place.
 - 2026-09-24 (#39): `inkup update` and the daily check shipped on axoupdater 0.10. The version check ignores the
   receipt, so Homebrew and dev copies get the notice too; only installing needs it. The `[update]` table is written
   from the `inkup` crate with `toml_edit`, so the store crate is unchanged.
+- 2026-09-25: the skew guard was recorded as not built; now built, as described under "Skew guard": a
+  `protocol-version.txt` release asset generated from the crate constant, the protocol version each Client last spoke
+  in `hello` in the store, and a warning with a confirmation (or `--yes`) in `inkup update` and a mention in the daily
+  notice. The config.toml header the host writes is now the file's first lines; toml_edit had kept it as trailing
+  decor, so it ended up at the bottom.
