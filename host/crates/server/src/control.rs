@@ -231,7 +231,11 @@ pub(crate) async fn changes(
     Query(query): Query<ChangesQuery>,
 ) -> Result<Json<Changes>, ApiError> {
     let mut view = state.hub.subscribe_view();
-    let _ = tokio::time::timeout(LONG_POLL, view.wait_for(|seq| *seq != query.since)).await;
+    // A server shutting down answers at once, so a waiting window does not hold up its graceful shutdown.
+    tokio::select! {
+        _ = tokio::time::timeout(LONG_POLL, view.wait_for(|seq| *seq != query.since)) => {}
+        () = state.closing.cancelled() => {}
+    }
     let seq = *view.borrow();
     typed(json!({ "seq": seq })).map(Json)
 }

@@ -240,6 +240,17 @@ async fn changes_waits_for_the_next_change() {
     assert_eq!(tokio::time::timeout(Duration::from_secs(1), changes(now)).await.unwrap(), next);
 }
 
+#[tokio::test]
+async fn a_waiting_window_does_not_hold_up_shutdown() {
+    let host = Host::start_with(Config { control: control(None), ..Config::default() }).await;
+    let now = get_changes(&host, u64::MAX).await;
+    let waiting = tokio::spawn(get_changes_at(host.url(&format!("/api/host/changes?since={now}"))));
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let stopped = tokio::time::timeout(Duration::from_secs(5), host.server.shutdown()).await;
+    stopped.expect("shut down while a long-poll waited").unwrap();
+    assert_eq!(waiting.await.unwrap(), now, "answered, unchanged");
+}
+
 async fn get_changes(host: &Host, since: u64) -> u64 {
     get_changes_at(host.url(&format!("/api/host/changes?since={since}"))).await
 }
