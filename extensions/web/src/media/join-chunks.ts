@@ -9,9 +9,15 @@
 // BlobRegistry::Register", then the extension's tabs killed mid-Stop). Reading each chunk's bytes asks nothing of the
 // registry, and a chunk that cannot be read yet fails that one read (NotReadableError), which the caller can retry.
 
+//
+// Each chunk's bytes become a Blob of this page's own straight away, so only one chunk is ever held as an ArrayBuffer:
+// a long Session's video runs to hundreds of megabytes, and holding every chunk's bytes at once in the service worker
+// could run it out of memory at Stop. The browser keeps its own blobs out of the page's heap (Chromium pages large ones
+// to disk), and joining those names only blobs the registry already has.
+
 /** The chunks' bytes, in order, as one Blob of `type`. Never builds a Blob out of the chunks themselves. */
 export async function joinChunks(chunks: Blob[], type: string): Promise<Blob> {
-  const parts: ArrayBuffer[] = [];
-  for (const chunk of chunks) parts.push(await chunk.arrayBuffer());
+  const parts: Blob[] = [];
+  for (const chunk of chunks) parts.push(new Blob([await chunk.arrayBuffer()]));
   return new Blob(parts, { type });
 }

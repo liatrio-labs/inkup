@@ -19,6 +19,24 @@ describe('joinChunks', () => {
     expect(await joined.text()).toBe('ab');
   });
 
+  it('reads one chunk at a time, so only one chunk of bytes is held at once', async () => {
+    let reading = 0;
+    let most = 0;
+    const chunk = (text: string) =>
+      ({
+        arrayBuffer: async () => {
+          reading += 1;
+          most = Math.max(most, reading);
+          await new Promise((resolve) => setTimeout(resolve, 1));
+          reading -= 1;
+          return new TextEncoder().encode(text).buffer as ArrayBuffer;
+        },
+      }) as unknown as Blob;
+    const joined = await joinChunks([chunk('x'), chunk('y'), chunk('z')], 'video/webm');
+    expect(await joined.text()).toBe('xyz');
+    expect(most).toBe(1);
+  });
+
   it('fails when a chunk cannot be read yet, so the caller can try again', async () => {
     const unreadable = {
       arrayBuffer: async () => {
