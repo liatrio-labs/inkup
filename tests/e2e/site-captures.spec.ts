@@ -279,6 +279,8 @@ test('capture the site media: toolbar, Stroke, Draft Items, Change Items and the
     await circle(pen, (await demo.locator('button.cta').boundingBox())!, 1.25, { jitter: 1, wobble: 3, seed: 7 });
     const circledAt = Date.now();
     const shots = [await shoot(demo, 'stroke')];
+    await expect(demo.getByTestId('toolbar-toast')).toHaveText(NOTES[0].transcript, { timeout: 15_000 });
+    const firstCaptionAt = Date.now();
 
     // Note 2: an arrow at the end of the headline's first line.
     await sleepUntil(startedAt + 7600);
@@ -331,8 +333,8 @@ test('capture the site media: toolbar, Stroke, Draft Items, Change Items and the
 
     // Start and the first note with its caption, the second note with its caption, then Stop: about 11 s.
     const cuts: [number, number][] = [
-      [at(startedAt) - 0.4, at(circledAt) + 3.2],
-      [at(arrowFrom) - 0.4, at(captionedAt) + 0.8],
+      [at(startedAt) - 0.4, at(firstCaptionAt) + 0.9],
+      [at(arrowFrom) - 0.3, at(captionedAt) + 0.9],
       [at(stoppedAt) - 0.3, at(stoppedAt) + 1.4],
     ];
     const clip = encodeClip(raw, cuts, at(circledAt) - cuts[0]![0] + 0.1);
