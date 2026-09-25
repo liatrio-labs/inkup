@@ -4,8 +4,8 @@
 # `dist generate --check` fails on any drift. These findings come from dist's own template and no dist setting changes
 # them, so they are ignored for that one file only. Every other workflow is audited in full.
 rules:
-  # The workflow grants `contents: write` at the top level. Every job needs it or reads the token: plan creates the
-  # draft release, host uploads to it, announce publishes it. It runs only on inkup-v* tag pushes, which only
+  # The workflow grants `contents: write` at the top level. Every job needs it or reads the token: host uploads to
+  # the draft release release-please created and publishes it (`create-release = false`). It runs only on inkup-v* tag pushes, which only
   # maintainers can make.
   excessive-permissions:
     ignore:

@@ -227,7 +227,8 @@ fn updater() -> AxoUpdater {
 }
 
 /// The newest stable `inkup-v*` release on GitHub, or `None` when none is published. Extension releases
-/// (`inkup-chrome-v*`, `inkup-firefox-v*`) have no inkup installer, so axoupdater skips them.
+/// (`inkup-extension-v*`, and `inkup-chrome-v*` or `inkup-firefox-v*` for one store) have no inkup installer, so
+/// axoupdater skips them.
 async fn latest_release() -> Result<Option<Version>> {
     let mut updater = updater();
     updater.set_current_version(current_version())?;

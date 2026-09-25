@@ -67,7 +67,9 @@ pnpm desktop:build                            # the desktop app, as CI builds it
 ```
 
 - **Conventional Commits.** Messages look like `feat(host): pair by code` or `fix: keep the draft on reload`
-  (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, ...). The `commit-msg` hook checks the format.
+  (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, ...). The `commit-msg` hook checks the format. The
+  pull request title becomes the squash commit, and release-please reads it: `feat`, `fix`, `perf` and `revert` go
+  in the next release's changelog (docs/releasing.md).
 - **Silence a lint rule on the line, with a reason.** `// biome-ignore lint/<group>/<rule>: <why>`, not a rule
   turned off for the whole repo.
 - **Tests exercise the real path.** A change to behaviour comes with a test that fails without it: a Vitest test

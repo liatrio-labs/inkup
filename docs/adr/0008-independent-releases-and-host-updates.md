@@ -3,23 +3,37 @@ status: accepted
 date: 2026-09-24
 ---
 
-# The host, the Chrome extension and the Firefox add-on release on separate tags; cargo-dist releases the host, and the host updates itself
+# The host and the extension release on separate tags that release-please cuts; cargo-dist releases the host, and the host updates itself
 
 One `v*` tag released the Chrome extension, Firefox had no release, and the host had none either: users built it with
 cargo. They ship at different speeds. A store review holds up an extension release for days, each store on its own
 schedule, while a host fix should reach users the same hour. And a host that people install needs a way to update that
 is not "build it again".
 
-**Three trains, three tag prefixes.** `inkup-v<version>` releases the host (`inkup-v-release.yml`) and must match the
-host workspace version in `host/Cargo.toml`. `inkup-chrome-v<version>` runs `release.yml`, which checks the tag against
-`extensions/web/package.json` and releases the zip and the Chrome Web Store upload as before. `inkup-firefox-v<version>`
-runs `firefox-release.yml`, which does the same for the Firefox zip and addons.mozilla.org. The two extension trains
-share the package.json version; each store only needs it to rise between its own uploads. No workflow matches another's
-tags: the host trigger is `inkup-v**…`, which `inkup-chrome-v…` and `inkup-firefox-v…` do not start with. The host tag
-is cargo-dist's `<package>-v<version>` form, so its prefix is the crate name, `inkup`, lowercase; dist cannot parse
-`InkUp-v0.2.0`. axoupdater parses tags with the same parser (axotag). It rejects `inkup-chrome-v…` and
-`inkup-firefox-v…`, and it skips any release without an `inkup-installer` asset, so it finds host releases in a repo
-that also holds extension releases.
+**Two trains, two tag prefixes.** `inkup-v<version>` releases the host (`inkup-v-release.yml`) and must match the
+host workspace version in `host/Cargo.toml`. `inkup-extension-v<version>` releases the extension to both stores: it
+starts `release.yml` (the Chrome zip and the Chrome Web Store upload) and `firefox-release.yml` (the Firefox zip and
+addons.mozilla.org), which run side by side, each behind its own environment, so neither store waits on the other's
+review. Both check the tag against `extensions/web/package.json`. Each also takes a hand-pushed `inkup-chrome-v…` or
+`inkup-firefox-v…` tag, which releases that store alone. No workflow matches another's tags: the host trigger is
+`inkup-v**…`, which no extension tag starts with. The host tag is cargo-dist's `<package>-v<version>` form, so its prefix
+is the crate name, `inkup`, lowercase; dist cannot parse `InkUp-v0.2.0`. axoupdater parses tags with the same parser
+(axotag). It rejects the extension tags, and it skips any release without an `inkup-installer` asset, so it finds host
+releases in a repo that also holds extension releases.
+
+**release-please cuts both trains.** `release-please.yml` runs on every push to `main` with `release-please-config.json`
+and `.release-please-manifest.json`, and keeps one release pull request open per train. It picks a commit's train by
+path: the extension is `extensions/web/`; the host is the repo root minus `.github`, `docs`, `extensions`, `fixtures`,
+`packages`, `scripts` and `tests`, so `host/`, `apps/desktop/` (whose DMG ships with the host) and `contract/` all count.
+The pull request bumps the version, the host crates' lockfile entries in `host/Cargo.lock` and
+`apps/desktop/src-tauri/Cargo.lock` (release-please's rust type and cargo-workspace plugin cannot read a
+`[workspace.package]` version in `host/`, so the host package is `simple` with TOML `extra-files`), and the train's
+`CHANGELOG.md`, where only `feat`, `fix`, `perf` and `revert` show. Merging it tags the merge commit and creates the
+GitHub Release: a draft for the host, which dist uploads to and publishes (`create-release = false`), and a published
+one for the extension, which both extension workflows add their zip to. It runs with a personal access token
+(`RELEASE_PLEASE_TOKEN`), because a tag or pull request made with `GITHUB_TOKEN` starts no workflow. Only the host has
+release candidates, with release-please's `prerelease` versioning switched by the host package's `prerelease` setting;
+Chrome takes only dotted numbers as a manifest version, so the extension has none.
 
 **cargo-dist releases the host.** `dist-workspace.toml` at the repo root configures it, and `dist generate` writes
 `inkup-v-release.yml` (dist names it after the tag prefix) from that file. Any change goes into the config, never into
@@ -78,7 +92,13 @@ Clients behind.
 
 - One tag for everything: every host fix would wait on a store review, and every extension release would rebuild five
   host targets.
-- One tag for both extensions: a Chrome fix would wait on Mozilla's review, or the reverse.
+- A tag per store (`inkup-chrome-v…`, `inkup-firefox-v…`) as the normal path: release-please makes one tag per
+  package, and both stores ship the same package.json version, so two tags would be two release pull requests for one
+  version. One tag does not make a store wait on the other's review, because the two workflows run apart.
+- Hand-made version-bump pull requests and hand-pushed tags: each release took two steps by hand, and changelogs were
+  not written.
+- release-please's `rust` release type with the `cargo-workspace` plugin: it reads a `Cargo.toml` at the repo root and
+  per-crate `version` fields, and the host's workspace is in `host/` with one `[workspace.package]` version.
 - `host-v*` or `InkUp-v*` host tags: dist parses only `v…`, `<package>-v…` (the crate name, exactly) and `<prefix>/v…`.
   Either would need a hand-edited generated workflow, which `dist generate --check` would flag on every change.
 - `host/v*` host tags: these parse, but they break the `inkup-<train>-v` pattern the extension tags follow.
@@ -89,6 +109,13 @@ Clients behind.
 ## Consequences
 
 - `releases/latest` points at whichever train released last, so install links name a specific `inkup-v…` release.
+- `RELEASE_PLEASE_TOKEN` must exist and stay unexpired. Without it the release pull requests get no CI run, so they
+  cannot pass `ci-ok`, and the tags start no release workflow.
+- The `chrome-web-store` and `firefox-amo` environments and the release-tag ruleset must list `inkup-extension-v*`.
+- A change only in `packages/` opens no release on its own; it ships with the next extension release.
+- The host's lockfile bump selects packages by name through release-please's parsed TOML (`@.name.value`); a
+  release-please upgrade that changes that shape leaves the lockfiles stale, and the release pull request fails CI's
+  `--locked` builds rather than shipping.
 - The tap repo and its `HOMEBREW_TAP_TOKEN` secret must exist before a host release can publish the formula. Without
   them the GitHub Release still goes out, and only the Homebrew job fails.
 - The Firefox sources zip AMO reviewers rebuild from is the part of the pnpm workspace the build reads, from the repo
@@ -128,3 +155,7 @@ Clients behind.
   compile-time constant) keep the plain icon; the rest show construction stripes under it, drawn by the same pure code
   at build time (the manifest icons) and in the background (the toolbar icon with its host dot). A reviewer rebuilding
   from the sources zip sets the variable too, or the icons differ from the submitted add-on.
+- 2026-09-25: releases were cut by hand, with a version-bump pull request and a pushed tag per train, and the
+  extension had a tag per store. Now release-please cuts them from release pull requests, and one
+  `inkup-extension-v<version>` tag releases both stores; `inkup-chrome-v…` and `inkup-firefox-v…` remain for releasing
+  one store alone. dist uploads to release-please's draft release instead of creating one.

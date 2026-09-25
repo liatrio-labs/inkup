@@ -1,0 +1,106 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.6.0/schemas/config.json",
+  "bootstrap-sha": "6444615b9d33fcde27cfc4bc42baab8bd8b0331b",
+  "separate-pull-requests": true,
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "tag-separator": "-",
+  "force-tag-creation": true,
+  "pull-request-title-pattern": "chore(release):${component} ${version}",
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance"
+    },
+    {
+      "type": "revert",
+      "section": "Reverts"
+    },
+    {
+      "type": "chore",
+      "section": "Chores",
+      "hidden": true
+    },
+    {
+      "type": "ci",
+      "section": "CI",
+      "hidden": true
+    },
+    {
+      "type": "docs",
+      "section": "Docs",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "Tests",
+      "hidden": true
+    },
+    {
+      "type": "refactor",
+      "section": "Refactors",
+      "hidden": true
+    },
+    {
+      "type": "build",
+      "section": "Build",
+      "hidden": true
+    },
+    {
+      "type": "style",
+      "section": "Style",
+      "hidden": true
+    }
+  ],
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "inkup",
+      "package-name": "inkup",
+      "draft": true,
+      "versioning": "prerelease",
+      "prerelease-type": "rc.1",
+      "prerelease": true,
+      "changelog-path": "host/CHANGELOG.md",
+      "exclude-paths": [
+        ".github",
+        "docs",
+        "extensions",
+        "fixtures",
+        "packages",
+        "scripts",
+        "tests"
+      ],
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "host/Cargo.toml",
+          "jsonpath": "$.workspace.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "host/Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value=='inkup' || @.name.value=='inkup-protocol' || @.name.value=='inkup-server' || @.name.value=='inkup-store' || @.name.value=='inkup-tui')].version"
+        },
+        {
+          "type": "toml",
+          "path": "apps/desktop/src-tauri/Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value=='inkup-protocol' || @.name.value=='inkup-server' || @.name.value=='inkup-store')].version"
+        }
+      ]
+    },
+    "extensions/web": {
+      "release-type": "node",
+      "component": "inkup-extension",
+      "package-name": "inkup-extension"
+    }
+  }
+}

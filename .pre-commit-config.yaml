@@ -47,6 +47,8 @@ repos:
     rev: v0.49.1
     hooks:
       - id: markdownlint-fix
+        # release-please writes the changelogs; its format (blank lines, repeated headings, long links) is its own.
+        exclude: (^|/)CHANGELOG\.md$
 
   # GitHub Actions security
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
