@@ -33,4 +33,8 @@ export const TONE = {
   needsInfoCard:
     'border-amber-400 bg-amber-50 text-amber-950 dark:border-amber-700 dark:bg-amber-950/60 dark:text-amber-100',
   needsInfoText: 'text-amber-700 dark:text-amber-400',
+  /** A Change Item's vetting verdict pill (ADR 0009): checked, corrected, or left unverified. */
+  vetCheckedBadge: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
+  vetCorrectedBadge: 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-200',
+  vetUnverifiedBadge: 'bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200',
 } as const;

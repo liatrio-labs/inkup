@@ -137,9 +137,9 @@ function processedSession(id: string) {
       model: 'seeded',
       estimate: null,
       items: [
-        item(1, 0.9),
-        item(2, 0.9),
-        item(3, 0.9),
+        item(1, 0.9, { vetting: { verdict: 'confirmed', reason: 'The footage shows it.' } }),
+        item(2, 0.9, { vetting: { verdict: 'corrected', reason: 'The circle is around the link, not the heading.' } }),
+        item(3, 0.9, { vetting: { verdict: 'unverified', reason: 'The check against the recording failed.' } }),
         item(4, 0.9),
         item(5, 0.3, { ambiguity: 'The reviewer said both "bigger" and "smaller" about this heading.' }),
       ],
@@ -147,6 +147,7 @@ function processedSession(id: string) {
       second_pass: [],
       error: null,
       error_code: null,
+      notes: ['The recording (24 MB) is over the 20 MB a request can carry.'],
     },
   };
 }
@@ -200,6 +201,11 @@ test('the review page follows the system scheme live, and its status colours sta
     await expectReadable(review.getByTestId('item-resolution-note'), `${scheme} needs-info note`);
     await expectReadable(review.getByTestId('check-me'), `${scheme} check-me chip`);
     await expectReadable(review.getByTestId('ambiguity'), `${scheme} ambiguity`);
+    for (const verdict of ['confirmed', 'corrected', 'unverified']) {
+      const badge = review.locator(`[data-testid="vetting"][data-verdict="${verdict}"]`);
+      await expectReadable(badge, `${scheme} ${verdict} vetting badge`);
+    }
+    await expectReadable(review.getByTestId('process-note'), `${scheme} run note`);
   });
 });
 

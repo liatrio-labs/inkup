@@ -270,7 +270,7 @@ function RunNotes({ run }: { run: ProcessRunRow }) {
     <div className="text-muted-foreground" data-testid="process-notes">
       {run.video && <p data-testid="process-video">Processed with the recording: the model watched the video.</p>}
       {notes.map((n) => (
-        <p key={n} className="text-amber-700 dark:text-amber-400" data-testid="process-note">
+        <p key={n} className={TONE.warnText} data-testid="process-note">
           {n}
         </p>
       ))}
