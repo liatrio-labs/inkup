@@ -27,10 +27,12 @@ export const chromePlatform: Platform = {
   mediaContext: { ensure: ensureOffscreen, close: closeOffscreen },
 
   controlSurface: {
-    // The panel behaviour persists in the profile: an earlier version set it to open on click.
+    // The panel behaviour persists in the profile: an earlier version set it to open on click. The listener goes on
+    // first, in the worker's first turn: a click that wakes the worker is dispatched once its script has run, and a
+    // listener added after an await misses it.
     onActionClick: async (listener) => {
-      await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
       chrome.action.onClicked.addListener(listener);
+      await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
     },
     open: (windowId) => chrome.sidePanel.open({ windowId }),
   },
