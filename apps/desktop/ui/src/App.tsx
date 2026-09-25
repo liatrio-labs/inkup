@@ -310,7 +310,7 @@ export function App() {
                 <ItemsView host={host} now={now} />
               </TabsContent>
               <TabsContent value="agents">
-                <AgentsView host={host} now={now} />
+                <AgentsView host={host} />
               </TabsContent>
               <TabsContent value="tokens">
                 <TokensView host={host} now={now} onCreate={create} onRevoke={revoke} />
@@ -369,7 +369,7 @@ const DONE: Record<Command['command'], (client: string, on?: boolean) => string>
   pause: (c) => `Paused on ${c}.`,
   resume: (c) => `Resumed on ${c}.`,
   stop: (c) => `Stopped on ${c}.`,
-  set_draw_mode: (c, on) => `Draw mode ${on ? 'on' : 'off'} on ${c}.`,
+  set_draw_mode: (c, on) => `Draw mode ${on ? 'on' : 'off'} for ${c}.`,
 };
 
 /** Network mode: switched here when this app hosts; otherwise where the host is, in a tooltip. */

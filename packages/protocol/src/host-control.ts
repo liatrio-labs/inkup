@@ -96,7 +96,12 @@ export const ItemView = z.object({
 export type ItemView = z.infer<typeof ItemView>;
 
 export const Watcher = z
-  .object({ id: Int.nonnegative(), url: z.string().nullable(), session_id: z.string().nullable(), since: EpochMs })
+  .object({
+    id: Int.nonnegative(),
+    url: z.string().nullable(),
+    session_id: z.string().nullable(),
+    since: Int.nonnegative().describe('the item seq its cursor waits after, not a time'),
+  })
   .describe('an agent blocked in watch_items');
 export type Watcher = z.infer<typeof Watcher>;
 

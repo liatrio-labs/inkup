@@ -902,7 +902,7 @@ pub struct Watcher {
     pub id: i64,
     #[serde(deserialize_with = "::std::option::Option::deserialize")]
     pub session_id: ::std::option::Option<::std::string::String>,
-    ///epoch ms
+    ///the item seq its cursor waits after, not a time
     pub since: i64,
     #[serde(deserialize_with = "::std::option::Option::deserialize")]
     pub url: ::std::option::Option<::std::string::String>,

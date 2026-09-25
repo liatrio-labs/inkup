@@ -260,17 +260,16 @@ export function ItemsView({ host, now }: { host: ControlState; now: number }) {
   );
 }
 
-export function AgentsView({ host, now }: { host: ControlState; now: number }) {
+export function AgentsView({ host }: { host: ControlState }) {
   return (
     <View
-      head={['Watch', 'Origin', 'Session', 'Since']}
+      head={['Watch', 'Origin', 'Session']}
       empty="No agent is waiting in watch_items. Connect one to /mcp."
       rows={host.state.watchers.map((w) => (
         <TableRow key={w.id}>
           <TableCell>watch #{w.id}</TableCell>
           <TableCell>{w.url ?? 'any origin'}</TableCell>
           <TableCell className="max-w-60 truncate">{w.session_id ?? 'any Session'}</TableCell>
-          <TableCell>{ago(now, w.since)}</TableCell>
         </TableRow>
       ))}
     />
