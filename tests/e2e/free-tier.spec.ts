@@ -45,7 +45,7 @@ test('without on-device speech and without the opt-in, a Session records with ca
   const reviewPromise = context.waitForEvent('page', (p) => p.url().includes('/review.html'));
   await panel.getByTestId('stop').click();
   const review = await reviewPromise;
-  await expect(review.getByRole('heading', { name: 'Session review' })).toBeVisible();
+  await expect(review.getByTestId('session-name')).toBeVisible();
 
   const [session] = await readStore(review, 'sessions');
   expect(session!.transcription).toEqual({ engine: 'webspeech', local: true, timestamp_quality: 'approximate' });

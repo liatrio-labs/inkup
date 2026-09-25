@@ -1,5 +1,6 @@
 // A screenshot with the reviewer's Strokes drawn over it, in the screenshot's viewport coordinates. Used inside
-// Change Item cards (one per Location) and in the review page's Annotation list. Which Strokes are drawn is
+// Change Item cards (one per Location) and in the review page's timeline, where an Annotation with an element crop
+// (E4) shows the crop, its Strokes clipped to it. Which Strokes are drawn is
 // packages/core/src/evidence-strokes.ts: several Annotations can share one screenshot, and a Location shows only the Strokes
 // of the Annotation it cites (all of the screenshot's when it cites none).
 
@@ -8,7 +9,7 @@ import { strokeIdsForShot } from '@inkup/core/evidence-strokes';
 import type { Location } from '@inkup/core/process/change-item';
 import { HALO_EXTRA, strokeOutlinePath } from '@inkup/core/stroke-path';
 import type { EventOf, TimelineEvent } from '@inkup/core/timeline';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { TONE } from '@/components/tone';
 import { useBlobUrl } from '@/lib/use-blob-url';
 import { cn } from '@/lib/utils';
@@ -57,10 +58,27 @@ export function locationShot(
   return { id, strokes: strokesOf(index, id, location.annotation !== null ? [location.annotation] : []) };
 }
 
+/** An image's natural width, once it has loaded. */
+function useImageWidth(url: string | null): number | null {
+  const [width, setWidth] = useState<number | null>(null);
+  useEffect(() => {
+    setWidth(null);
+    if (!url) return;
+    const img = new Image();
+    img.onload = () => setWidth(img.naturalWidth);
+    img.src = url;
+    return () => {
+      img.onload = null;
+    };
+  }, [url]);
+  return width;
+}
+
 export function EvidenceShot({
   id,
   shot,
   strokes,
+  crop,
   className,
   alt = 'Screenshot of the page when the Annotation closed',
   testId = 'evidence-shot',
@@ -68,23 +86,34 @@ export function EvidenceShot({
   id: string;
   shot: EventOf<'screenshot'> | undefined;
   strokes: readonly EventOf<'stroke'>[];
+  /** Show this crop of the screenshot instead of all of it. */
+  crop?: NonNullable<EventOf<'annotation'>['crop']>;
   className?: string;
   alt?: string;
   testId?: string;
 }) {
   const url = useBlobUrl(id);
-  if (!url || !shot) return null;
+  const cropUrl = useBlobUrl(crop?.blob_id);
+  // The crop's rect is in the screenshot's pixels; the Strokes are in its viewport's CSS px.
+  const fullWidth = useImageWidth(crop ? url : null);
+  const src = crop ? cropUrl : url;
+  if (!url || !src || !shot) return null;
   const { width, height } = shot.viewport;
+  const scale = crop ? (fullWidth ?? width * shot.dpr) / width : 1;
+  const viewBox = crop
+    ? [crop.rect.x, crop.rect.y, crop.rect.width, crop.rect.height].map((n) => n / scale).join(' ')
+    : `0 0 ${width} ${height}`;
   return (
     <figure
       className={cn('relative w-full overflow-hidden rounded border', TONE.shotFrame, className)}
       data-testid={testId}
       data-screenshot-id={id}
+      data-crop={crop ? crop.blob_id : undefined}
     >
-      <img src={url} alt={alt} className="block w-full" />
+      <img src={src} alt={alt} className="block w-full" />
       <svg
         className="pointer-events-none absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={viewBox}
         preserveAspectRatio="none"
         aria-hidden="true"
         data-testid="stroke-overlay"

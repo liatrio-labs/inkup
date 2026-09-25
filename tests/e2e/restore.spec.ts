@@ -56,7 +56,7 @@ async function openReviewFrom(page: Page, row: ReturnType<Page['locator']>): Pro
   const opened = page.context().waitForEvent('page', (p) => p.url().includes('/review.html'));
   await row.click();
   const review = await opened;
-  await expect(review.getByRole('heading', { name: 'Session review' })).toBeVisible();
+  await expect(review.getByTestId('session-name')).toBeVisible();
   return review;
 }
 

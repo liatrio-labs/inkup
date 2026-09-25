@@ -150,7 +150,7 @@ async function stop(context: BrowserContext, panel: Page): Promise<Page> {
   const reviewPromise = context.waitForEvent('page', (p) => p.url().includes('/review.html'));
   await panel.getByTestId('stop').click();
   const review = await reviewPromise;
-  await expect(review.getByRole('heading', { name: 'Session review' })).toBeVisible();
+  await expect(review.getByTestId('session-name')).toBeVisible();
   return review;
 }
 
