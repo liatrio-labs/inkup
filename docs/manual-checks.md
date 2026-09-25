@@ -38,6 +38,9 @@ Tick each line when its section passes. Each line names what it needs beyond the
 23. [ ] **C22** A hub on another computer (network mode): find it as `inkup.local`, pair by code, record a Session that
     reaches its TUI and MCP. Needs a second computer on the same LAN with the host installed.
 
+24. [ ] **C23** Video-grounded Process through the Vercel AI Gateway with a Gemini model. Needs a Gateway key and
+    the C6 Session with tab video.
+
 Safari has its own list, S1–S5, in "Safari" at the end of this file. No automation can load a Safari extension.
 
 Keys belong in the options page only. Back up each new key with the secrets-backup skill before first use.
@@ -276,13 +279,28 @@ Needs a key. Back it up with the secrets-backup skill before first use.
 | 2b | Optional, with a Vercel AI Gateway key: paste it under "Vercel AI Gateway key", Save, set the Process provider to Vercel AI Gateway, pick `anthropic/claude-sonnet-5` and High effort, Save, and click the Test button beside that key. | A notice says what goes to Vercel. The Process model list shows the Gateway's models grouped by maker. "OK: Key works with anthropic/claude-sonnet-5." Step 5 then runs through the Gateway: its dashboard shows the requests. |
 | 3 | Run C1 steps 4–12 (circle the CTA saying "this button should go in the header", then circle the Pro card saying "make this the same height as that one" and circle the Basic card). | The review page opens with Process enabled. |
 | 4 | Click Process. | An estimate with input tokens, output tokens and a dollar amount appears. Nothing has been sent yet. |
-| 5 | Click Run Process. | After up to a minute, Change Items appear. One is a layout item with Subject `button.cta`. Another is a layout item with Subject and Reference on the two plan cards. Unsure items come first with a "check me" badge and a sentence, never a number. Each Location that has a screenshot shows it inside the card, right under its row (role and "Annotation #n" above it), with orange outlines only on that Annotation's Strokes. The right pane shows only the recording. |
+| 5 | Click Run Process. | The estimate said it includes checking every item against the recording. After up to a minute, Change Items appear, each with Checked, or Corrected or Unverified and a reason, beside its category. One is a layout item with Subject `button.cta`. Another is a layout item with Subject and Reference on the two plan cards. Unsure items come first with a "check me" badge and a sentence, never a number. Each Location that has a screenshot shows it inside the card, right under its row (role and "Annotation #n" above it), with orange outlines only on that Annotation's Strokes. The right pane shows only the recording. |
 | 5b | Click a Location's screenshot. Press Escape. | A dialog shows the same screenshot and Strokes, large enough to read the page text, titled with the role and element. Escape closes it and the card keeps its place. In the Annotation list below, each screenshot also has its Strokes outlined. In the side panel (C8), Annotation thumbnails show the whole screenshot letterboxed, not a crop of its top. |
 | 6 | Click "Copy agent prompt" and paste into a text editor. | It cites `screenshots/<id>.png` and names `button.cta`. |
 | 7 | Turn Wi-Fi off and click Process, then Run Process. | An error appears with Retry. The transcript, Annotations and the earlier items are unchanged. |
 | 8 | Download session.json and run `pnpm validate:session`. | `VALID`, and the file has `change_items` and no `sk-ant-`. |
 | 9 | In options, set "Run Process without asking when the estimate is under $" to 1.00 and Save. Record a short Session and click Process on its review page. | No estimate panel: a line says "Estimated $0.0…, under your $1.00 limit: processing…", then "processed without asking." and the items appear. |
 | 10 | Click Process again. | The estimate panel asks first, with the note that the items will be replaced, even under $1.00. Clear the options field and Save: Process asks every time again. |
+
+## C23: video-grounded Process through the Gateway (PR D)
+
+Needs a Vercel AI Gateway key (back it up with the secrets-backup skill) and a Session recorded with tab video (C6),
+a few minutes long, where one mark is ambiguous in the transcript (say "this" between two nearby elements).
+
+| # | Step | Expected |
+| --- | --- | --- |
+| 1 | Options: save the Gateway key, set the Process provider to Vercel AI Gateway and the model to `google/gemini-3.1-pro-preview` (or the current Gemini Pro), leave "Check items against the recording" ticked, Save. | The Vercel notice says the recording and microphone audio go with Process for a model that takes video. |
+| 2 | Open the Session's review page, click Process. | The estimate says the recording goes with each call and that it includes checking every item. |
+| 3 | Run Process. | Under the Process result: "Processed with the recording: the model watched the video." Each card shows Checked, Corrected: … or Unverified: …, and a corrected card's reason names what the footage showed. In the Gateway dashboard's request log, two requests per part to the chat completions endpoint with the Gemini model, each with the video and audio attached (input tokens in the tens of thousands for a few minutes). |
+| 4 | Check the items against the recording yourself: play the video at each item's time. | `evidence.video` in session.json falls on the moment the reviewer spoke and drew. The corrected items name the element the ink actually circled. |
+| 5 | If step 3 fails with a 400 about the file part, note the message: the Gateway may want `{file: {data, media_type, filename}}` instead of `file_data` (its docs show both). | A plain error with Retry, the Session unchanged. Report it: `adapters/llm/chat.ts`, `chatPart`. |
+| 6 | Set the Process model to `anthropic/claude-sonnet-5` on the Gateway and Process again. | No "Processed with the recording" line; the requests go to the Messages endpoint, the vetting request carries the screenshots, and the badges still show. |
+| 7 | Untick "Check items against the recording", Save, Process again. | No badges; the estimate no longer mentions checking; one request per part. |
 
 ## C7: editing and export (Slice 4)
 
