@@ -1,0 +1,131 @@
+name: Desktop macOS
+
+# The desktop app's signed, notarized DMG, attached to a host release (ADR 0025). inkup-v-release.yml calls this once it
+# has published the release: dist-workspace.toml lists it in post-announce-jobs, so `dist generate` keeps the call and
+# this file is ours to edit. It runs in the `release` environment, which holds the signing secrets, waits for a
+# maintainer's approval and takes inkup-v* tags only. A pre-release tag (inkup-v0.2.0-rc.1) runs it too.
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: dist's plan manifest (JSON), from inkup-v-release.yml
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "26"
+  PNPM_VERSION: "12"
+  RUST_VERSION: "1.98"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  desktop-macos:
+    name: desktop-macos
+    runs-on: macos-latest
+    environment: release
+    timeout-minutes: 60
+    permissions:
+      # gh release upload, to the release the host job created.
+      contents: write
+    env:
+      TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Both architectures, for a universal app.
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master, 2026-09-12
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        with:
+          ruby-version: "4.0"
+          bundler-cache: true
+          working-directory: apps/desktop
+
+      # fastlane match (read-only) puts the Developer ID Application certificate in a temporary default keychain. The
+      # deploy key goes to a file only this user can read: match hands a raw key to ssh-add inside a shell command.
+      - name: Signing certificate
+        working-directory: apps/desktop
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          DEPLOY_KEY: ${{ secrets.MATCH_GIT_PRIVATE_KEY }}
+        run: |
+          key="$RUNNER_TEMP/match-deploy-key"
+          (umask 077 && printf '%s\n' "$DEPLOY_KEY" > "$key")
+          MATCH_GIT_PRIVATE_KEY="$key" bundle exec fastlane mac signing
+          rm -f "$key"
+          identity="$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)"
+          if [ -z "$identity" ]; then
+            echo "::error::no Developer ID Application identity in the keychain after match"
+            security find-identity -v -p codesigning
+            exit 1
+          fi
+          echo "signing as: $identity"
+          echo "APPLE_SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: App Store Connect API key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          path="$RUNNER_TEMP/AuthKey.p8"
+          (umask 077 && printf '%s' "$APPLE_API_KEY_P8" | base64 --decode > "$path")
+          echo "APPLE_API_KEY_PATH=$path" >> "$GITHUB_ENV"
+
+      # Tauri signs with APPLE_SIGNING_IDENTITY (hardened runtime, tauri.conf.json), then notarizes and staples the app
+      # with the API key. The version is the tag's, so the app and the host it embeds say the same.
+      - name: Build, sign and notarize the app
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          version="${TAG#inkup-v}"
+          pnpm -C apps/desktop tauri build --target universal-apple-darwin --bundles app,dmg \
+            --config "{\"version\":\"$version\"}"
+
+      # Tauri notarizes the app inside the DMG, not the DMG. Gatekeeper checks the DMG a user downloads, so it is
+      # notarized and stapled too.
+      - name: Notarize and staple the DMG
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          dmg="$(ls apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)"
+          xcrun notarytool submit "$dmg" --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" --wait
+          xcrun stapler staple "$dmg"
+          echo "DMG=$dmg" >> "$GITHUB_ENV"
+
+      - name: Gatekeeper accepts the app and the DMG
+        run: |
+          app="apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/InkUp.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          signature="$(codesign --display --verbose=2 "$app" 2>&1)"
+          grep -q 'Authority=Developer ID Application' <<< "$signature"
+          grep -q 'flags=.*runtime' <<< "$signature"
+          spctl -a -vvv -t exec "$app"
+          spctl -a -vvv -t install "$DMG"
+          xcrun stapler validate "$DMG"
+
+      - name: Attach the DMG to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "$DMG" --clobber
+
+      - name: Remove the key and the keychain
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/match-deploy-key"
+          security delete-keychain fastlane_tmp_keychain-db || true

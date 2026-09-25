@@ -1,0 +1,14 @@
+# The Developer ID Application certificate that signs the desktop app's macOS release (ADR 0025), from the shared match
+# repo, read-only: CI never creates or changes a certificate. MATCH_PASSWORD (the repo's passphrase) and
+# MATCH_GIT_PRIVATE_KEY (the path of a read-only deploy key) come from the `release` environment.
+git_url("git@github.com:dbhagen/fastlane-match.git")
+git_branch("master")
+storage_mode("git")
+type("developer_id")
+platform("macos")
+team_id("3K3TD4KSB2")
+# The app's bundle id (tauri.conf.json). match requires one; read-only and with no profiles, it only names the app.
+app_identifier("dev.inkup.desktop")
+readonly(true)
+# A Developer ID app outside the App Store with no restricted entitlements needs no provisioning profile.
+skip_provisioning_profiles(true)

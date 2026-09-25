@@ -18,3 +18,8 @@ fixtures/sessions/long-*.json
 /target/
 # dist writes it while building the release (host/crates/inkup/Cargo.toml, extra-artifacts)
 /host/crates/inkup/protocol-version.txt
+
+# fastlane run output (apps/desktop/fastlane, the desktop release signing)
+/apps/desktop/fastlane/report.xml
+/apps/desktop/fastlane/README.md
+/apps/desktop/.bundle/

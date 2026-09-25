@@ -64,11 +64,36 @@ host asks.
 edited to both off gets the Dock back. Closing the window hides it and the app keeps hosting. Quit, in the menu bar
 menu, stops the server and gives up the data dir.
 
+**It ships as a signed, notarized DMG on the host's release train.** Each `inkup-v<version>` release also carries
+`InkUp_<version>_universal.dmg`: one app for Apple silicon and Intel, versioned by the tag, since it embeds that
+host. cargo-dist's release workflow calls `.github/workflows/desktop-macos.yml` after it has published the release
+(`post-announce-jobs` in `dist-workspace.toml`, so `dist generate` keeps the call). The job runs on a GitHub-hosted
+macOS runner in the `release` environment, which holds the signing secrets, needs a maintainer's approval, and takes
+`inkup-v*` tags only.
+
+- fastlane match puts the Developer ID Application certificate in a temporary keychain. It reads the shared match
+  repo read-only, so CI never creates or renews a certificate (`apps/desktop/fastlane`).
+- Tauri signs the app with the hardened runtime (`bundle.macOS.hardenedRuntime`), then notarizes and staples it,
+  using an App Store Connect API key.
+- The job notarizes and staples the DMG as well, because Gatekeeper checks the file that was downloaded.
+- It attaches the DMG only after `codesign --verify --deep --strict` and `spctl` accept both the app and the DMG.
+
+The job runs after announce, so a failed, slow or unapproved desktop build never holds up or undoes the host release:
+the release just has no DMG until the job is re-run. Pre-releases run it too, which is how the path is proven.
+
 **The UI is shadcn/ui only.** The window (`apps/desktop/ui`) is built from off-the-shelf shadcn/ui components added
 with the shadcn CLI, and has no custom components of its own. It follows the TUI's views and words, so the two stay
 recognisably the same product.
 
 ## Considered options
+
+- The DMG as a dist publish job (`publish-jobs`): dist skips publish jobs for pre-releases unless
+  `publish-prereleases` is on, which would also push every rc to the Homebrew tap. It would also make `announce` wait
+  for the desktop build.
+- A separate workflow on the same tag: it would race dist's `host` job to create the release, and nothing would tie
+  the DMG to the release dist made.
+- Tauri importing a `.p12` from a secret (`APPLE_CERTIFICATE`): a second copy of the certificate to rotate. match keeps
+  one copy, which the team's other apps already use.
 
 - Ship the `inkup` binary as a sidecar and have the app start it: two binaries to build, sign and keep in step. The
   window would still need an API to talk to it, and the app couldn't restart or hook into the server directly.
@@ -94,9 +119,16 @@ recognisably the same product.
   with a `CONTROL_API` bump when it breaks.
 - When the app hosts, it does not check for host updates yet: `ControlState.update` is null. The notice shows only
   when a CLI host reports one.
-- Release packaging is deferred. There is no signed or notarized bundle and no release workflow for the app. Builds
-  are debug builds from a checkout (`pnpm desktop:build`, `pnpm desktop:app`). How the app ships, and how it relates to
-  the host's own releases and self-update (ADR 0008), is decided with that work.
+- The app has no Windows or Linux release and does not update itself: a newer DMG is installed over it. The host's
+  self-update (ADR 0008) covers only the `inkup` binary.
+- A release depends on the match repo (`dbhagen/fastlane-match`) and its read-only deploy key, and on an App Store
+  Connect API key. When the Developer ID certificate expires, it is renewed in the match repo, outside CI.
+
+## History
+
+- 2026-09-25 (#26): release packaging was deferred; builds were debug builds from a checkout. 2026-09-25: the app
+  ships as a signed, notarized universal DMG on each host release, from a post-announce job, as "It ships as a signed,
+  notarized DMG" says.
 
 ## Sources
 
