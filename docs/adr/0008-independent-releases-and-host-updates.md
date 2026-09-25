@@ -116,3 +116,6 @@ Clients behind.
   `packages/core` and `packages/protocol`. It is now zipped from the repo root with the workspace packages, the root
   lockfile and `SOURCE_BUILD.md`. Tailwind scans `src/` only (`source("../")`), because it had picked up class names
   from tests and from the generated `public/ort` files, and the CSS differed between the repo and the zip.
+- 2026-09-25: a host release carried only the host. Now it also carries the desktop app's signed, notarized DMG,
+  built by `desktop-macos.yml`, which dist calls after announce (`post-announce-jobs`), behind the `release`
+  environment's approval (ADR 0025). The host's own binaries are still unsigned.
