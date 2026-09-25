@@ -1,5 +1,7 @@
 // How a Change Item's Resolution reads and looks: the review page's cards and the Session list's counts share these.
 
+import { TONE } from '@/components/tone';
+
 export const RESOLUTION_LABEL = {
   in_progress: 'In work',
   resolved: 'Done',
@@ -9,16 +11,16 @@ export const RESOLUTION_LABEL = {
 
 /** A card's box: border, fill and text. */
 export const RESOLUTION_STYLE = {
-  in_progress: 'border-sky-300 bg-sky-50 text-sky-950',
-  resolved: 'border-emerald-300 bg-emerald-50 text-emerald-950',
+  in_progress: TONE.inWorkCard,
+  resolved: TONE.doneCard,
   wont_fix: 'bg-muted',
-  needs_info: 'border-amber-400 bg-amber-50 text-amber-950',
+  needs_info: TONE.needsInfoCard,
 } as const;
 
 /** Inline text in the same hue as the card, for a count on a muted line. */
 export const RESOLUTION_TEXT = {
-  in_progress: 'text-sky-700 dark:text-sky-400',
-  resolved: 'text-emerald-700 dark:text-emerald-400',
-  wont_fix: 'text-emerald-700 dark:text-emerald-400',
-  needs_info: 'text-amber-700 dark:text-amber-400',
+  in_progress: TONE.inWorkText,
+  resolved: TONE.doneText,
+  wont_fix: TONE.doneText,
+  needs_info: TONE.needsInfoText,
 } as const;

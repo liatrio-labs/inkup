@@ -2,6 +2,7 @@
 // Host. Offline, capture carries on and the outbox syncs later. A Host on another computer says it is unencrypted.
 import { useLiveQuery } from 'dexie-react-hooks';
 import { isLoopbackUrl } from '@/adapters/host';
+import { TONE } from '@/components/tone';
 import { db } from '@/db';
 import { useStorageItem } from '@/lib/use-storage-item';
 import { cn } from '@/lib/utils';
@@ -32,7 +33,7 @@ export function HostIndicator() {
       className="flex items-center gap-1.5"
       title={title || undefined}
     >
-      <span aria-hidden className={cn('size-2 rounded-full', connected ? 'bg-green-600' : 'bg-muted-foreground/50')} />
+      <span aria-hidden className={cn('size-2 rounded-full', connected ? TONE.okDot : 'bg-muted-foreground/50')} />
       {label}
     </span>
   );

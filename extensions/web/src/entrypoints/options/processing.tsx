@@ -4,8 +4,10 @@
 // its own Test button beside it. Without a key, or when the list call fails, the model field is a text input.
 import { useEffect, useState } from 'react';
 import type { ListedModel } from '@/adapters/llm/models';
+import { TONE } from '@/components/tone';
 import { Button } from '@/components/ui/button';
 import { useStorageItem } from '@/lib/use-storage-item';
+import { cn } from '@/lib/utils';
 import { sendMessage } from '@/messaging';
 import {
   anthropicKey,
@@ -240,7 +242,7 @@ function ProviderNotice({ provider, onClose }: { provider: LlmProvider; onClose:
     <div
       role="alert"
       data-testid={provider === 'anthropic' ? 'anthropic-notice' : 'gateway-notice'}
-      className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
+      className={cn('flex flex-col gap-2 rounded-lg border p-4', TONE.noteBorder, TONE.note)}
     >
       {provider === 'anthropic' ? (
         <>
@@ -322,7 +324,7 @@ function KeyField(props: {
         )}
       </div>
       {test && test !== 'running' && (
-        <p data-testid={testIds.result} className={test.ok ? 'text-green-700' : 'text-destructive'}>
+        <p data-testid={testIds.result} className={test.ok ? TONE.okText : 'text-destructive'}>
           {test.ok ? 'OK: ' : 'Error: '}
           {test.message}
         </p>

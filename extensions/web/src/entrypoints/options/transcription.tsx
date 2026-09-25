@@ -6,8 +6,10 @@ import { useEffect, useState } from 'react';
 import { mintDeepgramToken } from '@/adapters/transcription/deepgram';
 import { mintScribeToken } from '@/adapters/transcription/elevenlabs';
 import { hasWebGpu, loadWhisper, WHISPER_MODELS } from '@/adapters/transcription/whisper-model';
+import { TONE } from '@/components/tone';
 import { Button } from '@/components/ui/button';
 import { useStorageItem } from '@/lib/use-storage-item';
+import { cn } from '@/lib/utils';
 import { platform } from '@/platform';
 import {
   deepgramKey,
@@ -89,7 +91,7 @@ export function TranscriptionSection() {
         <div
           role="alert"
           data-testid="vendor-notice"
-          className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
+          className={cn('flex flex-col gap-2 rounded-lg border p-4', TONE.noteBorder, TONE.note)}
         >
           <p className="font-medium">Your audio goes to {notice === 'deepgram' ? 'Deepgram' : 'ElevenLabs'}</p>
           <p>
@@ -242,7 +244,7 @@ function WhisperPicker({ selected, onSelect }: { selected: WhisperModelId; onSel
               </span>
             </label>
             {done ? (
-              <span className="text-green-700" data-testid={`whisper-status-${m.id}`}>
+              <span className={TONE.okText} data-testid={`whisper-status-${m.id}`}>
                 Downloaded
               </span>
             ) : busy ? (
@@ -265,7 +267,7 @@ function WhisperPicker({ selected, onSelect }: { selected: WhisperModelId; onSel
         );
       })}
       {selected && !downloads[selected] && !active && (
-        <p className="text-amber-800">
+        <p className={TONE.warnText}>
           Until this model is downloaded, Sessions{' '}
           {platform.capabilities().speechRecognition ? 'use on-device Web Speech' : 'record without live captions'}.
         </p>
@@ -363,10 +365,10 @@ function KeyField({ vendor }: { vendor: 'deepgram' | 'elevenlabs' }) {
           </Button>
         )}
       </div>
-      {!saved && <p className="text-amber-800">Without a key, Sessions use the Free tier.</p>}
+      {!saved && <p className={TONE.warnText}>Without a key, Sessions use the Free tier.</p>}
       {status && <p role="status">{status}</p>}
       {test && test !== 'running' && (
-        <p data-testid={`test-${vendor}-result`} className={test.ok ? 'text-green-700' : 'text-destructive'}>
+        <p data-testid={`test-${vendor}-result`} className={test.ok ? TONE.okText : 'text-destructive'}>
           {test.ok ? 'OK: ' : 'Error: '}
           {test.message}
         </p>

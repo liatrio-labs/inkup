@@ -4,6 +4,7 @@
 // The microphone is optional (E11): skipped, a Session records ink, picks, typed comments and screenshots. "Turn on
 // voice" in a running Session opens this page with `?voice=1`; the grant turns that Session's voice on.
 import { useState } from 'react';
+import { TONE } from '@/components/tone';
 import { Button } from '@/components/ui/button';
 import { getUserMediaWithRetry } from '@/lib/get-user-media';
 import { useSpeechPack } from '@/lib/speech-pack';
@@ -78,7 +79,7 @@ export function App() {
           </p>
         )}
         {granted ? (
-          <p data-testid="mic-status" className="text-green-700">
+          <p data-testid="mic-status" className={TONE.okText}>
             {forSession
               ? 'Microphone ready: the recording Session has voice now. You can close this tab.'
               : 'Microphone ready. Open the side panel from the toolbar icon and press Start.'}

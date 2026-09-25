@@ -9,6 +9,7 @@ import type { Location } from '@inkup/core/process/change-item';
 import { HALO_EXTRA, strokeOutlinePath } from '@inkup/core/stroke-path';
 import type { EventOf, TimelineEvent } from '@inkup/core/timeline';
 import { useMemo } from 'react';
+import { TONE } from '@/components/tone';
 import { useBlobUrl } from '@/lib/use-blob-url';
 import { cn } from '@/lib/utils';
 
@@ -76,7 +77,7 @@ export function EvidenceShot({
   const { width, height } = shot.viewport;
   return (
     <figure
-      className={cn('relative w-full overflow-hidden rounded border', className)}
+      className={cn('relative w-full overflow-hidden rounded border', TONE.shotFrame, className)}
       data-testid={testId}
       data-screenshot-id={id}
     >
