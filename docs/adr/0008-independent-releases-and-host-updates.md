@@ -94,6 +94,11 @@ Clients behind.
 - The Firefox sources zip AMO reviewers rebuild from is the part of the pnpm workspace the build reads, from the repo
   root (`zip.includeSources` in `extensions/web/wxt.config.ts`). The release workflow rebuilds the add-on from it and
   fails if the result differs (`scripts/verify-sources-zip.sh`).
+- Only the extension release workflows build with `INKUP_RELEASE_BUILD=1`, and only those builds keep the plain
+  icon. Every other build (`wxt dev`, `pnpm build`, `build:firefox`, `build:safari`) draws its manifest and toolbar
+  icons over black-and-yellow construction stripes (`extensions/web/src/lib/dev-stripes.ts`), so a build loaded from
+  disk is never mistaken for the store one. A new extension release workflow (Safari has none yet) must set it on its
+  build step, and the sources zip rebuild sets it too (`SOURCE_BUILD.md`).
 - A user who updates a Homebrew copy with "self" has two copies until they uninstall one; `inkup update` says so.
 - zizmor findings that come from dist's template are ignored for `inkup-v-release.yml` only, each with its reason in
   `.github/zizmor.yml`. Upgrading dist means re-reading those findings.
@@ -119,3 +124,7 @@ Clients behind.
 - 2026-09-25: a host release carried only the host. Now it also carries the desktop app's signed, notarized DMG,
   built by `desktop-macos.yml`, which dist calls after announce (`post-announce-jobs`), behind the `release`
   environment's approval (ADR 0025). The host's own binaries are still unsigned.
+- 2026-09-25: every extension build looked the same. Now only release-workflow builds (`INKUP_RELEASE_BUILD=1`, a
+  compile-time constant) keep the plain icon; the rest show construction stripes under it, drawn by the same pure code
+  at build time (the manifest icons) and in the background (the toolbar icon with its host dot). A reviewer rebuilding
+  from the sources zip sets the variable too, or the icons differ from the submitted add-on.

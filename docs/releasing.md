@@ -48,7 +48,7 @@ for development or testing, but it is not a one-click install. So a Chrome relea
 
 4. `.github/workflows/release.yml` then:
    - refuses tags that are not on `main` or do not equal `inkup-chrome-v` + the extensions/web/package.json version,
-   - runs typecheck, unit tests and `pnpm zip`,
+   - runs typecheck, unit tests and `pnpm zip` with `INKUP_RELEASE_BUILD=1`, the one build with the plain icon,
    - creates the GitHub Release with the zip and generated notes,
    - uploads the zip to the Chrome Web Store and submits it for review, if store credentials are configured (otherwise
      it logs a notice and skips).
@@ -66,7 +66,8 @@ for development or testing, but it is not a one-click install. So a Chrome relea
 
 4. `.github/workflows/firefox-release.yml` then:
    - refuses tags that are not on `main` or do not equal `inkup-firefox-v` + the extensions/web/package.json version,
-   - runs typecheck, unit tests and `pnpm zip:firefox`, which writes the add-on zip and a sources zip,
+   - runs typecheck, unit tests and `pnpm zip:firefox` with `INKUP_RELEASE_BUILD=1`, which writes the add-on zip and
+     a sources zip,
    - rebuilds the add-on from the sources zip and checks it matches (`scripts/verify-sources-zip.sh`),
    - creates the GitHub Release with `inkup-<version>-firefox.zip` and generated notes,
    - uploads both zips to addons.mozilla.org and submits the add-on for review, if AMO credentials are configured
@@ -288,7 +289,12 @@ From then on every `inkup-firefox-v*` tag uploads and submits automatically, and
 
 ## Checking an extension release locally
 
+Any build without `INKUP_RELEASE_BUILD=1` is a development build: its icons sit on black-and-yellow construction
+stripes (`extensions/web/src/lib/dev-stripes.ts`). Only the release workflows set it; set it by hand to check what they
+ship.
+
 ```sh
+export INKUP_RELEASE_BUILD=1
 pnpm zip                                    # extensions/web/.output/*-chrome.zip
 pnpm zip:firefox                            # extensions/web/.output/*-firefox.zip and *-sources.zip
 bash scripts/verify-sources-zip.sh --no-zip # rebuild from the sources zip in a temp dir; must match

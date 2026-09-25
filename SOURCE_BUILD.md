@@ -10,11 +10,14 @@ From the directory this file is in:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm build:firefox
+INKUP_RELEASE_BUILD=1 pnpm build:firefox
 ```
 
 The built add-on is `extensions/web/.output/firefox-mv3/`; its `manifest.json` matches the submitted one.
-`pnpm zip:firefox` packs the same build as `extensions/web/.output/inkup-<version>-firefox.zip`.
+`INKUP_RELEASE_BUILD=1` marks the release build, as the release workflow sets it. Without it the build is a
+development build: the same code, but its icons carry black-and-yellow stripes, so it does not match the submitted
+add-on. `INKUP_RELEASE_BUILD=1 pnpm zip:firefox` packs the same build as
+`extensions/web/.output/inkup-<version>-firefox.zip`.
 
 `pnpm install` copies the ONNX Runtime and Silero VAD files the extension ships (`extensions/web/public/ort` and
 `public/vad`) out of `node_modules`, from the versions `pnpm-lock.yaml` pins. They are not in this archive.

@@ -22,6 +22,8 @@ export const hostStatus = storage.defineItem<HostStatus>('session:hostStatus', {
 export const iconDot = storage.defineItem<'connected' | 'local' | 'offline' | null>('session:iconDot', {
   fallback: null,
 });
+/** Whether that icon has the development stripes (src/lib/dev-stripes.ts): true in every build but a release. */
+export const iconDev = storage.defineItem<boolean | null>('session:iconDev', { fallback: null });
 
 /**
  * What the paired Host can do right now, from its `welcome` (packages/protocol KNOWN_CAPABILITIES). The one gate for

@@ -69,6 +69,8 @@ test('the host dies mid-Session: capture carries on, and the outbox catches it u
   try {
     // The toolbar icon's dot (src/background/host-dot.ts): blue while the extension works on its own.
     await expect.poll(() => iconDot(serviceWorker)).toBe('local');
+    // A local build is a development build: construction stripes under the icon (src/lib/dev-stripes.ts).
+    await expect.poll(() => iconDev(serviceWorker)).toBe(true);
     const { options, token } = await pair(serviceWorker, openExtensionPage, host);
     await expect.poll(() => iconDot(serviceWorker)).toBe('connected');
     const { pricing, panel, sessionId } = await startRecording(context, serviceWorker, site, openExtensionPage);
@@ -356,6 +358,13 @@ test('a command from the host starts a Session in the browser, and the host show
     data.remove();
   }
 });
+
+/** Whether the toolbar icon has the development stripes, recorded by src/background/host-dot.ts like the dot. */
+async function iconDev(serviceWorker: Worker): Promise<boolean | null> {
+  return serviceWorker.evaluate(
+    async () => ((await chrome.storage.session.get('iconDev')).iconDev as boolean | undefined) ?? null,
+  );
+}
 
 /** Which dot the toolbar icon shows: src/background/host-dot.ts records the dot it drew (an icon cannot be read back). */
 async function iconDot(serviceWorker: Worker): Promise<string | null> {
