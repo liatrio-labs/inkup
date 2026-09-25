@@ -25,6 +25,7 @@ tauri-build = { version = "2", features = [] }
 anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive", "env"] }
 gethostname = "1.1.0"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
 qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "query"] }
 serde = { version = "1.0.229", features = ["derive"] }
@@ -37,6 +38,13 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 inkup-server = { path = "../../../host/crates/server" }
 inkup-store = { path = "../../../host/crates/store" }
 inkup-protocol = { path = "../../../host/crates/protocol" }
+
+# The Dock icon: Tauri 2 has no API to change it at run time, so the app sets NSDockTile's content view (all safe
+# calls in objc2-app-kit 0.3).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSDockTile", "NSImage", "NSImageView", "NSControl", "NSView", "NSResponder"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSData"] }
 
 [dev-dependencies]
 futures-util = "0.3.34"
