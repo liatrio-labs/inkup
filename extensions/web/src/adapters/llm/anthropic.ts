@@ -67,6 +67,8 @@ import {
 import type { SessionDocument } from '@inkup/core/session-document';
 import pLimit from 'p-limit';
 import type { z } from 'zod';
+import { createMessagesTransport, outputConfig, systemBlocks } from './messages';
+import type { Part, Transport, Turn } from './transport';
 import {
   type CallRecord,
   type ChunkProgress,
@@ -108,7 +110,7 @@ const MAX_SPLITS = 3;
 /** Re-parse the streamed answer for completed items after this many new characters. */
 const PARSE_EVERY_CHARS = 400;
 
-type Messages = Anthropic.MessageParam[];
+type Messages = Turn[];
 
 /**
  * One structured-output call. The root is usually `{items: [...]}` (Process may add `dropped_annotations`); a
@@ -128,6 +130,8 @@ interface Call<O extends object, T = never> {
   onItem?: { schema: z.ZodType<T>; emit: (item: T, index: number) => void };
   /** The repair turn's message. Default: the `{items: [...]}` one. */
   repairMessage?: (issues: readonly string[]) => string;
+  /** Default: the Messages API. */
+  transport?: Transport;
 }
 
 interface Attempt<O> {
@@ -190,35 +194,18 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
   const catalog = opts.catalog ?? null;
   const toError = (e: unknown) => toProcessError(e, vendor);
   const capFor = (model: string) => outputCapFor(model, catalog);
-  /** `output_config` with the format, plus effort only when one is set. */
-  const outputConfig = <F>(format: F, effort: Effort | undefined) => ({ format, ...(effort ? { effort } : {}) });
-
-  const systemBlocks = (system: string): Anthropic.TextBlockParam[] => [
-    { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
-  ];
+  const messages = createMessagesTransport(client, toError);
 
   /**
-   * One streamed structured-output call. Validation problems come back as issues, a max_tokens stop as `truncated`,
-   * API failures throw. While it streams, items before the one still being written are complete: they are
-   * validated and passed to `onItem` as soon as the next one starts.
+   * One structured-output call through its transport. Validation problems come back as issues, a max_tokens stop
+   * as `truncated`, API failures throw. While it streams, items before the one still being written are complete:
+   * they are validated and passed to `onItem` as soon as the next one starts.
    */
   async function attempt<O extends object, T>(call: Call<O, T>): Promise<Attempt<O>> {
-    const base = zodOutputFormat(call.schema);
-    let raw = '';
-    // Keep the raw text so the repair turn can show the model what it wrote.
-    const format: typeof base = {
-      ...base,
-      parse: (content: string) => {
-        raw = content;
-        return base.parse(content);
-      },
-    };
-    const usage = { input_tokens: 0, output_tokens: 0 };
-    let stop: string | null = null;
     let emitted = 0;
     let parsedAt = 0;
-    const emitComplete = (snapshot: string, final: boolean) => {
-      if (!call.onItem || (!final && snapshot.length - parsedAt < PARSE_EVERY_CHARS)) return;
+    const emitComplete = (snapshot: string) => {
+      if (!call.onItem || snapshot.length - parsedAt < PARSE_EVERY_CHARS) return;
       parsedAt = snapshot.length;
       let partial: unknown;
       try {
@@ -233,44 +220,33 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
         if (ok.success) call.onItem.emit(ok.data, emitted);
       }
     };
-    const stream = client.messages.stream({
+    const { raw, usage, stop } = await (call.transport ?? messages).send({
       model: call.model,
-      max_tokens: call.maxTokens,
-      system: systemBlocks(call.system),
+      effort: call.effort,
+      system: call.system,
       messages: call.messages,
-      output_config: outputConfig(format, call.effort),
+      schema: call.schema,
+      maxTokens: call.maxTokens,
+      onText: call.onItem ? emitComplete : undefined,
     });
-    stream.on('streamEvent', (event) => {
-      if (event.type === 'message_start') usage.input_tokens = event.message.usage.input_tokens;
-      if (event.type === 'message_delta') {
-        stop = event.delta.stop_reason;
-        usage.output_tokens = event.usage.output_tokens;
-      }
-    });
-    stream.on('text', (_delta, snapshot) => emitComplete(snapshot, false));
-    let message: Awaited<ReturnType<typeof stream.finalMessage>>;
+    if (stop === 'refusal') throw new ProcessError('refusal', 'The model declined to process this Session.');
+    // Cut off at max_tokens: incomplete, so neither repaired nor used.
+    if (stop === 'max_tokens') return { output: null, raw, issues: [], usage, truncated: true };
+    if (!raw.trim()) return { output: null, raw, issues: ['the answer contained no JSON'], usage, truncated: false };
+    let parsed: O;
     try {
-      message = await stream.finalMessage();
+      // The same JSON and Zod checks the SDK's structured-output helper runs, whichever transport answered.
+      parsed = zodOutputFormat(call.schema).parse(raw);
     } catch (e) {
-      if (e instanceof Anthropic.APIError || !(e instanceof Anthropic.AnthropicError)) throw toError(e);
-      // The SDK's parse step failed: cut off at max_tokens, invalid JSON, or a Zod issue (e.g. a rule structured
-      // output cannot express).
-      if (stop === 'max_tokens') return { output: null, raw, issues: [], usage, truncated: true };
+      const message = e instanceof Error ? e.message : String(e);
       return {
         output: null,
         raw,
-        issues: [e.message.replace(/^Failed to parse structured output: (Error: )?/, '')],
+        issues: [message.replace(/^Failed to parse structured output: (Error: )?/, '')],
         usage,
         truncated: false,
       };
     }
-    usage.input_tokens = message.usage.input_tokens;
-    usage.output_tokens = message.usage.output_tokens;
-    if (message.stop_reason === 'refusal')
-      throw new ProcessError('refusal', 'The model declined to process this Session.');
-    if (message.stop_reason === 'max_tokens') return { output: null, raw, issues: [], usage, truncated: true };
-    const parsed = message.parsed_output;
-    if (!parsed) return { output: null, raw, issues: ['the answer contained no JSON'], usage, truncated: false };
     const issues = call.check(parsed);
     return { output: issues.length ? null : parsed, raw, issues, usage, truncated: false };
   }
@@ -508,7 +484,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
         const item = items[i]!;
         if (item.pinned || !isLowConfidence(item) || !loadScreenshot) continue;
         const { script, context } = prompts[merged.source[final.from[item.id] ?? item.id] ?? 0] ?? prompts[0]!;
-        const images: Anthropic.ContentBlockParam[] = [];
+        const images: Part[] = [];
         const attached: string[] = [];
         for (const id of item.evidence.screenshots) {
           const img = await loadScreenshot(id);
@@ -516,12 +492,12 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
           const alias = Object.entries(context.aliases).find(([, stored]) => stored === id)?.[0] ?? id;
           images.push(
             { type: 'text', text: `Screenshot ${alias}:` },
-            { type: 'image', source: { type: 'base64', media_type: img.media_type, data: img.data } },
+            { type: 'image', media_type: img.media_type, data: img.data },
           );
           attached.push(alias);
         }
         if (attached.length === 0) continue;
-        const content: Anthropic.ContentBlockParam[] = [
+        const content: Part[] = [
           ...images,
           { type: 'text', text: buildSecondPassMessage(script, aliasScreenshotIds(item, context), attached) },
         ];
