@@ -307,7 +307,8 @@ both recorded (`MediaRecorder`, WebM/Opus) and transcribed live. Three configura
   card" resolves to the card.
 - [ ] Long Sessions are processed in ~10-minute windows with overlap, then merged; the merge deduplicates items with the
   same subject and intent. Pinned Draft Items pass through unchanged.
-- [ ] Items under confidence 0.6 get a second pass with their screenshots attached.
+- [ ] Every item is checked against the recording, or its screenshots and crops, after Process (vetting, ADR
+  0009; it replaced the second pass for items under confidence 0.6).
 - [ ] Uses the Anthropic SDK with structured output / tool-use. Default model `claude-sonnet-5`; the user can enter any
   model ID.
 

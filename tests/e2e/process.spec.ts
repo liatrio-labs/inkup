@@ -9,8 +9,8 @@ import {
   type AnthropicStub,
   DEFAULT_STUB_MODELS,
   errorReply,
+  isVetRequest,
   messageReply,
-  type StubRequest,
   scriptOf,
   startAnthropicStub,
 } from '../support/anthropic-stub';
@@ -23,7 +23,7 @@ test.use({ fakeAudio: 'review-two-notes.wav' });
 
 const MODEL = 'claude-sonnet-5';
 const FIRST_PASS_AMBIGUITY = 'First pass: "the header" could mean the nav links or the logo side.';
-const SECOND_PASS_AMBIGUITY = 'Second pass: the screenshot shows no mark in the header, so the exact spot is unclear.';
+const VETTED_AMBIGUITY = 'Vetted: the screenshot shows no mark in the header, so the exact spot is unclear.';
 
 /** A fixed, valid payload whose selectors match the captured Session (button.cta, Annotation #1, its screenshot). */
 function items(shot: string) {
@@ -69,9 +69,6 @@ function items(shot: string) {
   return { moveItem, unsure };
 }
 
-const isSecondPass = (r: StubRequest) =>
-  (r.body?.messages?.[0]?.content ?? []).some?.((b: { type: string }) => b.type === 'image');
-
 async function setDevOverrides(sw: Worker, extra: Record<string, unknown>) {
   await sw.evaluate(async (more) => {
     const { devOverrides } = await chrome.storage.local.get('devOverrides');
@@ -105,10 +102,21 @@ test('Process: estimate, confirm, Change Items with badges, overlay and agent pr
       if (req.body.max_tokens === 1) return messageReply(req.body.model, 'OK', { input_tokens: 12, output_tokens: 1 });
       const shot = /screenshot (s\d+)/.exec(scriptOf(req))?.[1] ?? 's1';
       const { moveItem, unsure } = items(shot);
-      if (isSecondPass(req))
+      // Vetting: the move is confirmed on the screenshot; the unsure item is corrected.
+      if (isVetRequest(req))
         return messageReply(
           MODEL,
-          JSON.stringify({ items: [{ ...unsure, confidence: 0.5, ambiguity: SECOND_PASS_AMBIGUITY }] }),
+          JSON.stringify({
+            results: [
+              { id: 'item_0001', verdict: 'confirmed', reason: 'The circle is on the button.' },
+              {
+                id: 'item_0002',
+                verdict: 'corrected',
+                reason: 'No spot in the header is marked.',
+                item: { ...unsure, confidence: 0.5, ambiguity: VETTED_AMBIGUITY },
+              },
+            ],
+          }),
         );
       return messageReply(MODEL, JSON.stringify({ items: [moveItem, unsure] }));
     },
@@ -147,8 +155,9 @@ test('Process: estimate, confirm, Change Items with badges, overlay and agent pr
     await options.getByTestId('anthropic-key').fill('sk-ant-e2e-stub-key');
     await options.getByTestId('save-processing').click();
     await expect(options.getByTestId('anthropic-notice')).toContainText(
-      'Screenshots are sent only for Change Items the model is unsure about',
+      'to check the Change Items against them (you can turn that off below)',
     );
+    await expect(options.getByTestId('vet-items')).toBeChecked();
     await options.reload();
     await options.getByTestId('anthropic-key').fill('sk-ant-e2e-stub-key-2');
     await options.getByTestId('save-processing').click();
@@ -176,7 +185,9 @@ test('Process: estimate, confirm, Change Items with badges, overlay and agent pr
     await review.bringToFront();
     await expect(review.getByTestId('process-button')).toBeEnabled();
     await review.getByTestId('process-button').click();
-    await expect(review.getByTestId('process-estimate')).toContainText('4,321');
+    // Process and the check against the recording: the counted input twice.
+    await expect(review.getByTestId('process-estimate')).toContainText('8,642');
+    await expect(review.getByTestId('process-estimate')).toContainText('includes checking every item');
     await review.getByTestId('process-confirm').click();
     await expect(review.getByTestId('process-error')).toContainText('stub: simulated failure');
     await expect(review.getByTestId('annotation')).toHaveCount(1);
@@ -193,7 +204,7 @@ test('Process: estimate, confirm, Change Items with badges, overlay and agent pr
     await review.getByTestId('process-confirm').click();
     await expect(review.getByTestId('change-item')).toHaveCount(2, { timeout: 20_000 });
 
-    // The request carried the section 7 script, and the unsure item went back with its screenshot.
+    // The request carried the section 7 script, and the vetting call carried the items with their screenshot.
     const sent = stub.messages().slice(before);
     expect(sent).toHaveLength(2);
     const script = scriptOf(sent[0]!);
@@ -211,17 +222,24 @@ test('Process: estimate, confirm, Change Items with badges, overlay and agent pr
     );
     expect(sent[0]!.body).toMatchObject({ model: MODEL, output_config: { format: { type: 'json_schema' } } });
     expect(sent[0]!.headers['x-api-key']).toBe('sk-ant-e2e-stub-key-2');
-    const secondContent = sent[1]!.body.messages[0].content;
-    const image = secondContent.find((b: { type: string }) => b.type === 'image');
+    expect(isVetRequest(sent[1]!)).toBe(true);
+    const vetContent = sent[1]!.body.messages[0].content;
+    expect(vetContent.at(-1).text).toContain('"id": "item_0002"');
+    const image = vetContent.find((b: { type: string }) => b.type === 'image');
     expect(image.source.media_type).toBe('image/png');
     expect(Buffer.from(image.source.data, 'base64').subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
     expect(stub.requests.filter((r) => r.path === '/v1/messages/count_tokens').length - countsBefore).toBe(1);
 
-    // Low confidence sorts first with its badge and the second pass's ambiguity; no raw scores.
+    // Low confidence sorts first with its badge and the corrected ambiguity; no raw scores. Each card says how the
+    // check against the recording went.
     const cards = review.getByTestId('change-item');
     await expect(cards.nth(0)).toHaveAttribute('data-item-id', 'item_0002');
     await expect(cards.nth(0).getByTestId('check-me')).toHaveText('check me');
-    await expect(cards.nth(0).getByTestId('ambiguity')).toHaveText(SECOND_PASS_AMBIGUITY);
+    await expect(cards.nth(0).getByTestId('ambiguity')).toHaveText(VETTED_AMBIGUITY);
+    await expect(cards.nth(0).getByTestId('vetting')).toHaveAttribute('data-verdict', 'corrected');
+    await expect(cards.nth(0).getByTestId('vetting')).toHaveText('Corrected: No spot in the header is marked.');
+    await expect(cards.nth(1).getByTestId('vetting')).toHaveAttribute('data-verdict', 'confirmed');
+    await expect(cards.nth(1).getByTestId('vetting')).toHaveText('Checked');
     await expect(cards.nth(1)).toHaveAttribute('data-item-id', 'item_0001');
     await expect(cards.nth(1).getByTestId('check-me')).toHaveCount(0);
     await expect(review.getByTestId('change-items')).not.toContainText('0.88');

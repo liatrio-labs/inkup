@@ -127,6 +127,8 @@ export function ProcessingSection() {
       draft: trimmed(roles.draft, 'draft'),
       merge: trimmed(roles.merge, 'merge'),
       ...(autoRunBelowUsd !== undefined ? { autoRunBelowUsd } : {}),
+      // On by default: saved only when turned off.
+      ...(roles.vet ? {} : { vet: false }),
     });
     setDrafts({ anthropic: '', gateway: '' });
     setTests({ anthropic: null, gateway: null });
@@ -226,6 +228,24 @@ export function ProcessingSection() {
           </span>
         </div>
 
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={roles.vet}
+            onChange={(e) => setRoles((r) => ({ ...r, vet: e.target.checked }))}
+            data-testid="vet-items"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="font-medium">Check items against the recording</span>
+            <span className="text-muted-foreground">
+              After Process, the Process model checks every Change Item against the video (for a model that takes video)
+              or the screenshots, corrects what it can, and marks each one checked, corrected or unverified. Costs about
+              as much again as Process.
+            </span>
+          </span>
+        </label>
+
         <div className="flex flex-wrap gap-2">
           <Button type="submit" data-testid="save-processing">
             Save
@@ -250,9 +270,10 @@ function ProviderNotice({ provider, onClose }: { provider: LlmProvider; onClose:
           <p>
             With a key saved, the transcript and short descriptions of the page elements you mark are sent to Anthropic
             during every Session, every few seconds, to make live Draft Items, and again when you press Process.
-            Screenshots are never sent for Draft Items. Screenshots are sent only for Change Items the model is unsure
-            about. Nothing is sent until you start a Session or press Process. Only the models set to Anthropic send
-            anything there. Remove the key to stop Draft Items.
+            Screenshots are never sent for Draft Items. When you press Process, the screenshots and element close-ups of
+            your Annotations are sent too, to check the Change Items against them (you can turn that off below). Nothing
+            is sent until you start a Session or press Process. Only the models set to Anthropic send anything there.
+            Remove the key to stop Draft Items.
           </p>
         </>
       ) : (
@@ -261,9 +282,10 @@ function ProviderNotice({ provider, onClose }: { provider: LlmProvider; onClose:
           <p>
             The models set to Vercel AI Gateway send the same things to Vercel instead of Anthropic: the transcript and
             short descriptions of the page elements you mark, every few seconds during a Session for Draft Items and
-            again when you press Process. Screenshots are sent only for Change Items the model is unsure about. Vercel
-            passes each request to the company that makes the model you picked (Anthropic for anthropic/ models).
-            Nothing is sent until you start a Session or press Process.
+            again when you press Process, with the screenshots to check the Change Items against. With a Process model
+            that takes video (such as Gemini), the recording of the tab and your microphone audio are sent with Process
+            instead, when they are under 20 MB. Vercel passes each request to the company that makes the model you
+            picked (Anthropic for anthropic/ models). Nothing is sent until you start a Session or press Process.
           </p>
         </>
       )}

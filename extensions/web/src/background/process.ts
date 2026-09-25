@@ -2,11 +2,17 @@
 // key (storage.local), builds session.json from Dexie, runs the LLM adapter and writes a processRuns row that
 // the page watches with useLiveQuery. A failure is recorded on the run and touches nothing else.
 //
+// Video-grounded Process: when the Process model is on the Gateway and takes video (videoCapable), and the Session
+// has a recording under VIDEO_INLINE_MAX_BYTES, the video and audio go with the calls through the Gateway's chat
+// endpoint. Over the cap, Process falls back to the script and screenshots and says so on the run (`notes`).
+// Vetting (on unless turned off in the options) checks every item against the recording after Process.
+//
 // Without a key (E11) Process still runs: the items are built in code (one per Annotation and Text Comment,
 // packages/core/src/process/in-code.ts), with no estimate and no network call. The run's model is IN_CODE_MODEL.
 
 import type { CombinedChanges } from '@inkup/core/process/combine';
 import { type CostEstimate, type LimitWarning, limitWarnings } from '@inkup/core/process/cost';
+import type { SessionDocument } from '@inkup/core/session-document';
 import {
   type ChunkProgress,
   type CombineInput,
@@ -14,10 +20,19 @@ import {
   createAnthropicAdapter,
   type LlmAdapter,
   ProcessError,
+  type ProcessMedia,
   processWithoutModel,
   type ScreenshotImage,
 } from '@/adapters/llm';
-import { catalogOf, listAnthropicModels, listGatewayModels, type ModelList } from '@/adapters/llm/models';
+import { createChatTransport } from '@/adapters/llm/chat';
+import {
+  catalogOf,
+  gatewayInputModalities,
+  listAnthropicModels,
+  listGatewayModels,
+  type ModelList,
+  takesVideo,
+} from '@/adapters/llm/models';
 import { db, type ProcessRunRow } from '@/db';
 import { queueItems } from '@/db/outbox';
 import { loadSessionDocument } from '@/db/session-export';
@@ -29,6 +44,7 @@ import {
   type LlmProvider,
   MODEL_ROLES,
   type ModelRole,
+  modelCapabilities,
   modelLists,
   providerKey,
   readProcessingSettings,
@@ -58,6 +74,11 @@ async function adapterFor(provider: LlmProvider): Promise<LlmAdapter | null> {
     baseURL,
     vendor: PROVIDER_NAME[provider],
     catalog: catalogOf(await modelLists.getValue()),
+    // Only the Gateway's chat endpoint takes video; Process uses it when it sends the recording.
+    chat:
+      provider === 'gateway' && baseURL
+        ? createChatTransport({ apiKey: key, baseURL, vendor: PROVIDER_NAME.gateway })
+        : null,
   });
 }
 
@@ -82,12 +103,99 @@ async function noKey(role: ModelRole) {
 /** The processRuns `model` of a run built in code, without a key. */
 export const IN_CODE_MODEL = 'none (built in code)';
 
+/** The most recording (video plus audio, decoded bytes) one video-grounded request carries inline. */
+export const VIDEO_INLINE_MAX_BYTES = 20 * 1024 * 1024;
+
+/**
+ * Whether a Gateway model takes video (models.ts, takesVideo): its cached list tags, else the model's endpoints
+ * call. The answer is cached per model id in `modelCapabilities`; a failed endpoints call is not.
+ */
+export async function videoCapable(model: string): Promise<boolean> {
+  const cached = (await modelCapabilities.getValue())[model];
+  if (cached) return cached.video;
+  const tags = (await modelLists.getValue()).gateway?.models.find((m) => m.id === model)?.tags ?? [];
+  let video = takesVideo(model, tags, null);
+  if (!video) {
+    const apiKey = await providerKey('gateway');
+    if (!apiKey) return false;
+    const dev = await devOverrides.getValue();
+    try {
+      const modalities = await gatewayInputModalities({
+        apiKey,
+        baseURL: dev?.gatewayBaseUrl ?? GATEWAY_BASE_URL,
+        model,
+      });
+      video = takesVideo(model, tags, modalities);
+    } catch (e) {
+      console.warn('video capability', e);
+      return false;
+    }
+  }
+  await modelCapabilities.setValue({
+    ...(await modelCapabilities.getValue()),
+    [model]: { video, checked_at: Date.now() },
+  });
+  return video;
+}
+
+const MB = 1024 * 1024;
+const formatMb = (bytes: number) =>
+  bytes < MB ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / MB).toFixed(bytes < 10 * MB ? 1 : 0)} MB`;
+/** `video/webm;codecs=vp9` → `video/webm`. */
+const baseMime = (mime: string) => mime.split(';')[0]!.trim();
+const extensionOf = (mime: string) => baseMime(mime).split('/')[1] ?? 'bin';
+
+/**
+ * What a Process run sends of the recording: nothing when the model takes no video or the Session has none; a
+ * note instead when the recording is over the cap. `load` false: sizes only (the estimate).
+ */
+async function planMedia(
+  doc: SessionDocument,
+  a: { provider: LlmProvider; model: string },
+  load: boolean,
+): Promise<{ media: ProcessMedia | null; video: boolean; note: string | null }> {
+  const none = { media: null, video: false, note: null };
+  const v = doc.media.video;
+  if (a.provider !== 'gateway' || !v || !(await videoCapable(a.model))) return none;
+  const videoRow = await db.blobs.get(v.blob_id);
+  if (!videoRow) return none;
+  const audioRow = doc.media.audio ? await db.blobs.get(doc.media.audio.blob_id) : undefined;
+  const bytes = videoRow.blob.size + (audioRow?.blob.size ?? 0);
+  const cap = (await devOverrides.getValue())?.videoInlineMaxBytes ?? VIDEO_INLINE_MAX_BYTES;
+  if (bytes > cap)
+    return {
+      media: null,
+      video: false,
+      note: `The recording (${formatMb(bytes)}) is over the ${formatMb(cap)} a request can carry, so ${a.model} worked from the transcript and screenshots instead of the video.`,
+    };
+  if (!load) return { media: null, video: true, note: null };
+  const file = async (row: NonNullable<typeof videoRow>, kind: 'video' | 'audio', start: number, duration: number) => ({
+    media_type: baseMime(row.mime),
+    filename: `${kind}.${extensionOf(row.mime)}`,
+    data: toBase64(new Uint8Array(await row.blob.arrayBuffer())),
+    bytes: row.blob.size,
+    start_offset_ms: start,
+    duration_ms: duration,
+  });
+  const audio = doc.media.audio;
+  return {
+    media: {
+      video: await file(videoRow, 'video', v.start_offset_ms, v.duration_ms),
+      audio: audioRow && audio ? await file(audioRow, 'audio', audio.start_offset_ms, audio.duration_ms) : null,
+    },
+    video: true,
+    note: null,
+  };
+}
+
 export async function estimateProcess(sessionId: string): Promise<EstimateResult> {
   const a = await llm('process');
   if (!a) return noKey('process');
   try {
     const doc = await loadSessionDocument(db, sessionId);
-    const estimate = await a.adapter.estimate({ doc, model: a.model, effort: a.effort });
+    const { vet } = await readProcessingSettings();
+    const { video } = await planMedia(doc, a, false);
+    const estimate = await a.adapter.estimate({ doc, model: a.model, effort: a.effort, vet, video });
     return { ok: true, estimate, warnings: limitWarnings(estimate, catalogOf(await modelLists.getValue())) };
   } catch (e) {
     const err = e instanceof ProcessError ? e : new ProcessError('api', e instanceof Error ? e.message : String(e));
@@ -101,9 +209,10 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
+/** A screenshot or element crop, for vetting against screenshots. */
 async function loadScreenshot(id: string): Promise<ScreenshotImage | null> {
   const row = await db.blobs.get(id);
-  if (row?.kind !== 'screenshot') return null;
+  if (row?.kind !== 'screenshot' && row?.kind !== 'screenshot_crop') return null;
   const type = row.mime === 'image/jpeg' || row.mime === 'image/webp' ? row.mime : 'image/png';
   return { media_type: type, data: toBase64(new Uint8Array(await row.blob.arrayBuffer())) };
 }
@@ -190,8 +299,18 @@ export async function runProcess(
   onStarted?.(id);
   try {
     const doc = await loadSessionDocument(db, sessionId);
+    const { vet } = await readProcessingSettings();
+    const { media, note } = a ? await planMedia(doc, a, true) : { media: null, note: null };
     const result = a
-      ? await a.adapter.process({ doc, model: a.model, effort: a.effort, loadScreenshot, onProgress: progress })
+      ? await a.adapter.process({
+          doc,
+          model: a.model,
+          effort: a.effort,
+          loadScreenshot,
+          onProgress: progress,
+          media,
+          vet,
+        })
       : processWithoutModel(doc, IN_CODE_MODEL);
     await finish({
       status: 'done',
@@ -199,6 +318,8 @@ export async function runProcess(
       items: result.items,
       calls: result.calls,
       second_pass: result.second_pass,
+      video: result.video,
+      notes: note ? [note] : [],
       pins_converted: result.pins_converted,
       pins_dropped: result.pins_dropped,
       windows: result.windows,
@@ -290,6 +411,8 @@ export async function listModels(provider: LlmProvider): Promise<ListModelsResul
         : await listAnthropicModels({ apiKey, baseURL: dev?.anthropicBaseUrl ?? null });
     const list = { fetched_at: Date.now(), models };
     await modelLists.setValue({ ...(await modelLists.getValue()), [provider]: list });
+    // A fresh list may bring new tags: find out again which models take video.
+    if (provider === 'gateway') await modelCapabilities.setValue({});
     return { ok: true, list };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

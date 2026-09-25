@@ -4,7 +4,14 @@
 // script (tests/support/script-model.ts). The Session is seeded straight into IndexedDB.
 import type { Page, Worker } from '@playwright/test';
 import { buildLongSession } from '../../scripts/gen-long-session.ts';
-import { type AnthropicStub, messageReply, scriptOf, startAnthropicStub } from '../support/anthropic-stub';
+import {
+  type AnthropicStub,
+  confirmAll,
+  isVetRequest,
+  messageReply,
+  scriptOf,
+  startAnthropicStub,
+} from '../support/anthropic-stub';
 import { scriptModel } from '../support/script-model';
 import { expect, test } from './fixtures';
 import { seedSession, storeRows } from './helpers/seed';
@@ -51,7 +58,8 @@ test('a 40-minute Session streams in 4 parts: in-progress cards appear before th
   const stub = await startAnthropicStub({
     deltaChars: 150,
     streamDelayMs: 40,
-    onMessage: (req) => messageReply(MODEL, JSON.stringify(scriptModel(scriptOf(req)))),
+    onMessage: (req) =>
+      messageReply(MODEL, isVetRequest(req) ? confirmAll(req) : JSON.stringify(scriptModel(scriptOf(req)))),
   });
   try {
     await useStub(serviceWorker, stub);
@@ -104,7 +112,8 @@ test('a part that runs out of output tokens is split in two and retried; the Ses
   const stub = await startAnthropicStub({
     charsPerToken: 1,
     maxOutputTokens: 20_000,
-    onMessage: (req) => messageReply(MODEL, JSON.stringify(scriptModel(scriptOf(req)))),
+    onMessage: (req) =>
+      messageReply(MODEL, isVetRequest(req) ? confirmAll(req) : JSON.stringify(scriptModel(scriptOf(req)))),
   });
   try {
     await useStub(serviceWorker, stub);
@@ -116,11 +125,16 @@ test('a part that runs out of output tokens is split in two and retried; the Ses
     await expect(review.getByTestId('change-item')).toHaveCount(expectedItems(truth), { timeout: 60_000 });
     await expect(review.getByTestId('process-error')).toHaveCount(0);
     await expect(review.getByTestId('process-coverage')).toContainText('processed in 2 parts');
-    // One cut-off answer, then the two halves; the cut-off answer was never sent back.
-    expect(stub.messages()).toHaveLength(3);
+    // One cut-off answer, then the two halves, then one check against the recording per half; the cut-off answer
+    // was never sent back.
+    const [main, vet] = [stub.messages().filter((m) => !isVetRequest(m)), stub.messages().filter(isVetRequest)];
+    expect([main.length, vet.length]).toEqual([3, 2]);
     expect(stub.messages().every((m) => m.body.messages.length === 1)).toBe(true);
     const [run] = await storeRows<{ calls: { kind: string }[] }>(review, 'processRuns');
-    expect(run!.calls.map((c) => c.kind).sort()).toEqual(['main', 'main', 'truncated']);
+    expect(run!.calls.map((c) => c.kind).sort()).toEqual(['main', 'main', 'truncated', 'vet', 'vet']);
+    // Every item was checked, in the half it came from.
+    await expect(review.getByTestId('vetting')).toHaveCount(expectedItems(truth));
+    await expect(review.locator('[data-testid="vetting"][data-verdict="confirmed"]')).toHaveCount(expectedItems(truth));
   } finally {
     await stub.close();
   }
@@ -199,7 +213,7 @@ test('Process answers as soon as the run starts, finishes with the review page c
   const opts: Parameters<typeof startAnthropicStub>[0] = {
     streamDelayMs: 250,
     onMessage: (req) => {
-      const text = JSON.stringify(scriptModel(scriptOf(req)));
+      const text = isVetRequest(req) ? confirmAll(req) : JSON.stringify(scriptModel(scriptOf(req)));
       opts.deltaChars = Math.ceil(text.length / 100);
       return messageReply(MODEL, text);
     },

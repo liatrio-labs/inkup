@@ -3,6 +3,8 @@
 //   (options) the confirm step is skipped, except when the price is unknown, a call is near a model limit (the
 //   amber warning), or the run would replace existing items (Process again). While it runs, read-only cards show
 //   each chunk's items as they stream in (the processProgress table); the final merged list replaces them.
+// - Each item shows how it fared when checked against the recording (vetting): Checked, Corrected or Unverified with
+//   the reason. A run that used the video says so; one whose recording was too large to send says that instead.
 // - Items: low-confidence first with a "check me" badge; inline edit of title, intent and category; delete;
 //   split (a copy to edit); merge two selected items; drag to reorder (@dnd-kit/react). Every change is an
 //   `item_edit` event on the run (src/db/review.ts), so edits are logged and the acceptance rate is computable.
@@ -32,6 +34,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } 
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { VETTING_LABEL, VETTING_STYLE } from '@/components/vetting-style';
 import { db, type ProcessProgressRow, type ProcessRunRow, type ResolutionRow } from '@/db';
 import { latestResolutions } from '@/db/resolutions';
 import { appendReviewEvent } from '@/db/review';
@@ -168,7 +171,9 @@ export function ProcessSection({
             )}
             <span className="text-muted-foreground">
               {' '}
-              (prices as of {phase.estimate.prices_as_of}; unsure items cost a little more)
+              (prices as of {phase.estimate.prices_as_of}
+              {phase.estimate.video ? '; the recording goes with each call' : ''}
+              {phase.estimate.vet ? '; includes checking every item against the recording' : ''})
             </span>
           </p>
           {phase.warnings.map((w) => (
@@ -224,6 +229,7 @@ export function ProcessSection({
         <p className="text-muted-foreground">Nothing processed yet.</p>
       )}
       {done && !running && <RunCoverage run={done} />}
+      {done && !running && <RunNotes run={done} />}
     </div>
   );
 }
@@ -252,6 +258,22 @@ function RunCoverage({ run }: { run: ProcessRunRow }) {
           No item uses Annotation {unaccounted.map((n) => `#${n}`).join(', ')}, and the model gave no reason.
         </p>
       )}
+    </div>
+  );
+}
+
+/** How the run used the recording, and anything it had to do instead. */
+function RunNotes({ run }: { run: ProcessRunRow }) {
+  const notes = run.notes ?? [];
+  if (!run.video && notes.length === 0) return null;
+  return (
+    <div className="text-muted-foreground" data-testid="process-notes">
+      {run.video && <p data-testid="process-video">Processed with the recording: the model watched the video.</p>}
+      {notes.map((n) => (
+        <p key={n} className={TONE.warnText} data-testid="process-note">
+          {n}
+        </p>
+      ))}
     </div>
   );
 }
@@ -653,6 +675,21 @@ function ChangeItemCard({
               >
                 Combine with AI
               </Button>
+            )}
+            {item.vetting && (
+              <span
+                className={cn(
+                  'px-2 py-0.5 text-xs',
+                  item.vetting.verdict === 'confirmed' ? 'rounded-full' : 'rounded-md',
+                  VETTING_STYLE[item.vetting.verdict],
+                )}
+                title={item.vetting.reason}
+                data-testid="vetting"
+                data-verdict={item.vetting.verdict}
+              >
+                {VETTING_LABEL[item.vetting.verdict]}
+                {item.vetting.verdict === 'confirmed' ? '' : `: ${item.vetting.reason}`}
+              </span>
             )}
             {item.source === 'page_api' && (
               <span

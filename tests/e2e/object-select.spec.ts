@@ -6,7 +6,7 @@
 // speech said during it and the Candidate's `source` from the E4 bridge. Process (stubbed LLM) sees OBJECT SELECT and
 // the COMMENT. Paired, an agent sees the pick as a Signal whose intent is the comment.
 import type { BrowserContext, Page, Worker } from '@playwright/test';
-import { messageReply, startAnthropicStub } from '../support/anthropic-stub';
+import { isVetRequest, messageReply, scriptOf, startAnthropicStub } from '../support/anthropic-stub';
 import {
   ALLOW_TAB_CAPTURE,
   expect,
@@ -248,7 +248,12 @@ test('standalone: pick the CTA, type "Make this roomier"; the page is never modi
     await review.getByTestId('process-button').click();
     await review.getByTestId('process-confirm').click();
     await expect(review.getByTestId('change-item')).toHaveCount(1, { timeout: 20_000 });
-    const script = stub.messages().at(-1)!.body.messages[0].content as string;
+    const script = scriptOf(
+      stub
+        .messages()
+        .filter((r) => !isVetRequest(r))
+        .at(-1)!,
+    );
     expect(script).toMatch(/ANNOTATION #1 OBJECT SELECT · \d\d:\d\d\.\d–\d\d:\d\d\.\d · at \/pricing\.html/);
     expect(script).toContain('    COMMENT "Make this roomier"');
     expect(script).not.toMatch(/INSPECT|STYLE EDITS/);
@@ -325,7 +330,12 @@ test.describe('on the React fixture', () => {
       await review.getByTestId('process-button').click();
       await review.getByTestId('process-confirm').click();
       await expect(review.getByTestId('change-item')).toHaveCount(1, { timeout: 20_000 });
-      const script = stub.messages().at(-1)!.body.messages[0].content as string;
+      const script = scriptOf(
+        stub
+          .messages()
+          .filter((r) => !isVetRequest(r))
+          .at(-1)!,
+      );
       expect(script).toContain('ANNOTATION #1 OBJECT SELECT');
       expect(script).not.toMatch(/^ +COMMENT /m);
       expect(script).toContain('src/App.js:6');

@@ -10,5 +10,7 @@ export * from './pins.ts';
 export * from './script.ts';
 export * from './style-changes.ts';
 export * from './text-comments.ts';
+export * from './vet.ts';
+export * from './video.ts';
 export * from './viewport.ts';
 export * from './windows.ts';

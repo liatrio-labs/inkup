@@ -8,7 +8,14 @@ describe('normalizeProcessingSettings', () => {
       process: { provider: 'anthropic', model: 'claude-sonnet-5' },
       draft: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001' },
       merge: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001' },
+      vet: true,
     });
+  });
+
+  it('checks items against the recording unless it was turned off', () => {
+    expect(normalizeProcessingSettings({}).vet).toBe(true);
+    expect(normalizeProcessingSettings({ vet: true }).vet).toBe(true);
+    expect(normalizeProcessingSettings({ vet: false }).vet).toBe(false);
   });
 
   it('reads the shape saved before the Gateway (Anthropic model ids, mergeModel maybe absent)', () => {
@@ -16,6 +23,7 @@ describe('normalizeProcessingSettings', () => {
       process: { provider: 'anthropic', model: 'claude-opus-5-5' },
       draft: { provider: 'anthropic', model: 'claude-sonnet-5' },
       merge: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001' },
+      vet: true,
     });
     expect(normalizeProcessingSettings({ processModel: '', draftModel: 'x', mergeModel: 'm' }).merge.model).toBe('m');
   });
@@ -32,6 +40,7 @@ describe('normalizeProcessingSettings', () => {
       process: { provider: 'gateway', model: 'google/gemini-3.1-pro-preview', effort: 'high' },
       draft: { provider: 'gateway', model: 'anthropic/claude-haiku-4.5' },
       merge: { provider: 'anthropic', model: 'claude-haiku-4-5' },
+      vet: true,
     });
   });
 

@@ -64,6 +64,10 @@ export interface ProcessRunRow {
   dropped_annotations?: { annotation: number; reason: string }[];
   /** Live Annotations no item uses and the model did not list as dropped. */
   unaccounted_annotations?: number[];
+  /** The recording went with the calls (video-grounded Process); absent before it existed. */
+  video?: boolean;
+  /** What the reviewer should know about how the run went, e.g. the recording was too large to send. */
+  notes?: string[];
   error: string | null;
   /** `interrupted`: the service worker restarted while the run was going (swept on startup). */
   error_code: ProcessErrorCode | 'no_key' | 'busy' | 'interrupted' | null;

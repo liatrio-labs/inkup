@@ -101,6 +101,35 @@ export async function listGatewayModels(opts: ListOptions & { baseURL: string })
   return body.data.flatMap((m) => gatewayModel(m) ?? []);
 }
 
+/**
+ * A Gateway model's input modalities, from `GET {base}/v1/models/{creator}/{model}/endpoints`
+ * (`data.architecture.input_modalities`, e.g. ["text", "image", "file"]; vercel.com/docs/ai-gateway/sdks-and-apis/
+ * rest-api#get-model-endpoints, read 2026-09-24).
+ */
+export async function gatewayInputModalities(
+  opts: ListOptions & { baseURL: string; model: string },
+): Promise<string[]> {
+  const res = await (opts.fetch ?? fetch)(`${opts.baseURL.replace(/\/$/, '')}/v1/models/${opts.model}/endpoints`, {
+    headers: { authorization: `Bearer ${opts.apiKey}` },
+  });
+  if (!res.ok) throw new Error(`Vercel AI Gateway answered ${res.status} for ${opts.model}'s endpoints.`);
+  const body = (await res.json()) as { data?: { architecture?: { input_modalities?: unknown } } };
+  const modalities = body.data?.architecture?.input_modalities;
+  if (!Array.isArray(modalities)) throw new Error(`The Vercel AI Gateway gave no input modalities for ${opts.model}.`);
+  return modalities.filter((m): m is string => typeof m === 'string');
+}
+
+/**
+ * Whether a Gateway model takes video. The model list has no modality field, and whether the endpoints call ever
+ * lists "video" is not documented, so: a "video" tag, or "video" among its input modalities, or else a Google model
+ * (Gemini takes video) that takes files. `modalities` null: the endpoints call was not made or failed.
+ */
+export function takesVideo(model: string, tags: readonly string[], modalities: readonly string[] | null): boolean {
+  if (tags.includes('video')) return true;
+  if (!modalities) return false;
+  return modalities.includes('video') || (model.startsWith('google/') && modalities.includes('file'));
+}
+
 /** The cached lists as one catalog for cost and caps (Gateway ids carry their `creator/` prefix, so none collide). */
 export function catalogOf(lists: Partial<Record<string, ModelList>>): ModelCatalog | null {
   const all = Object.values(lists).filter((l): l is ModelList => !!l);

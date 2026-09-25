@@ -10,6 +10,10 @@
 //
 // Streaming: a request with `stream: true` gets the same answer as server-sent events (message_start, text deltas,
 // message_delta, message_stop), `deltaChars` characters per delta, `streamDelayMs` apart.
+// Chat Completions (the Vercel AI Gateway's POST /v1/chat/completions, video-grounded Process): `onChat` answers,
+// as SSE chunks when the request streams (`data: {choices: [{delta}]}` … a usage chunk … `data: [DONE]`), else as one
+// JSON completion. GET /v1/models/{creator}/{model}/endpoints answers `architecture.input_modalities` from
+// `endpoints`, or from the model's list tags (text, plus image for vision, file for file-input).
 // Truncation: an answer longer than the request's `max_tokens` (or the stub's own `maxOutputTokens`, a stand-in for
 // a model whose thinking ate the budget) is cut there and stops with `max_tokens`, as the real API does. Tokens are
 // counted as `charsPerToken` characters (default 4).
@@ -38,6 +42,8 @@ export interface AnthropicStub {
   requests: StubRequest[];
   /** Requests to /v1/messages only. */
   messages(): StubRequest[];
+  /** Requests to /v1/chat/completions only. */
+  chats(): StubRequest[];
   /** Most /v1/messages responses open at once. */
   peakConcurrent(): number;
   close(): Promise<void>;
@@ -66,6 +72,45 @@ export function messageReply(
   };
 }
 
+/** A Chat Completions response carrying the text as the assistant message. */
+export function chatReply(
+  model: string,
+  text: string,
+  usage = { prompt_tokens: 9000, completion_tokens: 600 },
+  finish_reason = 'stop',
+): StubReply {
+  return {
+    body: {
+      id: `chatcmpl-stub-${++seq}`,
+      object: 'chat.completion',
+      created: 1_790_000_000,
+      model,
+      choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason }],
+      usage: { ...usage, total_tokens: usage.prompt_tokens + usage.completion_tokens },
+    },
+  };
+}
+
+interface ChatBody {
+  object: string;
+  model: string;
+  choices: { message: { content: string }; finish_reason: string }[];
+  usage: { prompt_tokens: number; completion_tokens: number };
+}
+
+/** A chat completion as SSE `data:` chunks: text deltas, the finish reason, a usage chunk, then [DONE]. */
+export function chatSseEvents(body: ChatBody, deltaChars = 200): string[] {
+  const text = body.choices[0]?.message.content ?? '';
+  const chunk = (choices: unknown[], extra: object = {}) =>
+    `data: ${JSON.stringify({ id: 'chatcmpl-stub', object: 'chat.completion.chunk', model: body.model, choices, ...extra })}\n\n`;
+  const out: string[] = [];
+  for (let i = 0; i < text.length; i += deltaChars)
+    out.push(chunk([{ index: 0, delta: { content: text.slice(i, i + deltaChars) }, finish_reason: null }]));
+  out.push(chunk([{ index: 0, delta: {}, finish_reason: body.choices[0]?.finish_reason ?? 'stop' }]));
+  out.push(chunk([], { usage: body.usage }), 'data: [DONE]\n\n');
+  return out;
+}
+
 export function errorReply(status: number, type: string, message: string): StubReply {
   return { status, body: { type: 'error', error: { type, message }, request_id: `req_stub_${++seq}` } };
 }
@@ -84,6 +129,10 @@ export interface StubOptions {
   models?: StubModels;
   /** GET /v1/models answers 500. */
   failModels?: boolean;
+  /** POST /v1/chat/completions. Default: a 404. */
+  onChat?: (req: StubRequest, index: number) => StubReply | Promise<StubReply>;
+  /** Input modalities per Gateway model id for the endpoints call; default from the list tags. */
+  endpoints?: Record<string, string[]>;
 }
 
 /** What GET /v1/models lists: Anthropic ids, and Gateway ids with per-token prices (strings, as the Gateway sends). */
@@ -142,6 +191,36 @@ export const DEFAULT_STUB_MODELS: StubModels = {
     { id: 'openai/text-embedding-4', name: 'Text Embedding 4', type: 'embedding' },
   ],
 };
+
+function endpointsReply(id: string, opts: StubOptions): StubReply {
+  const listed = (opts.models ?? DEFAULT_STUB_MODELS).gateway.find((m) => m.id === id);
+  const modalities =
+    opts.endpoints?.[id] ??
+    (listed
+      ? [
+          'text',
+          ...(listed.tags?.includes('vision') ? ['image'] : []),
+          ...(listed.tags?.includes('file-input') ? ['file'] : []),
+        ]
+      : null);
+  if (!modalities) return { status: 404, body: { error: { message: `stub: no model ${id}`, type: 'not_found' } } };
+  return {
+    body: {
+      data: {
+        id,
+        name: listed?.name ?? id,
+        architecture: {
+          tokenizer: null,
+          instruct_type: null,
+          modality: `${modalities.join('+')}→text`,
+          input_modalities: modalities,
+          output_modalities: ['text'],
+        },
+        endpoints: [{ name: `${id.split('/')[0]} | ${id}`, provider_name: id.split('/')[0], status: 0 }],
+      },
+    },
+  };
+}
 
 function modelsReply(req: StubRequest, models: StubModels): StubReply {
   if (req.headers['anthropic-version']) {
@@ -214,6 +293,7 @@ export function sseEvents(message: MessageBody, deltaChars = 200): string[] {
 export async function startAnthropicStub(opts: StubOptions): Promise<AnthropicStub> {
   const requests: StubRequest[] = [];
   let messageCount = 0;
+  let chatCount = 0;
   let open = 0;
   let peak = 0;
   const server = createServer((req, res) => {
@@ -245,6 +325,18 @@ export async function startAnthropicStub(opts: StubOptions): Promise<AnthropicSt
         reply = opts.failModels
           ? errorReply(500, 'api_error', 'stub: model list unavailable')
           : modelsReply(r, opts.models ?? DEFAULT_STUB_MODELS);
+      } else if (req.method === 'GET' && /^\/v1\/models\/.+\/endpoints$/.test(path)) {
+        reply = endpointsReply(decodeURIComponent(path.slice('/v1/models/'.length, -'/endpoints'.length)), opts);
+      } else if (req.method === 'POST' && path === '/v1/chat/completions' && opts.onChat) {
+        reply = await opts.onChat(r, chatCount++);
+        const body = reply.body as ChatBody | null;
+        if (r.body?.stream === true && (reply.status ?? 200) === 200 && body?.object === 'chat.completion') {
+          res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', ...cors });
+          const events = chatSseEvents(body, opts.deltaChars);
+          for (const e of events) res.write(e);
+          res.end();
+          return;
+        }
       } else if (req.method === 'POST' && path === '/v1/messages') {
         peak = Math.max(peak, ++open);
         res.on('close', () => open--);
@@ -293,20 +385,44 @@ export async function startAnthropicStub(opts: StubOptions): Promise<AnthropicSt
     baseURL: `http://127.0.0.1:${port}`,
     requests,
     messages: () => requests.filter((r) => r.path === '/v1/messages'),
+    chats: () => requests.filter((r) => r.path === '/v1/chat/completions'),
     peakConcurrent: () => peak,
     close: () => new Promise<void>((r) => server.close(() => r())),
   };
 }
 
-/** The script text of a /v1/messages request (the first text block of the first user turn). */
+/** The script text of a /v1/messages or chat request (the text blocks of the first user turn). */
 export function scriptOf(req: StubRequest): string {
-  const content = req.body?.messages?.[0]?.content;
+  const content = req.body?.messages?.find((m: { role: string }) => m.role === 'user')?.content;
   if (typeof content === 'string') return content;
   return (content ?? [])
     .filter((b: { type: string }) => b.type === 'text')
     .map((b: { text: string }) => b.text)
     .join('\n');
 }
+
+/** A vetting call (packages/core/src/process/vet.ts), on either endpoint. */
+export function isVetRequest(req: StubRequest): boolean {
+  const system = req.body?.system ?? req.body?.messages?.find((m: { role: string }) => m.role === 'system')?.content;
+  const text =
+    typeof system === 'string' ? system : (system ?? []).map((b: { text?: string }) => b.text ?? '').join('\n');
+  return text.startsWith('You check Change Items');
+}
+
+/** The ids of the items a vetting call checks (the JSON list at the end of its message). */
+export function vetItemIds(req: StubRequest): string[] {
+  const text = scriptOf(req);
+  const at = text.search(/The Change Items to check \(\d+\):\n\n/);
+  if (at < 0) return [];
+  const list = JSON.parse(text.slice(text.indexOf('\n\n', at) + 2)) as { id: string }[];
+  return list.map((i) => i.id);
+}
+
+/** A vetting answer that confirms every item it was sent. */
+export const confirmAll = (req: StubRequest) =>
+  JSON.stringify({
+    results: vetItemIds(req).map((id) => ({ id, verdict: 'confirmed', reason: 'stub: seen in the recording' })),
+  });
 
 /** A review-page Combine after a merge (packages/core/src/process/combine.ts). */
 export function isCombineRequest(req: StubRequest): boolean {
