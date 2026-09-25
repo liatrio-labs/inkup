@@ -1,6 +1,6 @@
 ---
-// The page shell: head, favicons, and Umami analytics when the build has a website ID (ADR 0026). Umami is cookieless
-// and honours Do Not Track; it counts only on inkup.liatr.io, never on a preview or the github.io address.
+import '../styles/global.css';
+
 interface Props {
   title: string;
   description: string;
@@ -8,6 +8,9 @@ interface Props {
 
 const { title, description } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const canonical = new URL(base, Astro.site);
+const ogImage = new URL(`${base}og.png`, Astro.site);
+// Cookieless Umami analytics (ADR 0026): only when the deploy passes a website id, and only counted on the real domain.
 const umamiId = import.meta.env.PUBLIC_UMAMI_WEBSITE_ID;
 const umamiSrc = import.meta.env.PUBLIC_UMAMI_SRC || 'https://cloud.umami.is/script.js';
 ---
@@ -19,11 +22,25 @@ const umamiSrc = import.meta.env.PUBLIC_UMAMI_SRC || 'https://cloud.umami.is/scr
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={new URL(base, Astro.site)} />
+    <meta name="theme-color" content="#1F2A44" />
+    <link rel="canonical" href={canonical} />
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
     <link rel="icon" href={`${base}favicon-32.png`} type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href={`${base}apple-touch-icon.png`} />
     <link rel="sitemap" href={`${base}sitemap-index.xml`} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="InkUp" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- Before first paint, so the page's review motion never flashes its end state. -->
+    <script is:inline>
+      document.documentElement.classList.add('js');
+    </script>
     {
       umamiId && (
         <script
@@ -38,20 +55,7 @@ const umamiSrc = import.meta.env.PUBLIC_UMAMI_SRC || 'https://cloud.umami.is/scr
     }
   </head>
   <body>
+    <a class="skip" href="#main">Skip to content</a>
     <slot />
   </body>
 </html>
-
-<style is:global>
-  :root {
-    color-scheme: light dark;
-    font-family: system-ui, sans-serif;
-    line-height: 1.5;
-  }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-</style>

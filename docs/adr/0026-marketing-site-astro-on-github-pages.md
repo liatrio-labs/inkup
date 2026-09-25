@@ -32,8 +32,11 @@ Umami only when the build has `PUBLIC_UMAMI_WEBSITE_ID`, from `PUBLIC_UMAMI_SRC`
 Track and counts only on `inkup.liatr.io`, so the site has no consent banner. `site.yml` takes both from the
 `UMAMI_WEBSITE_ID` and `UMAMI_SRC` repository variables; CI builds without them. Conversions are `data-umami-event`
 attributes on the calls to action, and their names are a contract that dashboards and goals rely on: `install-chrome`,
-`install-firefox`, `download-dmg`, `copy-brew-cli`, `copy-brew-cask` and `github`, with `data-umami-event-location`
-(`hero`, `install` or `footer`) saying where. A rename is a new event, not an edit.
+`download-chrome-zip`, `download-firefox-zip`, `install-firefox`, `download-dmg`, `copy-brew-cli`, `copy-brew-cask`,
+`copy-mcp-install`, `github` and `liatrio`, with `data-umami-event-location` (such as `hero`, `nav`, `install`,
+`closing` or
+`oss`) saying where. Until the Chrome Web Store listing is live, `install-chrome` jumps to the manual install steps. A
+rename is a new event, not an edit.
 
 **Product media is recorded from the real extension.** The site's screenshots and clips
 (`apps/site/src/assets/captures`, listed in its `manifest.json`) come from `tests/e2e/site-captures.spec.ts`, which

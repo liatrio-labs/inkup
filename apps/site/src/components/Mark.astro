@@ -1,0 +1,48 @@
+---
+// The InkUp mark, inline so it inherits no filtering and draws crisp at any size. Same drawing as
+// extensions/web/assets/icon.svg; keep them in step.
+interface Props {
+  size?: number;
+  class?: string;
+}
+const { size = 32, class: className } = Astro.props;
+---
+
+<svg
+  class={className}
+  width={size}
+  height={size}
+  viewBox="0 0 128 128"
+  aria-hidden="true"
+  focusable="false"
+>
+  <rect width="128" height="128" rx="28" fill="#1F2A44"></rect>
+  <rect class="mark-ring" x="1" y="1" width="126" height="126" rx="27" fill="none" stroke-width="2"></rect>
+  <path
+    d="M76 30 C54 27 30 38 26 60 C22 84 44 100 66 100 C90 100 106 84 104 62 C102 42 86 30 64 28 C56 27 48 25 42 19"
+    fill="none"
+    stroke="#E5484D"
+    stroke-width="9"
+    stroke-linecap="round"
+    stroke-linejoin="round"></path>
+  <path
+    d="M47 76 L64 58 L81 76"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="10"
+    stroke-linecap="round"
+    stroke-linejoin="round"></path>
+</svg>
+
+<style>
+  /* On the dark page the ink tile needs an edge, or it sinks into the navy ground. */
+  .mark-ring {
+    stroke: transparent;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .mark-ring {
+      stroke: rgb(231 235 243 / 0.28);
+    }
+  }
+</style>

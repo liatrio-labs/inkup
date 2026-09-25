@@ -1,0 +1,90 @@
+---
+// The social card's source. public/og.png is a 1200×630 capture of this page (see apps/site/README.md); it is not
+// linked from the site and is kept out of the sitemap and search.
+import ChangeItem from '../components/ChangeItem.astro';
+import Inspect from '../components/Inspect.astro';
+import Mark from '../components/Mark.astro';
+import { itemFor } from '../review.ts';
+import '../styles/global.css';
+
+const item = itemFor('top')!;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>InkUp social card</title>
+  </head>
+  <body>
+    <div class="card">
+      <p class="brand"><Mark size={56} /><span>InkUp</span></p>
+      <Inspect selector="h1" class="title-box">
+        <h1>Review your site out loud.</h1>
+      </Inspect>
+      <p class="sub">
+        Talk and draw on any page. Get located Change Items for you or your coding agent.
+      </p>
+      <ChangeItem item={item} class="og-item" />
+    </div>
+  </body>
+</html>
+
+<style>
+  :global(html),
+  :global(body) {
+    margin: 0;
+    color-scheme: light;
+  }
+
+  .card {
+    position: relative;
+    width: 1200px;
+    height: 630px;
+    padding: 64px 72px;
+    background: #fff;
+    color: #1f2a44;
+    overflow: hidden;
+    --box-margin: rgb(246 178 107 / 0.3);
+    --box-padding: rgb(147 196 125 / 0.3);
+    --box-content: rgb(111 168 220 / 0.16);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 34px;
+    font-weight: 750;
+    letter-spacing: -0.035em;
+  }
+
+  :global(.title-box) {
+    display: inline-block;
+    margin-top: 72px;
+  }
+
+  h1 {
+    font-size: 92px;
+    letter-spacing: -0.045em;
+    line-height: 0.98;
+    max-width: 9.5ch;
+  }
+
+  .sub {
+    margin-top: 40px;
+    max-width: 30ch;
+    font-size: 30px;
+    line-height: 1.3;
+    color: #3a4663;
+  }
+
+  .card :global(.og-item) {
+    position: absolute;
+    right: 72px;
+    top: 250px;
+    width: 400px;
+    rotate: 1.5deg;
+  }
+</style>
