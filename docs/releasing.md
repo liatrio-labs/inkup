@@ -125,8 +125,9 @@ for development or testing, but it is not a one-click install. So a Chrome relea
 - refuses tags that are not on `main` or do not end in the extensions/web/package.json version,
 - runs typecheck, unit tests and `pnpm zip` with `INKUP_RELEASE_BUILD=1`, the one build with the plain icon,
 - adds the zip to the tag's GitHub Release,
-- uploads the zip to the Chrome Web Store and submits it for review, in the `chrome-web-store` environment, if store
-  credentials are configured (otherwise it logs a notice and skips).
+- uploads the zip to the Chrome Web Store and submits it for review, in the `chrome-web-store` environment, if the
+  store's item and publisher IDs are configured (otherwise it logs a notice and skips). It signs in to Google keyless,
+  with the job's GitHub OIDC token, and calls the Chrome Web Store API v2 through `scripts/chrome-web-store.ts`.
 
 ### Firefox
 
@@ -355,6 +356,48 @@ release workflow.
 
 ## One-time Chrome Web Store setup
 
+The release job signs in to Google without a key: GitHub's OIDC token for the job is exchanged through workload
+identity federation for a short-lived access token of a service account the store publisher trusts. Liatrio's Google
+Cloud organization blocks service account key creation, so there is no JSON key and no key secret.
+
+### What already exists
+
+| Piece | Value |
+| --- | --- |
+| Google Cloud project | `inkup-cws` (number `600628809675`), Chrome Web Store API enabled |
+| Service account | `inkup-cws-upload@inkup-cws.iam.gserviceaccount.com` |
+| Workload identity pool and provider | `projects/600628809675/locations/global/workloadIdentityPools/github/providers/liatrio-labs-inkup` |
+| Provider issuer | `https://token.actions.githubusercontent.com` |
+| Provider condition | repository owner id `223510100`, repository id `1385938436`, environment `chrome-web-store` |
+| Binding | `roles/iam.workloadIdentityUser` on the service account for the subject `repo:liatrio-labs@223510100/inkup@1385938436:environment:chrome-web-store` |
+| GitHub environment | `chrome-web-store`, admits only `inkup-extension-v*` and `inkup-chrome-v*` tags, no required reviewer |
+
+The repo uses GitHub's immutable OIDC subject format, with the owner and repository ids after `@`, so renaming the repo
+or the organization does not hand its identity to a new one. `release.yml` names the provider and the service account
+in plain text; neither is a secret.
+
+To rebuild it from nothing (after `gcloud projects create inkup-cws`, linking billing, and
+`gcloud services enable chromewebstore.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com`):
+
+```sh
+gcloud iam service-accounts create inkup-cws-upload --project=inkup-cws
+
+gcloud iam workload-identity-pools create github --project=inkup-cws --location=global \
+  --display-name="GitHub Actions"
+
+gcloud iam workload-identity-pools providers create-oidc liatrio-labs-inkup --project=inkup-cws \
+  --location=global --workload-identity-pool=github \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.environment=assertion.environment,attribute.ref=assertion.ref" \
+  --attribute-condition="assertion.repository_owner_id == '223510100' && assertion.repository_id == '1385938436' && assertion.environment == 'chrome-web-store'"
+
+gcloud iam service-accounts add-iam-policy-binding inkup-cws-upload@inkup-cws.iam.gserviceaccount.com \
+  --project=inkup-cws --role=roles/iam.workloadIdentityUser \
+  --member="principal://iam.googleapis.com/projects/600628809675/locations/global/workloadIdentityPools/github/subject/repo:liatrio-labs@223510100/inkup@1385938436:environment:chrome-web-store"
+```
+
+### What is left for a maintainer
+
 The store API cannot create a new item, so the first upload is manual.
 
 1. Register a Chrome Web Store developer account (one-time fee) at <https://chrome.google.com/webstore/devconsole>.
@@ -362,26 +405,21 @@ The store API cannot create a new item, so the first upload is manual.
    practices (microphone, tab capture, `<all_urls>`: see `docs/adr/0003-all-sites-host-permission.md` and PRD P0-15),
    and set **Visibility: Unlisted**. Submit.
 3. Note the **extension ID** (item page) and **publisher ID** (the dev console URL `.../devconsole/<publisher-id>`).
-4. Create a Google Cloud service account for the Chrome Web Store API and download its JSON key:
-   <https://developer.chrome.com/docs/webstore/service-accounts>. Add the service account's email to the publisher in
-   the dev console.
-5. In GitHub → Settings → Environments, create `chrome-web-store`, restrict its deployments to the tag patterns
-   `inkup-extension-v*` and `inkup-chrome-v*`, and add these environment secrets. The environment and both tag rules
-   already exist, with no required reviewer; only the secrets are left to add:
+4. In the dev console's account settings, add `inkup-cws-upload@inkup-cws.iam.gserviceaccount.com` as the publisher's
+   service account: <https://developer.chrome.com/docs/webstore/service-accounts>.
+5. In GitHub → Settings → Environments → `chrome-web-store`, add these environment secrets:
 
    | Secret | Value |
    | --- | --- |
    | `CHROME_EXTENSION_ID` | from step 3 |
    | `CHROME_PUBLISHER_ID` | from step 3 |
-   | `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL` | `client_email` from the JSON key |
-   | `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` | `private_key` from the JSON key |
 
-   Back each one up to 1Password as you create it (secrets-backup). Optional repository variable
-   `CHROME_SKIP_SUBMIT_REVIEW=true` uploads without submitting.
+   Neither is a credential, but keeping them in the environment keeps them to release tags. Optional repository
+   variable `CHROME_SKIP_SUBMIT_REVIEW=true` uploads without submitting.
 
 From then on every extension release uploads and submits automatically, and Google's store review gates the new
-version going live. To gate uploads on a person again, add a required reviewer under the environment's protection
-rules (free on public repos).
+version going live. Until both secrets are set, the job logs a notice and skips. To gate uploads on a person again, add
+a required reviewer under the environment's protection rules (free on public repos).
 
 ## One-time addons.mozilla.org setup
 
@@ -416,7 +454,6 @@ export INKUP_RELEASE_BUILD=1
 pnpm zip                                    # extensions/web/.output/*-chrome.zip
 pnpm zip:firefox                            # extensions/web/.output/*-firefox.zip and *-sources.zip
 bash scripts/verify-sources-zip.sh --no-zip # rebuild from the sources zip in a temp dir; must match
-cd extensions/web && pnpm exec wxt submit --dry-run --chrome-zip .output/*-chrome.zip
 cd extensions/web && pnpm exec wxt submit --dry-run --firefox-zip .output/*-firefox.zip \
   --firefox-sources-zip .output/*-sources.zip
 ```
