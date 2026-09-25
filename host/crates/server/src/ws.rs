@@ -322,6 +322,11 @@ impl Connection {
             }
             None => self.pair(&hello).await?,
         };
+        // For `inkup update`'s skew guard (ADR 0008).
+        let (client_id, version) = (client.id.clone(), *hello.v);
+        blocking(&self.state.store, move |store| store.record_hello(&client_id, version))
+            .await
+            .map_err(|e| internal(&re, e))?;
         let welcome = protocol::welcome(&self.next_id(), &re, &client.id, VERSION).map_err(|e| internal(&re, e))?;
         self.send(welcome).await.map_err(|e| Refusal::new(Some(&re), ErrorCode::Internal, e))?;
         Ok(client)

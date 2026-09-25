@@ -12,11 +12,11 @@ fn session_start() -> Value {
 fn reopening_keeps_data_and_the_schema_version() {
     let dir = tempfile::tempdir().unwrap();
     let store = Store::open(dir.path()).unwrap();
-    assert_eq!(store.schema_version().unwrap(), 4);
+    assert_eq!(store.schema_version().unwrap(), 5);
     store.upsert_event(None, "s1", &session_start()).unwrap();
     drop(store);
     let store = Store::open(dir.path()).unwrap();
-    assert_eq!(store.schema_version().unwrap(), 4);
+    assert_eq!(store.schema_version().unwrap(), 5);
     assert_eq!(store.session_events("s1").unwrap().unwrap(), vec![session_start()]);
 }
 
@@ -169,4 +169,25 @@ fn a_rename_replaces_the_title_and_the_latest_wins() {
     start["url"] = json!("http://localhost:4401/pricing.html?v=2");
     store.upsert_event(None, "s1", &start).unwrap();
     assert_eq!(title(&store).as_deref(), Some("Pricing header pass"));
+}
+
+#[test]
+fn the_protocol_version_a_client_spoke_in_hello_is_kept() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::open(dir.path()).unwrap();
+    let chrome = store.pair_client("chrome", "Chrome").unwrap().client;
+    let firefox = store.pair_client("firefox", "Firefox").unwrap().client;
+    let gone = store.pair_client("chrome", "Old laptop").unwrap().client;
+    assert_eq!(store.client_protocol_versions(0).unwrap(), vec![], "none said hello yet");
+
+    store.record_hello(&chrome.id, 2).unwrap();
+    store.record_hello(&firefox.id, 1).unwrap();
+    store.record_hello(&gone.id, 1).unwrap();
+    store.revoke_client(&gone.id).unwrap();
+    drop(store);
+    let store = Store::open(dir.path()).unwrap();
+    let spoken: Vec<_> = store.client_protocol_versions(0).unwrap().into_iter().map(|(c, v)| (c.name, v)).collect();
+    assert_eq!(spoken, vec![("Firefox".to_owned(), 1), ("Chrome".to_owned(), 2)], "lowest first, revoked left out");
+    let seen = store.client_protocol_versions(0).unwrap()[0].0.last_seen_at.unwrap();
+    assert_eq!(store.client_protocol_versions(seen + 1).unwrap(), vec![], "not seen recently");
 }

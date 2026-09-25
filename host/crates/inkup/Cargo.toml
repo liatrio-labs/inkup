@@ -19,7 +19,8 @@ axoupdater.workspace = true
 clap.workspace = true
 directories.workspace = true
 gethostname.workspace = true
-reqwest.workspace = true
+# TLS comes through axoupdater (the same reqwest); the skew guard reads GitHub with it.
+reqwest = { workspace = true, features = ["rustls"] }
 tempfile.workspace = true
 serde_json = { workspace = true, features = ["preserve_order"] }
 tokio.workspace = true
@@ -40,3 +41,8 @@ workspace = true
 # `publish = false` keeps the crate off crates.io; this opts the binary into dist releases anyway.
 [package.metadata.dist]
 dist = true
+# The release's protocol version, for `inkup update`'s skew guard (ADR 0008). Built from the crate constant, so it
+# cannot drift; dist runs this in this crate's directory and uploads the file as a release asset.
+[[package.metadata.dist.extra-artifacts]]
+artifacts = ["protocol-version.txt"]
+build = ["cargo", "run", "--quiet", "--package", "inkup-protocol", "--example", "protocol-version", "--", "protocol-version.txt"]

@@ -29,6 +29,9 @@ async fn a_client_pairs_reconnects_and_streams_a_session() {
         welcome.capabilities.iter().map(|c| c.as_str()).collect::<Vec<_>>(),
         ["events", "blobs", "items", "resolutions", "discard", "forget", "screenshot_discard"]
     );
+    // The store keeps the protocol version the Client spoke, for `inkup update`'s skew guard.
+    let spoken = host.store.client_protocol_versions(0).unwrap();
+    assert_eq!(spoken.iter().map(|(_, v)| *v).collect::<Vec<_>>(), [inkup_protocol::PROTOCOL_VERSION]);
 
     // The same session_start twice (an outbox resend) is acked both times and stored once.
     let start = fixture("event.session_start.json");

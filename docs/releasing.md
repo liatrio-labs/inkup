@@ -99,6 +99,7 @@ edited by hand.
    - builds `inkup` for `aarch64-apple-darwin`, `x86_64-apple-darwin`, `aarch64-unknown-linux-gnu`,
      `x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc`, each on a native runner, with the `dist` cargo profile,
    - builds `inkup-installer.sh`, `inkup-installer.ps1`, the Homebrew formula `inkup.rb` and `sha256` checksums,
+   - writes `protocol-version.txt` from the `PROTOCOL_VERSION` constant, for `inkup update`'s skew guard,
    - creates the GitHub Release with all of them,
    - pushes the formula to `liatrio-labs/homebrew-tap` (stable releases only).
 
@@ -122,12 +123,16 @@ takes "latest". Link a specific `inkup-v…` release in announcements. The shell
   `~/.cargo/bin`; PATH order decides which runs). The answer is `[update] homebrew` in the data dir's config.toml;
   change it with `inkup update --homebrew brew|self|ask`.
 - A `cargo install` or dev build only prints the install commands.
+- Before any of these, the skew guard: when the release's `protocol-version.txt` is newer than the protocol a paired
+  extension last spoke, `inkup update` names the extensions behind and asks before going on (`--yes` skips the
+  question, not the warning). Update the extension first. Releases without the file are not guarded.
 - The TUI and `inkup serve` check at most once a day in the background, at a terminal only, and not when `CI` or
   `INKUP_NO_UPDATE_CHECK=1` is set. A newer release shows in the TUI's key line.
 
 To try the whole path without publishing, point the updater and the installer at a stand-in for GitHub with
 `INKUP_INSTALLER_GHE_BASE_URL=http://127.0.0.1:<port>`: it must answer `/api/v3/repos/liatrio-labs/inkup/releases`
-(and `/releases/latest`) and serve the release files under `/liatrio-labs/inkup/releases/download/<tag>/`.
+(and `/releases/latest`, and `/releases/tags/<tag>` for the skew guard) and serve the release files under
+`/liatrio-labs/inkup/releases/download/<tag>/`.
 
 ### Changing the host release config
 

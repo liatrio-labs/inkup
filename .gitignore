@@ -16,3 +16,5 @@ extensions/web/public/vad/
 fixtures/sessions/long-*.json
 # cargo-dist output (dist build)
 /target/
+# dist writes it while building the release (host/crates/inkup/Cargo.toml, extra-artifacts)
+/host/crates/inkup/protocol-version.txt

@@ -6,6 +6,11 @@
 //! - by Homebrew (the binary lives in a Homebrew Cellar): the user chooses once, in config.toml's `[update]`, between
 //!   leaving it to `brew upgrade inkup` and updating anyway, which installs a second copy where the installer puts it;
 //! - any other way (`cargo install`, a dev build): it says a release exists and how to install it.
+//!
+//! Before any of those, the skew guard: each release carries its protocol version as a `protocol-version.txt` asset,
+//! and when it is newer than what a recently seen paired Client last spoke in `hello`, `inkup update` names those
+//! Clients and asks before going on (`--yes` goes on with the warning printed). A release without the asset is not
+//! guarded. The daily check's notice says so too.
 
 use std::io::{BufRead, IsTerminal, Write};
 use std::path::{Component, Path, PathBuf};
@@ -14,7 +19,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result, bail};
 use axoupdater::{AxoUpdater, AxoupdateError, ReleaseSource, ReleaseSourceType, Version};
 use clap::{Args, ValueEnum};
-use inkup_store::HostConfig;
+use inkup_store::{Client, HostConfig, Store};
 use tokio::sync::watch;
 use toml_edit::{DocumentMut, Item, Table, value};
 
@@ -29,6 +34,10 @@ const DAY: u64 = 24 * 60 * 60;
 /// The background check gives up after this; it tries again next start.
 const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
 const INSTALLER: &str = "https://github.com/liatrio-labs/inkup/releases/latest/download/inkup-installer";
+/// The release asset holding the release's `PROTOCOL_VERSION` (dist's `extra-artifacts` in the crate's Cargo.toml).
+const PROTOCOL_ASSET: &str = "protocol-version.txt";
+/// A Client seen within this long counts for the skew guard; one unseen for longer is likely gone.
+const RECENT_MS: i64 = 30 * DAY as i64 * 1000;
 
 #[derive(Args)]
 pub struct UpdateArgs {
@@ -39,6 +48,9 @@ pub struct UpdateArgs {
     /// again next time (ask). Saved in config.toml.
     #[arg(long, value_name = "CHOICE")]
     homebrew: Option<HomebrewArg>,
+    /// Update without asking, even when the release speaks a newer protocol than a paired extension.
+    #[arg(long, short)]
+    yes: bool,
     #[arg(long, env = "INKUP_DATA_DIR")]
     data_dir: Option<PathBuf>,
 }
@@ -127,6 +139,8 @@ pub struct Checked {
     pub at: u64,
     /// The newest inkup release, or none when none is published.
     pub latest: Option<String>,
+    /// The protocol version `latest` speaks, when it is newer than this copy and publishes one.
+    pub protocol: Option<i64>,
 }
 
 pub fn read_cache(dir: &Path) -> Option<Checked> {
@@ -135,11 +149,12 @@ pub fn read_cache(dir: &Path) -> Option<Checked> {
     Some(Checked {
         at: json.get("checked_at")?.as_u64()?,
         latest: json.get("latest").and_then(|v| v.as_str()).map(str::to_owned),
+        protocol: json.get("protocol").and_then(serde_json::Value::as_i64),
     })
 }
 
 pub fn write_cache(dir: &Path, checked: &Checked) -> Result<()> {
-    let json = serde_json::json!({ "checked_at": checked.at, "latest": checked.latest });
+    let json = serde_json::json!({ "checked_at": checked.at, "latest": checked.latest, "protocol": checked.protocol });
     std::fs::create_dir_all(dir)?;
     std::fs::write(dir.join(CACHE_FILE), format!("{json}\n"))?;
     Ok(())
@@ -228,13 +243,132 @@ fn newer(latest: Option<&str>) -> Option<Version> {
     latest.and_then(|v| v.parse::<Version>().ok()).filter(|v| *v > current_version())
 }
 
+/// The GitHub API axoupdater asks: `INKUP_INSTALLER_GHE_BASE_URL` or `INKUP_INSTALLER_GITHUB_BASE_URL` when set (the
+/// updater tests point one at a stub), else api.github.com.
+fn github_api() -> Result<String> {
+    let env = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
+    if let Some(base) = env("INKUP_INSTALLER_GHE_BASE_URL") {
+        return Ok(reqwest::Url::parse(&base)?.join("api/v3")?.to_string());
+    }
+    if let Some(base) = env("INKUP_INSTALLER_GITHUB_BASE_URL") {
+        let url = reqwest::Url::parse(&base)?;
+        let domain = url.domain().context("INKUP_INSTALLER_GITHUB_BASE_URL has no domain")?;
+        let port = url.port().map(|p| format!(":{p}")).unwrap_or_default();
+        return Ok(format!("{}://api.{domain}{port}", url.scheme()));
+    }
+    Ok("https://api.github.com".into())
+}
+
+/// Where a GitHub release (the API's JSON) keeps its protocol version, if it publishes one.
+fn protocol_asset_url(release: &serde_json::Value) -> Option<&str> {
+    release["assets"]
+        .as_array()?
+        .iter()
+        .find(|asset| asset["name"] == PROTOCOL_ASSET)
+        .and_then(|asset| asset["browser_download_url"].as_str())
+}
+
+/// The protocol version in a `protocol-version.txt`.
+fn parse_protocol(text: &str) -> Option<i64> {
+    text.trim().parse().ok().filter(|v| *v > 0)
+}
+
+/// The protocol version the `inkup-v<version>` release publishes, or `None` for a release without one (every
+/// release before the skew guard).
+async fn release_protocol(version: &Version) -> Result<Option<i64>> {
+    let http = reqwest::Client::builder()
+        .user_agent(concat!("inkup/", env!("CARGO_PKG_VERSION")))
+        .timeout(CHECK_TIMEOUT)
+        .build()?;
+    let url = format!("{}/repos/{REPO_OWNER}/{REPO_NAME}/releases/tags/{APP_NAME}-v{version}", github_api()?);
+    let release: serde_json::Value = http
+        .get(url)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let Some(asset) = protocol_asset_url(&release) else { return Ok(None) };
+    let text = http.get(asset).send().await?.error_for_status()?.text().await?;
+    parse_protocol(&text).map(Some).with_context(|| format!("{PROTOCOL_ASSET} holds {:?}", text.trim()))
+}
+
+/// The protocol versions recently seen paired Clients last spoke. Empty with no store yet, or one this copy cannot
+/// read.
+fn spoken_protocols(dir: &Path) -> Vec<(Client, i64)> {
+    if !dir.join(inkup_store::DB_FILE).exists() {
+        return Vec::new();
+    }
+    let since = i64::try_from(now()).unwrap_or(i64::MAX).saturating_mul(1000) - RECENT_MS;
+    match Store::open(dir).and_then(|store| store.client_protocol_versions(since)) {
+        Ok(spoken) => spoken,
+        Err(error) => {
+            tracing::debug!(%error, "could not read the paired Clients' protocol versions");
+            Vec::new()
+        }
+    }
+}
+
+/// A release that speaks a newer protocol than some paired Clients: installing it locks them out until their
+/// extension is updated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Skew {
+    /// The release's protocol version.
+    pub release: i64,
+    /// The Clients behind it: name, kind and the version each last spoke, lowest first.
+    pub behind: Vec<(String, String, i64)>,
+}
+
+/// The skew between a release's protocol version and what the paired Clients last spoke. `None` when the release
+/// publishes no version, when no Client is paired, or when none is behind.
+pub fn skew(release: Option<i64>, spoken: &[(Client, i64)]) -> Option<Skew> {
+    let release = release?;
+    let behind: Vec<_> = spoken
+        .iter()
+        .filter(|(_, v)| *v < release)
+        .map(|(client, v)| (client.name.clone(), client.kind.clone(), *v))
+        .collect();
+    (!behind.is_empty()).then_some(Skew { release, behind })
+}
+
+/// The skew guard's warning, one line per line.
+fn skew_warning(latest: &Version, skew: &Skew) -> Vec<String> {
+    let mut lines = vec![format!(
+        "Warning: inkup {latest} speaks protocol {}. These paired Clients last spoke an older one, and cannot connect \
+         to it until their extension is updated:",
+        skew.release
+    )];
+    lines.extend(skew.behind.iter().map(|(name, kind, v)| format!("  {name} ({kind}, protocol {v})")));
+    lines.push(
+        "Update the extension first (from its store, or chrome://extensions / about:addons), then update inkup.".into(),
+    );
+    lines
+}
+
+/// Asks whether to update anyway. Anything but yes, or no answer, is no.
+fn confirm(input: &mut impl BufRead) -> Result<bool> {
+    print!("Update inkup anyway? [y/N] ");
+    std::io::stdout().flush()?;
+    let mut answer = String::new();
+    input.read_line(&mut answer)?;
+    Ok(matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes"))
+}
+
 /// One line for the TUI: the newer release and what to run.
-fn notice(latest: &Version, install: &Install, choice: Option<HomebrewChoice>) -> String {
+fn notice(latest: &Version, install: &Install, choice: Option<HomebrewChoice>, skew: Option<&Skew>) -> String {
     let run = match (install, choice) {
         (Install::Homebrew { .. }, None | Some(HomebrewChoice::Brew)) => "brew upgrade inkup",
         _ => "inkup update",
     };
-    format!("inkup {latest} is out: {run}")
+    match skew {
+        None => format!("inkup {latest} is out: {run}"),
+        Some(skew) => format!(
+            "inkup {latest} is out, on protocol {}: update the extension first ({} behind), then {run}",
+            skew.release,
+            skew.behind.iter().map(|(name, ..)| name.as_str()).collect::<Vec<_>>().join(", ")
+        ),
+    }
 }
 
 /// Starts the daily check in the background and returns at once. The receiver holds the TUI's notice once a newer
@@ -248,15 +382,23 @@ pub fn spawn_check(dir: &Path) -> watch::Receiver<Option<String>> {
     let dir = dir.to_path_buf();
     tokio::spawn(async move {
         let cached = read_cache(&dir);
-        let latest = match cached {
-            Some(cached) if !is_due(Some(cached.at), now()) => cached.latest,
+        let (latest, protocol) = match cached {
+            Some(cached) if !is_due(Some(cached.at), now()) => (cached.latest, cached.protocol),
             _ => match tokio::time::timeout(CHECK_TIMEOUT, latest_release()).await {
                 Ok(Ok(latest)) => {
+                    // Only a release this copy would update to needs its protocol version.
+                    let protocol = match latest.as_ref().filter(|v| **v > current_version()) {
+                        Some(version) => release_protocol(version).await.unwrap_or_else(|error| {
+                            tracing::debug!(error = format!("{error:#}"), "could not read the release's protocol");
+                            None
+                        }),
+                        None => None,
+                    };
                     let latest = latest.map(|v| v.to_string());
-                    if let Err(error) = write_cache(&dir, &Checked { at: now(), latest: latest.clone() }) {
+                    if let Err(error) = write_cache(&dir, &Checked { at: now(), latest: latest.clone(), protocol }) {
                         tracing::debug!(%error, "could not save the update check");
                     }
-                    latest
+                    (latest, protocol)
                 }
                 Ok(Err(error)) => {
                     tracing::debug!(error = format!("{error:#}"), "update check failed");
@@ -271,7 +413,11 @@ pub fn spawn_check(dir: &Path) -> watch::Receiver<Option<String>> {
         if let Some(latest) = newer(latest.as_deref()) {
             let install = tokio::task::spawn_blocking(detect).await.unwrap_or(Install::Other);
             let choice = load_choice(&dir).ok().flatten();
-            let _ = tx.send(Some(notice(&latest, &install, choice)));
+            let spoken = {
+                let dir = dir.clone();
+                tokio::task::spawn_blocking(move || spoken_protocols(&dir)).await.unwrap_or_default()
+            };
+            let _ = tx.send(Some(notice(&latest, &install, choice, skew(protocol, &spoken).as_ref())));
         }
     });
     rx
@@ -296,8 +442,9 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
 
     let current = current_version();
     let latest = latest_release().await?;
-    let _ = write_cache(&dir, &Checked { at: now(), latest: latest.as_ref().map(ToString::to_string) });
     let Some(latest) = latest.clone().filter(|latest| *latest > current) else {
+        let _ =
+            write_cache(&dir, &Checked { at: now(), latest: latest.as_ref().map(ToString::to_string), protocol: None });
         match latest {
             None => println!("inkup {current}: no inkup release is published yet."),
             Some(_) => println!("inkup {current} is up to date."),
@@ -305,6 +452,24 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
         return Ok(());
     };
     println!("inkup {latest} is out; this is {current}.");
+
+    // The skew guard, before any install path. A release without a protocol version is not guarded.
+    let protocol = release_protocol(&latest).await.unwrap_or_else(|error| {
+        println!("(Could not read inkup {latest}'s protocol version, so the extensions are not checked: {error:#})");
+        None
+    });
+    let _ = write_cache(&dir, &Checked { at: now(), latest: Some(latest.to_string()), protocol });
+    if let Some(skew) = skew(protocol, &spoken_protocols(&dir)) {
+        for line in skew_warning(&latest, &skew) {
+            println!("{line}");
+        }
+        if args.yes {
+            println!("--yes: updating anyway.");
+        } else if !args.check && !confirm(&mut std::io::stdin().lock())? {
+            println!("Not updated.");
+            return Ok(());
+        }
+    }
 
     let install = detect();
     match &install {
@@ -506,8 +671,9 @@ mod tests {
     fn the_cache_round_trips() {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(read_cache(dir.path()), None);
-        for latest in [Some("0.2.0".to_owned()), None] {
-            let checked = Checked { at: 1_790_000_000, latest };
+        for (latest, protocol) in [(Some("0.2.0".to_owned()), Some(2)), (Some("0.2.0".to_owned()), None), (None, None)]
+        {
+            let checked = Checked { at: 1_790_000_000, latest, protocol };
             write_cache(dir.path(), &checked).unwrap();
             assert_eq!(read_cache(dir.path()), Some(checked));
         }
@@ -529,17 +695,82 @@ mod tests {
         assert_eq!(load_choice(dir.path()).unwrap(), None);
         let text = std::fs::read_to_string(dir.path().join(inkup_store::CONFIG_FILE)).unwrap();
         assert!(text.contains("trusted networks only") && text.contains("[update]"), "{text}");
+        assert!(text.starts_with("# inkup host settings.\n"), "the header stays on top: {text}");
+        assert_eq!(text.matches("# inkup host settings.").count(), 1, "{text}");
     }
 
     #[test]
     fn the_notice_names_what_to_run() {
         let v: Version = "0.2.0".parse().unwrap();
         let brew = Install::Homebrew { prefix: p("/opt/homebrew") };
-        assert_eq!(notice(&v, &Install::Installer, None), "inkup 0.2.0 is out: inkup update");
-        assert_eq!(notice(&v, &brew, None), "inkup 0.2.0 is out: brew upgrade inkup");
-        assert_eq!(notice(&v, &brew, Some(HomebrewChoice::SelfUpdate)), "inkup 0.2.0 is out: inkup update");
+        assert_eq!(notice(&v, &Install::Installer, None, None), "inkup 0.2.0 is out: inkup update");
+        assert_eq!(notice(&v, &brew, None, None), "inkup 0.2.0 is out: brew upgrade inkup");
+        assert_eq!(notice(&v, &brew, Some(HomebrewChoice::SelfUpdate), None), "inkup 0.2.0 is out: inkup update");
+        let skew = Skew { release: 2, behind: vec![("Chrome on MacBook".into(), "chrome".into(), 1)] };
+        assert_eq!(
+            notice(&v, &brew, None, Some(&skew)),
+            "inkup 0.2.0 is out, on protocol 2: update the extension first (Chrome on MacBook behind), \
+             then brew upgrade inkup"
+        );
         assert_eq!(newer(Some("0.0.1")), None);
         assert_eq!(newer(Some("not a version")), None);
         assert_eq!(newer(Some("99.0.0")), Some("99.0.0".parse().unwrap()));
+    }
+
+    fn client(name: &str, kind: &str) -> Client {
+        Client { id: format!("c-{name}"), kind: kind.into(), name: name.into(), created_at: 0, last_seen_at: Some(0) }
+    }
+
+    #[test]
+    fn a_release_on_a_newer_protocol_than_a_paired_client_is_a_skew() {
+        let spoken = [(client("Firefox", "firefox"), 1), (client("Chrome", "chrome"), 2)];
+        assert_eq!(
+            skew(Some(2), &spoken),
+            Some(Skew { release: 2, behind: vec![("Firefox".into(), "firefox".into(), 1)] })
+        );
+        assert_eq!(
+            skew(Some(3), &spoken).map(|s| s.behind.len()),
+            Some(2),
+            "every Client behind is named, not only the lowest"
+        );
+        assert_eq!(skew(Some(2), &spoken[1..]), None, "the same version");
+        assert_eq!(skew(Some(1), &spoken), None, "an older release: the host still speaks what the Clients speak");
+        assert_eq!(skew(Some(2), &[]), None, "no paired Clients");
+        assert_eq!(skew(None, &spoken), None, "a release without a protocol version is not guarded");
+    }
+
+    #[test]
+    fn a_release_without_the_protocol_asset_publishes_no_version() {
+        let with = serde_json::json!({ "assets": [
+            { "name": "inkup-installer.sh", "browser_download_url": "https://x/inkup-installer.sh" },
+            { "name": "protocol-version.txt", "browser_download_url": "https://x/protocol-version.txt" },
+        ]});
+        assert_eq!(protocol_asset_url(&with), Some("https://x/protocol-version.txt"));
+        let without = serde_json::json!({ "assets": [{ "name": "inkup-installer.sh", "browser_download_url": "u" }] });
+        assert_eq!(protocol_asset_url(&without), None);
+        assert_eq!(protocol_asset_url(&serde_json::json!({})), None);
+        assert_eq!(parse_protocol("2\n"), Some(2));
+        assert_eq!(parse_protocol(" 1 "), Some(1));
+        assert_eq!(parse_protocol("two"), None);
+        assert_eq!(parse_protocol("0"), None);
+    }
+
+    #[test]
+    fn the_warning_names_each_client_and_what_to_do() {
+        let v: Version = "0.3.0".parse().unwrap();
+        let skew = Skew { release: 2, behind: vec![("Chrome on MacBook".into(), "chrome".into(), 1)] };
+        let text = skew_warning(&v, &skew).join("\n");
+        assert!(text.contains("inkup 0.3.0 speaks protocol 2"), "{text}");
+        assert!(text.contains("  Chrome on MacBook (chrome, protocol 1)"), "{text}");
+        assert!(text.contains("Update the extension first"), "{text}");
+    }
+
+    #[test]
+    fn only_yes_confirms() {
+        for (answer, yes) in
+            [("y\n", true), ("YES\n", true), ("n\n", false), ("\n", false), ("", false), ("maybe\n", false)]
+        {
+            assert_eq!(confirm(&mut answer.as_bytes()).unwrap(), yes, "{answer:?}");
+        }
     }
 }

@@ -89,6 +89,37 @@ impl Store {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
+    /// Records the protocol version a Client spoke in its `hello` (ADR 0008's skew guard reads it back).
+    pub fn record_hello(&self, client_id: &str, protocol_version: i64) -> Result<()> {
+        self.conn().execute(
+            "UPDATE clients SET protocol_version = ?1, last_seen_at = ?2 WHERE id = ?3",
+            params![protocol_version, now_ms(), client_id],
+        )?;
+        Ok(())
+    }
+
+    /// The working Clients seen at or after `since` (Unix ms) with the protocol version each last spoke in `hello`,
+    /// lowest version first. A Client that has not said `hello` since the version was recorded is left out.
+    pub fn client_protocol_versions(&self, since: i64) -> Result<Vec<(Client, i64)>> {
+        let conn = self.conn();
+        let mut stmt = conn.prepare(
+            "SELECT id, kind, name, created_at, last_seen_at, protocol_version FROM clients
+             WHERE revoked_at IS NULL AND protocol_version IS NOT NULL AND last_seen_at >= ?1
+             ORDER BY protocol_version, created_at",
+        )?;
+        let rows = stmt.query_map([since], |row| {
+            let client = Client {
+                id: row.get(0)?,
+                kind: row.get(1)?,
+                name: row.get(2)?,
+                created_at: row.get(3)?,
+                last_seen_at: row.get(4)?,
+            };
+            Ok((client, row.get(5)?))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
     /// Forgets a Client: its token stops working. Its Sessions stay.
     pub fn revoke_client(&self, client_id: &str) -> Result<bool> {
         let changed = self.conn().execute(
