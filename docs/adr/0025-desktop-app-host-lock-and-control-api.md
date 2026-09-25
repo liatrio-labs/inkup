@@ -94,6 +94,12 @@ macOS runner in the `release` environment, which holds the signing secrets, need
   using an App Store Connect API key.
 - The job notarizes and staples the DMG as well, because Gatekeeper checks the file that was downloaded.
 - It attaches the DMG only after `codesign --verify --deep --strict` and `spctl` accept both the app and the DMG.
+- On a stable release it then pushes a Homebrew cask for the DMG, `Casks/inkup.rb`, to `liatrio-labs/homebrew-tap`
+  (rendered by `scripts/cask.ts`), with the `HOMEBREW_TAP_TOKEN` dist's formula job uses. The cask's token is
+  `inkup`, the formula's too: `brew install --cask liatrio-labs/tap/inkup` installs the app and
+  `brew install liatrio-labs/tap/inkup` the CLI. A pre-release never touches the tap, the rule dist follows for the
+  formula. Its `zap` removes only the app's own `dev.inkup.desktop` caches and preferences: the host's data dir is
+  the CLI's too.
 
 The job runs after announce, so a failed, slow or unapproved desktop build never holds up or undoes the host release:
 the release just has no DMG until the job is re-run. Pre-releases run it too, which is how the path is proven.
@@ -149,6 +155,9 @@ recognisably the same product.
 - 2026-09-25: the icons showed only the app icon. Now they carry the paired-Clients dot and, on development builds,
   the construction stripes, as "What the icons say" describes, so a glance says whether Clients are recording and
   whether this is a real release.
+- 2026-09-25: the DMG was a download only; now stable releases also publish it as the Homebrew cask `inkup` in
+  `liatrio-labs/homebrew-tap`, so the app installs and upgrades with `brew`. The cask names no macOS floor: the app's
+  (Tauri's default, 10.13) is below every macOS Homebrew supports, and Homebrew refuses a floor it has dropped.
 
 ## Sources
 

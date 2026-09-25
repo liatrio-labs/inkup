@@ -62,11 +62,19 @@ second depends on what it is (`docs/adr/0025-desktop-app-host-lock-and-control-a
   takes over on its own. When that host stops, the window says so, and **Host here** makes the app the host.
 - A second desktop app brings the first one's window forward and exits.
 
-To install it on macOS, download `InkUp_<version>_universal.dmg` from the newest `inkup-v…` release on the
-[Releases page](https://github.com/liatrio-labs/inkup/releases), open it and drag InkUp to Applications. It is signed and
-notarized, so it opens without a Gatekeeper warning, and it runs on Apple silicon and Intel Macs. The app contains the
-host, so it needs no separate `inkup` install, but it works next to one. There is no Windows or Linux build yet, and
-the app does not update itself: to update, install a newer DMG over it.
+To install it on macOS, use Homebrew, or download `InkUp_<version>_universal.dmg` from the newest `inkup-v…` release on
+the [Releases page](https://github.com/liatrio-labs/inkup/releases), open it and drag InkUp to Applications:
+
+```sh
+brew install --cask liatrio-labs/tap/inkup        # InkUp.app, the desktop app
+brew install liatrio-labs/tap/inkup               # the inkup CLI (the TUI and serve), if you want it too
+```
+
+It is signed and notarized, so it opens without a Gatekeeper warning, and it runs on Apple silicon and Intel Macs. The
+app contains the host, so it needs no separate `inkup` install, but it works next to one. There is no Windows or Linux
+build yet, and the app does not update itself: to update, run `brew upgrade --cask inkup` or install a newer DMG over
+it. `brew uninstall --zap --cask inkup` also removes the app's caches and preferences, but not the data dir it shares
+with the CLI.
 
 To run it from a checkout:
 
