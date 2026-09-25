@@ -129,7 +129,7 @@ const year = new Date().getFullYear();
             <li>
               <h3>Hand off</h3>
               <p>
-                Export a zip with <code>session.json</code>, the screenshots and an agent prompt. Or pair the InkUp host
+                Export a zip with <code>session.json</code>, the screenshots and an agent prompt. Or pair the optional InkUp host
                 and let your coding agent pick the items up over MCP.
               </p>
             </li>
@@ -242,7 +242,7 @@ const year = new Date().getFullYear();
           <div class="install-row lead">
             <div>
               <h3>Browser extension</h3>
-              <p>Works on its own. Version {versions.extension}.</p>
+              <p>All you need to review a page. Works on its own, with no host. Version {versions.extension}.</p>
               {
                 !chromeStore && (
                   <p class="pending">
@@ -319,9 +319,13 @@ const year = new Date().getFullYear();
               )
             }
           </div>
+          <p class="optional-note">
+            Add the host only to hand Change Items straight to Claude Code,
+            Cursor or Codex over MCP. Recording, drawing, Process and zip export don't need it.
+          </p>
           <div class="install-row">
             <div>
-              <h3>InkUp host</h3>
+              <h3>InkUp host <span class="optional">Optional</span></h3>
               <p>
                 The CLI and terminal UI for macOS, Linux and Windows. <a
                   href={links.host}
@@ -339,7 +343,7 @@ const year = new Date().getFullYear();
           </div>
           <div class="install-row">
             <div>
-              <h3>Desktop app</h3>
+              <h3>Desktop app <span class="optional">Optional</span></h3>
               <p>The same host in a window, with a menu bar icon. macOS, version {versions.host}.</p>
             </div>
             <div class="install-actions">
@@ -354,7 +358,7 @@ const year = new Date().getFullYear();
       <section class="section agents" id="agents" data-section="agents" data-agents>
         <h2>Hand the list to your coding agent.</h2>
         <p class="lede">
-          Install the host's MCP server once. Claude Code, Cursor and Codex read your Change Items, claim one, and
+          Optional: install the host and its MCP server once. Claude Code, Cursor and Codex read your Change Items, claim one, and
           report back when it's done. You watch each item move from Open to In work to Done.
         </p>
         <CopyCommand command={commands.mcp} event="copy-mcp-install" label="the MCP install command" class="mcp" />
@@ -846,6 +850,26 @@ const year = new Date().getFullYear();
     margin-top: var(--space-2);
     color: var(--ink-2);
     font-size: var(--step--1);
+  }
+
+  .optional-note {
+    max-width: 62ch;
+    margin: var(--space-8) 0 var(--space-4);
+    color: var(--muted);
+  }
+
+  .optional {
+    display: inline-block;
+    margin-left: 0.35em;
+    padding: 0.1em 0.5em;
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0;
+    vertical-align: middle;
   }
 
   .text-link {
