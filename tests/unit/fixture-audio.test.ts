@@ -59,6 +59,7 @@ describe('fixture audio', () => {
       'drafts-session.wav',
       'review-scratch-that.wav',
       'review-two-notes.wav',
+      'site-demo.wav',
       'voice-commands.wav',
       'voice-session.wav',
     ]);
