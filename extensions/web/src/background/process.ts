@@ -139,7 +139,8 @@ export async function videoCapable(model: string): Promise<boolean> {
 }
 
 const MB = 1024 * 1024;
-const formatMb = (bytes: number) => `${(bytes / MB).toFixed(bytes < 10 * MB ? 1 : 0)} MB`;
+const formatMb = (bytes: number) =>
+  bytes < MB ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / MB).toFixed(bytes < 10 * MB ? 1 : 0)} MB`;
 /** `video/webm;codecs=vp9` → `video/webm`. */
 const baseMime = (mime: string) => mime.split(';')[0]!.trim();
 const extensionOf = (mime: string) => baseMime(mime).split('/')[1] ?? 'bin';
