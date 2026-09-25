@@ -17,6 +17,7 @@ CI could not tell a change to the agreement from a change to one side, so it ran
 
 - `protocol.schema.json`: the WebSocket wire protocol (ADR 0004), `PROTOCOL_VERSION` in its `v`.
 - `session.schema.json`: the Session file format, `schema_version` in its `schema_version`.
+- `host-control.schema.json`: the host's control API (ADR 0025), `CONTROL_API` in `ControlState.control_api`.
 - `fixtures/`: the corpus both sides decode (`<type>[.<case>].json` must parse, `invalid/` must be refused), with the
   generated `event.*.json` and `items.json`.
 
@@ -46,7 +47,9 @@ sends a new message must treat that refusal as "this Host cannot", and gate the 
 **Versioning rule.** A breaking change passes only when the same change bumps the schema's version:
 `PROTOCOL_VERSION` in `packages/protocol/src/index.ts` and `host/crates/protocol/src/lib.rs` for the wire (the Host
 refuses any other `v`, `unsupported_version`), or `SCHEMA_VERSION` in `packages/core` for the Session file, with its
-migration step. Prefer an additive change and a capability over a bump: a protocol bump cuts every installed
+migration step, or `CONTROL_API` in `packages/protocol/src/host-control.ts` and `host/crates/store/src/instance.rs`
+for the control API (a window refuses a host that speaks another one). Prefer an additive change and a capability
+over a bump: a protocol bump cuts every installed
 extension off from a newer Host until both are updated.
 
 A new Session event type is breaking for the Session file only, so it bumps `SCHEMA_VERSION` and not
@@ -58,11 +61,12 @@ on it, and a newer one acts on it.
 
 | Path | Runs |
 | --- | --- |
-| `contract/**` | both sides, and `contract-compat` |
-| `host/**` | the host: `cargo` on three platforms, and the Chrome e2e |
-| `extensions/`, `packages/`, `scripts/`, `tests/`, `fixtures/`, root files | the extension side: `core`, `extension-chrome`, `extension-firefox`, and the Chrome e2e |
+| `contract/**` | both sides, the desktop app, and `contract-compat` |
+| `host/**` | the host: `cargo` on three platforms, and the Chrome e2e; and the desktop app, which builds the host's crates |
+| `apps/desktop/**` | the desktop app: `desktop` on three platforms (ADR 0025) |
+| `extensions/`, `packages/`, `scripts/`, `tests/`, `fixtures/`, root files | the extension side: `core`, `extension-chrome`, `extension-firefox`, and the Chrome e2e. `packages/`, `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` also run the desktop app, whose UI imports `@inkup/protocol` |
 | `*.md`, `docs/**`, `LICENSE` | lint only |
-| `.github/workflows/ci.yml`, any other path | both sides |
+| `.github/workflows/ci.yml`, any other path | everything |
 
 The Chrome e2e builds the real Host and drives the extension against it (`tests/e2e/host.spec.ts`). It is the one test
 of both sides together, so it runs when either changes. `ci-ok`, the one required check, needs `contract-compat` as
@@ -95,3 +99,6 @@ well as every other job; a skipped job passes it.
 - 2026-09-24 (#13): the first new event type under this rule, `session_rename` (the reviewer renames a Session on
   the review page), showed which version it moves. `SCHEMA_VERSION` went 19 → 20 with a no-op upgrade step;
   `PROTOCOL_VERSION` stayed 1, since the wire's event is an open object. The Versioning rule now says so.
+- 2026-09-25 (#21, #25, ADR 0025): `contract/` gained a third schema, the control API's, versioned by its own
+  `CONTROL_API` (a bump to 2 came with its new required fields). CI gained a fourth route, the desktop app, run by
+  `apps/desktop/` and by what it is built from.
