@@ -5,6 +5,7 @@ import { formatElapsed } from '@inkup/core/clock';
 import { formatBytes, originOf } from '@inkup/core/session-list';
 import { useState } from 'react';
 import { RESOLUTION_TEXT } from '@/components/resolution-style';
+import { ReviewLink } from '@/components/review-link';
 import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import type { ItemStatusCounts } from '@/db/resolutions';
@@ -53,15 +54,9 @@ export function SessionRow({
           )}
         </p>
       </div>
-      <a
-        className="text-primary underline"
-        href={`/review.html?session=${encodeURIComponent(s.id)}`}
-        target="_blank"
-        data-testid="open-review"
-        rel="noopener"
-      >
+      <ReviewLink className="text-primary underline" sessionId={s.id} data-testid="open-review">
         Open review
-      </a>
+      </ReviewLink>
       {confirming ? (
         // biome-ignore lint/a11y/useSemanticElements: an inline part of the row's flex layout; a fieldset brings its own block and min-content sizing
         <span className="flex flex-wrap items-center gap-2" role="group" aria-label="Confirm delete">

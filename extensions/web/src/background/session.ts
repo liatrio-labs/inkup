@@ -30,6 +30,7 @@ import { salvageAudio } from './audio';
 import { appendEvent } from './event-log';
 import { type ModeRequest, modesOf, nextModes } from './modes';
 import { flushPanelVideo } from './panel-port';
+import { openReview } from './review-tab';
 import { sweepUnusedScreenshots } from './screenshots';
 import { pickTargetTab, targetTab } from './target-tab';
 import { transcriptionForStart } from './transcription';
@@ -455,8 +456,7 @@ export async function finishStopped(sessionId: string, windowId: number): Promis
   const row = await db.sessions.get(sessionId);
   // Audio and video go to a paired Host once, whole, at Stop.
   await queueBlobs(sessionId, [row?.audio?.blob_id, row?.video?.blob_id]);
-  const url = chrome.runtime.getURL(`/review.html?session=${encodeURIComponent(sessionId)}`);
-  await chrome.tabs.create({ url, windowId }).catch(() => chrome.tabs.create({ url }));
+  await openReview(sessionId, windowId);
 }
 
 /** Draw, Object Select and Select Text: one at a time (./modes.ts). The page and the toolbar hear the change. */

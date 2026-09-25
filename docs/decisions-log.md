@@ -2,6 +2,24 @@
 
 Calls made during implementation that the PRD, PLAN and ADRs leave open. Newest slice first.
 
+## #40: one review tab per Session (2026-09-24)
+
+**Every "Open review" opened another tab**, so repeat clicks and a Stop followed by Open review piled up copies of
+the same Session's review page.
+
+- **Behaviour.** Stop, the Sessions page and side panel rows, and Restore's "Open review" and "Open existing" all ask
+  the background to `openReview(sessionId)` (`background/review-tab.ts`). It focuses the tab already showing that
+  Session's review (`tabs.update` active, `windows.update` focused), matching on the `session` parameter only, so a
+  hash or other parameters do not count; with none it opens a tab, in Stop's window as before.
+- **Links stay links.** `ReviewLink` keeps the `href`: a middle, Cmd, Ctrl or Shift click still opens a new tab on
+  purpose. Only a plain left click is turned into the message; if the message fails, it opens the tab itself.
+- **Finding the tab: `tabs.query({})`, filtered here.** The manifest already holds `tabs`, so every tab's `url` is
+  visible in Chrome, Firefox and Safari. A `url` match pattern would have to cover the extension's own scheme,
+  which the browsers treat differently, and could not ignore other parameters. `runtime.getContexts` is not in
+  every browser this ships to, and `clients.matchAll` exists only in Chrome's service worker (Firefox runs an event
+  page) and gives no tab id.
+- **No seek.** The review page reads no time from its URL today, so there is nothing to pass to a focused tab.
+
 ## #39: the host updates itself (2026-09-24)
 
 ADR 0008. `inkup update` (`--check`, `--homebrew brew|self|ask`) and a background check in the TUI and `serve`, in
