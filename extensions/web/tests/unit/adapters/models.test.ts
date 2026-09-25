@@ -2,7 +2,15 @@
 // The providers' model lists (src/adapters/llm/models.ts) against the local stub, and the catalog cost reads.
 import { priceFor } from '@inkup/core/process/cost';
 import { afterEach, describe, expect, it } from 'vitest';
-import { catalogOf, gatewayModel, listAnthropicModels, listGatewayModels, perMillion } from '@/adapters/llm/models';
+import {
+  catalogOf,
+  gatewayInputModalities,
+  gatewayModel,
+  listAnthropicModels,
+  listGatewayModels,
+  perMillion,
+  takesVideo,
+} from '@/adapters/llm/models';
 import { type AnthropicStub, startAnthropicStub } from '../../../../../tests/support/anthropic-stub';
 
 let stub: AnthropicStub | null = null;
@@ -99,5 +107,30 @@ describe('model lists', () => {
     expect(catalog?.as_of).toBe('2026-09-24');
     expect(priceFor('google/gemini-3.1-pro-preview', catalog)).toEqual({ input: 2, output: 12 });
     expect(catalogOf({})).toBeNull();
+  });
+});
+
+describe('video capability', () => {
+  it('a video tag, video among the input modalities, or a Google model that takes files', () => {
+    expect(takesVideo('acme/omni', ['video'], null)).toBe(true);
+    expect(takesVideo('acme/omni', [], ['text', 'video'])).toBe(true);
+    expect(takesVideo('google/gemini-3.1-pro-preview', ['vision'], ['text', 'image', 'file'])).toBe(true);
+    expect(takesVideo('google/gemini-3.1-pro-preview', ['vision'], ['text', 'image'])).toBe(false);
+    expect(takesVideo('anthropic/claude-sonnet-5', ['file-input'], ['text', 'image', 'file'])).toBe(false);
+    expect(takesVideo('google/gemini-3.1-pro-preview', ['file-input'], null)).toBe(false);
+  });
+
+  it('reads the input modalities from the endpoints call', async () => {
+    stub = await startAnthropicStub({ onMessage: noMessages, endpoints: { 'acme/omni': ['text', 'video'] } });
+    const opts = { apiKey: 'vck-test', baseURL: stub.baseURL };
+    expect(await gatewayInputModalities({ ...opts, model: 'google/gemini-3.1-pro-preview' })).toEqual([
+      'text',
+      'image',
+      'file',
+    ]);
+    expect(await gatewayInputModalities({ ...opts, model: 'acme/omni' })).toEqual(['text', 'video']);
+    await expect(gatewayInputModalities({ ...opts, model: 'acme/missing' })).rejects.toThrow('answered 404');
+    const req = stub.requests.find((r) => r.path === '/v1/models/google/gemini-3.1-pro-preview/endpoints');
+    expect(req?.headers.authorization).toBe('Bearer vck-test');
   });
 });

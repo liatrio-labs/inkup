@@ -86,6 +86,8 @@ export type ProcessingSettings = Record<ModelRole, RoleModel> & {
    * a model limit, and nothing would be replaced). Absent: always ask.
    */
   autoRunBelowUsd?: number;
+  /** Check every Change Item against the recording after Process (vetting). Default true. */
+  vet: boolean;
 };
 
 /** A saved auto-run threshold as a positive dollar amount; anything else is off. */
@@ -108,7 +110,10 @@ export const DEFAULT_MERGE_MODEL = DEFAULT_MODELS.anthropic.merge;
  * What storage may hold: the per-role shape, or the one saved before the Gateway existed (Anthropic model ids, no
  * effort; `mergeModel` absent before E12). Read it through normalizeProcessingSettings.
  */
-export type StoredProcessingSettings = Partial<ProcessingSettings> & {
+export type StoredProcessingSettings = Partial<Record<ModelRole, RoleModel>> & {
+  autoRunBelowUsd?: number;
+  /** Absent: on. Saved only when turned off. */
+  vet?: boolean;
   processModel?: string;
   draftModel?: string;
   mergeModel?: string;
@@ -136,6 +141,7 @@ export function normalizeProcessingSettings(raw: StoredProcessingSettings | null
     draft: role('draft'),
     merge: role('merge'),
     ...(autoRunBelowUsd !== undefined ? { autoRunBelowUsd } : {}),
+    vet: raw?.vet !== false,
   };
 }
 
@@ -157,6 +163,15 @@ export const providerKey = async (provider: LlmProvider): Promise<string> =>
 export const modelLists = storage.defineItem<Partial<Record<LlmProvider, ModelList>>>('local:modelLists', {
   fallback: {},
 });
+
+/**
+ * What InkUp found out about a Gateway model's input, by model id: whether it takes video (background/process.ts,
+ * videoCapable). Cleared whenever the Gateway's model list is fetched again.
+ */
+export const modelCapabilities = storage.defineItem<Record<string, { video: boolean; checked_at: number }>>(
+  'local:modelCapabilities',
+  { fallback: {} },
+);
 
 /** P0-15: the Anthropic notice is shown once, the first time a key is saved. */
 export const anthropicNoticeShown = storage.defineItem<boolean>('local:anthropicNoticeShown', { fallback: false });
@@ -218,7 +233,8 @@ export interface ScriptedTranscript {
  *   on-device speech pack).
  * - `audioChunkMs` shortens the 30s audio chunk interval so a short test exercises chunking.
  * - `anthropicBaseUrl` points the Anthropic adapter at a local stub server (tests/e2e/process.spec.ts), and
- *   `gatewayBaseUrl` the Gateway's (tests/e2e/gateway.spec.ts).
+ *   `gatewayBaseUrl` the Gateway's (tests/e2e/gateway.spec.ts); `videoInlineMaxBytes` lowers the cap on the recording
+ *   a video-grounded Process sends (tests/e2e/video-process.spec.ts).
  * - `deepgramBaseUrl`, `elevenlabsBaseUrl` point the paid tiers at local stub servers (tests/support/stt-stubs.ts),
  *   and `sttRetryBaseMs` shortens their reconnect backoff (tests/e2e/stt-tiers.spec.ts).
  */
@@ -229,6 +245,8 @@ export interface DevOverrides {
   anthropicBaseUrl?: string;
   /** The Vercel AI Gateway's base (tests point it at the same stub). */
   gatewayBaseUrl?: string;
+  /** The most recording bytes a video-grounded Process request may carry (default VIDEO_INLINE_MAX_BYTES). */
+  videoInlineMaxBytes?: number;
   /** Deepgram REST base (http[s]://host:port); the listen WebSocket uses the same host with ws[s]. */
   deepgramBaseUrl?: string;
   /** ElevenLabs REST base; the Scribe WebSocket uses the same host with ws[s]. */
