@@ -138,7 +138,7 @@ a {
 }
 
 a:hover {
-  text-decoration-color: var(--pen);
+  text-decoration-color: currentColor;
 }
 
 code,
@@ -154,7 +154,7 @@ kbd,
 }
 
 :focus-visible {
-  outline: 2px solid var(--pen);
+  outline: 2px solid var(--ink);
   outline-offset: 3px;
   border-radius: 4px;
 }
