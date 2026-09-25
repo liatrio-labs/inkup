@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/liatrio-labs/inkup/compare/inkup-v0.2.0...inkup-v0.2.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **desktop:** desktop app follow-ups (update check, pairing, smoke, --port 0) ([#53](https://github.com/liatrio-labs/inkup/issues/53)) ([7ed2aff](https://github.com/liatrio-labs/inkup/commit/7ed2aff950442e4176a127cb0178d932b7f314dc))
+
 ## [0.2.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.2.0-rc.3...inkup-v0.2.0) (2026-09-25)
 
 
