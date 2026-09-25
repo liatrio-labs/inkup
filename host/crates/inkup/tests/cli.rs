@@ -135,3 +135,82 @@ fn agent_tokens_are_created_listed_and_revoked() {
     assert!(!run(&["revoke", &id]).0, "already revoked");
     assert_eq!(run(&["list"]).1, "");
 }
+
+/// `serve` on `dir` (port 0), once it has printed its address: the port.
+fn serving(dir: &std::path::Path) -> (Serve, u16) {
+    let mut host = serve(dir, &["--auto-approve-pairing"]);
+    let mut line = String::new();
+    BufReader::new(host.0.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    assert!(line.starts_with("inkup listening on http://127.0.0.1:"), "{line}");
+    let port = line.trim().rsplit(':').next().unwrap().parse().unwrap();
+    (host, port)
+}
+
+/// A host on `dir` that must refuse to start: its exit and stderr.
+fn refused(args: &[&str], dir: &std::path::Path) -> (std::process::ExitStatus, String) {
+    let output = Command::new(BIN)
+        .args(args)
+        .arg("--data-dir")
+        .arg(dir)
+        .env_remove("INKUP_DATA_DIR")
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    (output.status, String::from_utf8_lossy(&output.stderr).into_owned())
+}
+
+#[test]
+fn a_second_host_on_the_same_data_dir_says_who_runs_and_exits_1() {
+    let dir = tempfile::tempdir().unwrap();
+    let (first, port) = serving(dir.path());
+    let pid = first.0.id();
+    let expected = format!(
+        "InkUp is already running (inkup serve, pid {pid}, port {port}). Use --data-dir for a separate instance."
+    );
+    let (status, stderr) = refused(&["serve", "--port", "0"], dir.path());
+    assert_eq!(status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains(&expected), "{stderr}");
+    // The TUI too, and before it asks for a terminal.
+    let (status, stderr) = refused(&["--port", "0"], dir.path());
+    assert_eq!(status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains(&expected), "{stderr}");
+}
+
+#[test]
+fn hosts_on_different_data_dirs_both_run() {
+    let (a, b) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let (_a, port_a) = serving(a.path());
+    let (_b, port_b) = serving(b.path());
+    assert_ne!(port_a, port_b);
+}
+
+#[test]
+fn a_killed_host_leaves_the_data_dir_free() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut first, _) = serving(dir.path());
+    // SIGKILL on unix, TerminateProcess on Windows: no chance to clean up.
+    first.0.kill().unwrap();
+    first.0.wait().unwrap();
+    let (_second, port) = serving(dir.path());
+    let info = inkup_store::instance::holder(dir.path()).unwrap().expect("host.json");
+    assert_eq!(info.port, port);
+}
+
+#[test]
+fn host_json_names_the_holder_and_status_prints_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let (host, port) = serving(dir.path());
+    let info = inkup_store::instance::holder(dir.path()).unwrap().expect("host.json");
+    assert_eq!((info.pid, info.port, info.kind), (host.0.id(), port, inkup_store::instance::HostKind::Serve));
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let file = dir.path().join(inkup_store::instance::HOST_FILE);
+        assert_eq!(std::fs::metadata(file).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+    // No --port: the holder's port, from host.json.
+    let status = Command::new(BIN).args(["status", "--data-dir"]).arg(dir.path()).output().unwrap();
+    let stdout = String::from_utf8_lossy(&status.stdout);
+    assert!(status.status.success(), "{stdout}");
+    assert!(stdout.contains(&format!("host: inkup serve, pid {}, port {port}", host.0.id())), "{stdout}");
+}
