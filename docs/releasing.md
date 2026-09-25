@@ -365,8 +365,8 @@ The store API cannot create a new item, so the first upload is manual.
    <https://developer.chrome.com/docs/webstore/service-accounts>. Add the service account's email to the publisher in
    the dev console.
 5. In GitHub → Settings → Environments, create `chrome-web-store`, restrict its deployments to the tag patterns
-   `inkup-extension-v*` and `inkup-chrome-v*`, and add these environment secrets. The environment already exists, with
-   a required reviewer and the `inkup-chrome-v*` rule; the `inkup-extension-v*` rule and the secrets are left to add:
+   `inkup-extension-v*` and `inkup-chrome-v*`, and add these environment secrets. The environment and both tag rules
+   already exist, with no required reviewer; only the secrets are left to add:
 
    | Secret | Value |
    | --- | --- |
