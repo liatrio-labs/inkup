@@ -14,9 +14,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use anyhow::{Context, Result};
+use inkup_protocol::control::ControlState;
 use inkup_server::ActivateHook;
 use serde::Serialize;
-use serde_json::Value;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, RunEvent, State, WindowEvent};
@@ -61,7 +61,7 @@ struct Desktop {
 
 /// What the window shows: `GET /api/host/state` through the link.
 #[tauri::command]
-async fn host_state(desktop: State<'_, Desktop>, timeline: Option<String>) -> Result<Value, String> {
+async fn host_state(desktop: State<'_, Desktop>, timeline: Option<String>) -> Result<ControlState, String> {
     desktop.link.state(timeline.as_deref()).await.map_err(|e| e.to_string())
 }
 

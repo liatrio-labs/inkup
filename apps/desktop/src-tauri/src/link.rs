@@ -1,11 +1,11 @@
 //! `HostLink`: the app's one way to the host, whichever process hosts. The control API on 127.0.0.1 with the
-//! control token from `host.json`; the webview never sees the token, it calls the app's commands.
+//! control token from `host.json`; the webview never sees the token, it calls the app's commands. Responses decode
+//! as the contract's types (contract/host-control.schema.json), so a host that drifted from it is an error here.
 
 use std::time::Duration;
 
-use inkup_server::Activated;
+use inkup_protocol::control::{Activated, ControlState};
 use inkup_store::instance::HostInfo;
-use serde_json::Value;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinkError {
@@ -47,8 +47,8 @@ impl HostLink {
         format!("127.0.0.1:{}", self.port)
     }
 
-    /// `GET /api/host/state`: `HostState` plus the header's facts, as JSON for the window.
-    pub async fn state(&self, timeline: Option<&str>) -> Result<Value, LinkError> {
+    /// `GET /api/host/state`: `HostState` plus the header's facts.
+    pub async fn state(&self, timeline: Option<&str>) -> Result<ControlState, LinkError> {
         let mut request = self.http.get(self.url("/api/host/state")).bearer_auth(&self.token);
         if let Some(timeline) = timeline {
             request = request.query(&[("timeline", timeline)]);

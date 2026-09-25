@@ -36,9 +36,9 @@ async fn nobody_on_the_data_dir_so_the_app_hosts() {
     assert_eq!(published.kind, HostKind::Desktop);
     assert_eq!(published.port, link.port());
     let state = link.state(None).await.unwrap();
-    assert_eq!(state["kind"], "desktop");
-    assert_eq!(state["address"], link.address());
-    assert_eq!(state["state"]["sessions"], serde_json::json!([]));
+    assert_eq!(state.kind.to_string(), "desktop");
+    assert_eq!(state.address, link.address());
+    assert!(state.state.sessions.is_empty());
 
     hosted.shutdown().await;
     assert_eq!(holder(dir.path()).unwrap(), None, "Quit gives up the data dir");
@@ -55,7 +55,7 @@ async fn a_cli_host_on_the_data_dir_makes_the_app_its_client() {
     assert_eq!(holder.kind, HostKind::Serve);
     assert_eq!(link.port(), server.addr.port());
     let state = link.state(None).await.unwrap();
-    assert_eq!(state["kind"], "serve");
+    assert_eq!(state.kind.to_string(), "serve");
     // The CLI host has no window to bring forward.
     assert!(!link.activate().await.unwrap());
     server.shutdown().await.unwrap();

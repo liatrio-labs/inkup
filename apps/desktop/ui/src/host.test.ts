@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { ControlState } from '@inkup/protocol';
 import { describe, expect, it } from 'vitest';
 import { ago, type ClientView, clientState, type SessionOverview, sessionPage, sessionState } from './host';
 
@@ -49,5 +51,15 @@ describe('the words the TUI uses', () => {
     expect(ago(10_000, null)).toBe('never');
     expect(ago(10_000, 9_000)).toBe('just now');
     expect(ago(3_600_000, 0)).toBe('1h ago');
+  });
+});
+
+describe('the contract fixture (contract/fixtures/host-control/control-state.json)', () => {
+  it('reads as the window reads it', () => {
+    const url = new URL('../../../../contract/fixtures/host-control/control-state.json', import.meta.url);
+    const { state } = ControlState.parse(JSON.parse(readFileSync(url, 'utf8')));
+    expect(state.sessions.map(sessionState)).toEqual(['live']);
+    expect(state.sessions.map(sessionPage)).toEqual(['Pricing Fixture']);
+    expect(state.clients.map((c) => clientState(c, state.sessions))).toEqual(['connected, recording', 'paired']);
   });
 });

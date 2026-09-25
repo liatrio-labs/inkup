@@ -1,48 +1,17 @@
 // The host as the window reads it: the app's commands (src-tauri/src/lib.rs), which proxy the control API
 // (`GET /api/host/state`). The webview never holds the control token.
+// The shapes are the contract's (contract/host-control.schema.json), from @inkup/protocol.
+import type { ClientView, ControlState, HostKind, SessionOverview } from '@inkup/protocol';
 import { invoke } from '@tauri-apps/api/core';
 
-/** Host or client, from the app itself. */
+export type { ClientView, ControlState, SessionOverview };
+
+/** Host or client: the app's own view of where it runs (src-tauri/src/lib.rs `HostView`), not the contract's. */
 export type HostView = {
   mode: 'host' | 'client';
-  kind: 'desktop' | 'tui' | 'serve';
+  kind: HostKind;
   address: string;
   data_dir: string;
-};
-
-export type ClientView = {
-  id: string;
-  kind: string;
-  name: string;
-  connected: boolean;
-  created_at: number;
-  last_seen_at: number | null;
-};
-
-export type SessionOverview = {
-  id: string;
-  client_id: string | null;
-  url: string | null;
-  title: string | null;
-  t0: number | null;
-  created_at: number;
-  updated_at: number;
-  live: boolean;
-  paused: boolean;
-  items: number;
-  open_items: number;
-  annotations: number;
-  draft_items: number;
-};
-
-/** `GET /api/host/state` (host/crates/server/src/control.rs), the fields the window reads so far. */
-export type ControlState = {
-  control_api: number;
-  kind: HostView['kind'];
-  version: string;
-  address: string;
-  update: string | null;
-  state: { clients: ClientView[]; sessions: SessionOverview[] };
 };
 
 export const hostView = () => invoke<HostView>('host_view');
