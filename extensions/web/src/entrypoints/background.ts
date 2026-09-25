@@ -30,6 +30,7 @@ import {
   initHostClient,
   pairHost,
 } from '@/background/host-client';
+import { initHostDot } from '@/background/host-dot';
 import { injectIntoOpenTabs } from '@/background/inject';
 import { pageApiCall } from '@/background/page-api';
 import { followSessionForOwner, listenForPanels } from '@/background/panel-port';
@@ -126,6 +127,8 @@ export default defineBackground(() => {
 
   // A paired Host gets every event and blob through the outbox; unpaired, this does nothing (ADR 0004).
   initHostClient();
+  // The toolbar icon's dot: green with a connected Host, blue when working locally, amber while the Host is away.
+  initHostDot();
 
   onMessage('startSession', async ({ data, sender }) => {
     const tabId = data?.from_toolbar ? sender.tab?.id : undefined;

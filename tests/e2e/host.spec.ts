@@ -8,6 +8,7 @@
 //
 // H2 proof: the host's user starts a Session from the host (the TUI's `s` key sends the same command), and the
 // host's state model, which the TUI renders, shows it live; pause, draw mode and stop follow the same way.
+import type { Worker } from '@playwright/test';
 import type { TimelineEvent } from '../../packages/core/src/timeline.ts';
 import { messageReply, startAnthropicStub } from '../support/anthropic-stub';
 import { expect, grantMic, test } from './fixtures';
@@ -66,13 +67,17 @@ test('the host dies mid-Session: capture carries on, and the outbox catches it u
   const data = tempDataDir();
   let host = await HostProcess.start(data.dir);
   try {
+    // The toolbar icon's dot (src/background/host-dot.ts): blue while the extension works on its own.
+    await expect.poll(() => iconDot(serviceWorker)).toBe('local');
     const { options, token } = await pair(serviceWorker, openExtensionPage, host);
+    await expect.poll(() => iconDot(serviceWorker)).toBe('connected');
     const { pricing, panel, sessionId } = await startRecording(context, serviceWorker, site, openExtensionPage);
     await drawAnnotation(pricing, panel, 1);
     await expect.poll(async () => (await storeRows(options, 'outbox')).length, { timeout: 15_000 }).toBe(0);
 
     await host.kill();
     await expect(panel.getByTestId('host-indicator')).toContainText('Host offline, will sync');
+    await expect.poll(() => iconDot(serviceWorker)).toBe('offline');
     // Capture is unaffected: another Annotation, with its screenshot, while the host is down.
     await drawAnnotation(pricing, panel, 2);
     await expect.poll(async () => (await storeRows(options, 'outbox')).length).toBeGreaterThan(0);
@@ -80,6 +85,7 @@ test('the host dies mid-Session: capture carries on, and the outbox catches it u
 
     host = await HostProcess.start(data.dir, host.port);
     await expect(panel.getByTestId('host-indicator')).toHaveText('Host connected', { timeout: 20_000 });
+    await expect.poll(() => iconDot(serviceWorker)).toBe('connected');
     await drawAnnotation(pricing, panel, 3);
     await panel.waitForTimeout(2500);
     await stop(context, panel);
@@ -350,3 +356,14 @@ test('a command from the host starts a Session in the browser, and the host show
     data.remove();
   }
 });
+
+/** Which dot the toolbar icon shows, read back from the action badge's colour and title in the service worker. */
+async function iconDot(serviceWorker: Worker): Promise<'connected' | 'local' | 'offline' | string> {
+  return serviceWorker.evaluate(async () => {
+    const [r, g, b] = await chrome.action.getBadgeBackgroundColor({});
+    const text = await chrome.action.getBadgeText({});
+    const hex = `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+    const byColor: Record<string, string> = { '#16a34a': 'connected', '#2563eb': 'local', '#d97706': 'offline' };
+    return text === ' ' ? (byColor[hex] ?? hex) : `no dot (${JSON.stringify(text)})`;
+  });
+}
