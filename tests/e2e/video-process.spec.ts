@@ -295,7 +295,8 @@ test('turning the check off in the options: Process makes no vetting call and th
     await expect(options.getByRole('status')).toHaveText('Saved.');
     expect(
       await serviceWorker.evaluate(
-        async () => (await chrome.storage.local.get('processingSettings')).processingSettings.vet,
+        async () =>
+          ((await chrome.storage.local.get('processingSettings')).processingSettings as { vet?: boolean }).vet,
       ),
     ).toBe(false);
     await options.close();
