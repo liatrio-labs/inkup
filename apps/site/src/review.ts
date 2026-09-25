@@ -17,8 +17,8 @@ export type ReviewItem = {
   /** Which agent claimed it, and what it said when it resolved it (or, still in work, what it's doing). */
   agent: 'Claude Code' | 'Cursor' | 'Codex';
   resolution: string;
-  /** Where the agents section leaves it. Only true things are Done: the demo item stays In work until the real
-   * recording replaces the illustration. */
+  /** Where the agents section leaves it. Only true things are Done: an item whose change isn't on the page stays In
+   * work. */
   ends: 'working' | 'done';
 };
 
@@ -42,8 +42,8 @@ export const items: ReviewItem[] = [
     at: '00:11',
     title: 'Show a real review in the demo slot',
     agent: 'Cursor',
-    resolution: 'Recording the clip from the real extension. The illustration stays until it lands.',
-    ends: 'working',
+    resolution: 'Swapped the illustration for a recording of the real extension.',
+    ends: 'done',
   },
   {
     id: 'item-steps',

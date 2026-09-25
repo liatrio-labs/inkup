@@ -100,9 +100,13 @@ const year = new Date().getFullYear();
         </p>
         <Inspect selector="figure.demo" class="demo-box" tagAt="top">
           <figure class="demo">
-            <Capture name="review-flow" alt="A recorded InkUp review: drawing on a page, then the Change Items it produced.">
+            <Capture
+              name="review-flow"
+              alt="InkUp recording a review: a red circle around a Start free trial button, an arrow at the headline with a spoken caption, then Stop."
+            >
               <SyntheticFrame />
             </Capture>
+            <figcaption>The real extension, recorded on Tallybook, a made-up demo page.</figcaption>
           </figure>
         </Inspect>
         <ChangeItem item={itemFor('demo')!} class="inline-item" />
@@ -623,6 +627,12 @@ const year = new Date().getFullYear();
   :global(.demo-box) {
     display: block;
     margin-top: var(--space-8);
+  }
+
+  .demo figcaption {
+    margin-top: var(--space-3);
+    color: var(--muted);
+    font-size: var(--step--1);
   }
 
   .demo {
