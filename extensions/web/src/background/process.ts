@@ -6,7 +6,7 @@
 // packages/core/src/process/in-code.ts), with no estimate and no network call. The run's model is IN_CODE_MODEL.
 
 import type { CombinedChanges } from '@inkup/core/process/combine';
-import type { CostEstimate } from '@inkup/core/process/cost';
+import { type CostEstimate, type LimitWarning, limitWarnings } from '@inkup/core/process/cost';
 import {
   type ChunkProgress,
   type CombineInput,
@@ -35,7 +35,10 @@ import {
 } from '@/settings';
 
 export type ListModelsResult = { ok: true; list: ModelList } | { ok: false; error: string };
-export type EstimateResult = { ok: true; estimate: CostEstimate } | { ok: false; code: string; error: string };
+/** `warnings`: calls of the estimate near a model limit (the review page asks before running those). */
+export type EstimateResult =
+  | { ok: true; estimate: CostEstimate; warnings: LimitWarning[] }
+  | { ok: false; code: string; error: string };
 export type RunResult =
   | { ok: true; run_id: string; items: number }
   | { ok: false; run_id: string | null; code: string; error: string };
@@ -84,7 +87,8 @@ export async function estimateProcess(sessionId: string): Promise<EstimateResult
   if (!a) return noKey('process');
   try {
     const doc = await loadSessionDocument(db, sessionId);
-    return { ok: true, estimate: await a.adapter.estimate({ doc, model: a.model, effort: a.effort }) };
+    const estimate = await a.adapter.estimate({ doc, model: a.model, effort: a.effort });
+    return { ok: true, estimate, warnings: limitWarnings(estimate, catalogOf(await modelLists.getValue())) };
   } catch (e) {
     const err = e instanceof ProcessError ? e : new ProcessError('api', e instanceof Error ? e.message : String(e));
     return { ok: false, code: err.code, error: err.message };
