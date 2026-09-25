@@ -2,6 +2,39 @@
 
 Calls made during implementation that the PRD, PLAN and ADRs leave open. Newest slice first.
 
+## #41: a picker window when toolbar Start has no tabCapture (2026-09-24)
+
+**Toolbar Start recorded no video on a tab the extension was not invoked on** (review item: "Enable starting capture
+with tab/window picker from menu bar"). Chrome refuses `tabCapture` there (docs/spikes/toolbar-start.md), and a click
+on the page's own toolbar cannot open the screen picker.
+
+- **The fallback.** When Chrome refuses the capture id, the Session starts as it did, without video, and the service
+  worker opens `picker.html` in a small popup window at the top right of the reviewed window
+  (`background/picker.ts`). It names the page and its address and offers "Choose what to record" and "Record without
+  video". A click in an extension window can open `getDisplayMedia`, so the first is the side panel's own picker
+  (`pickTabVideo()`). `tabCapture`, when Chrome allows it, stays first and unchanged: no window opens.
+- **Where the recorder lives.** In the picker window. A `MediaStream` belongs to the document that opened it and
+  cannot be handed to the offscreen document, so the window records the video with the panel's `TabVideoRecorder`
+  and holds the panel Port as an owner that does not stop the Session, as Firefox's Start frame does
+  (`media/video-owner.ts`, shared by both now). After the pick it says "Recording video — keep this window open" with
+  a Stop Session button and sends the focus back to the reviewed window, which covers it. Minimizing it was the
+  other choice; we left it visible, since closing it ends the video and a minimized window is easy to close by
+  mistake or forget. Closing it ends the video and the Session goes on, as with "Stop sharing".
+- **The video joins a running Session.** `attachVideo` turns the Session's `off` video into a `surface` recording
+  once, and the recorder's `videoStatus` sets its start offset, so the review seeks it from the moment of the pick.
+  Cancel in Chrome's picker, or "Record without video", records the reason `picker_cancelled` and closes the window.
+- **The window goes with its Session.** The worker closes it when the Session is cleared, after Stop has taken its
+  last chunk, and the page closes itself when it sees no Session, so a Stop before a pick closes it too. A video owner
+  leaving during Stop no longer marks the video ended: that write could also put back the Session Stop was clearing.
+- **Placement.** Chrome rejects bounds less than half on a screen, which "beside a window near the screen's edge" can
+  be; the shared `extensionWindow` helper then lets Chrome place the window.
+- **Firefox and Safari.** Firefox is unchanged: its toolbar Start is already an extension frame that opens the picker
+  (`frame_picker`). Safari keeps `toolbarVideo: 'none'` and no picker window: its toolbar and extension windows are
+  unverified (manual check S5), and its panel window already offers Start with video. The same window would work
+  there once S5 confirms `getDisplayMedia` from an extension window.
+- **Proof.** `tests/e2e/toolbar-session.spec.ts` "without the tab invoked": the pick adds a `surface` video that Stop
+  keeps; "Record without video" gives "No video"; a Stop before a pick closes the window. Manual check C19 steps 10–13.
+
 ## #40: one review tab per Session (2026-09-24)
 
 **Every "Open review" opened another tab**, so repeat clicks and a Stop followed by Open review piled up copies of

@@ -240,27 +240,108 @@ test('paired: the same toolbar Session streams to the host, with the host dot on
 });
 
 test.describe('without the tab invoked', () => {
-  // No ALLOW_TAB_CAPTURE: as when the tab navigated after the icon click. Chrome refuses tabCapture.
+  // No ALLOW_TAB_CAPTURE: as when the tab navigated after the icon click. Chrome refuses tabCapture, so the Session
+  // starts without video and the picker window offers the screen picker (background/picker.ts).
   test.use({ extraArgs: [] });
 
-  test('Start from the toolbar still records, without video, and the toolbar says so', async ({
+  const liveVideo = (sw: Worker) =>
+    sw.evaluate(
+      async () =>
+        ((await chrome.storage.session.get('activeSession')).activeSession as { video: Record<string, unknown> }).video,
+    );
+
+  /** Toolbar Start on the pricing page; resolves with the picker window it opens. */
+  async function startWithoutTabCapture(
+    context: BrowserContext,
+    sw: Worker,
+    site: { primaryOrigin: string },
+    openExtensionPage: (path: string) => Promise<Page>,
+  ) {
+    await useScriptedTranscript(sw, 'pricing-cta.json');
+    await grantMic(openExtensionPage);
+    const pricing = await context.newPage();
+    await pricing.goto(`${site.primaryOrigin}/pricing.html`);
+    await clickToolbarIcon(sw, '/pricing.html');
+    const pickerPromise = context.waitForEvent('page', (p) => p.url().includes('/picker.html'));
+    await pricing.getByTestId('toolbar-start').click();
+    await expect(pricing.getByTestId('toolbar')).toHaveAttribute('data-state', 'recording');
+    const picker = await pickerPromise;
+    // It names the page the Session records.
+    await expect(picker.getByTestId('picker-title')).toHaveText('Pricing Fixture');
+    await expect(picker.getByTestId('picker-url')).toHaveText(`${site.primaryOrigin}/pricing.html`);
+    return { pricing, picker };
+  }
+
+  test('Start from the toolbar opens the picker window, and its pick adds the video', async ({
     context,
     serviceWorker,
     site,
     openExtensionPage,
   }) => {
-    await useScriptedTranscript(serviceWorker, 'pricing-cta.json');
-    await grantMic(openExtensionPage);
-    const pricing = await context.newPage();
-    await pricing.goto(`${site.primaryOrigin}/pricing.html`);
-    await clickToolbarIcon(serviceWorker, '/pricing.html');
-    await pricing.getByTestId('toolbar-start').click();
-    await expect(pricing.getByTestId('toolbar')).toHaveAttribute('data-state', 'recording');
+    const { pricing, picker } = await startWithoutTabCapture(context, serviceWorker, site, openExtensionPage);
+    const sessionId = (await activeSessionId(serviceWorker))!;
+    // Until the reviewer picks, the Session has no video.
+    expect(await liveVideo(serviceWorker)).toEqual({ state: 'off', reason: 'unavailable' });
+
+    // The fake-media switches pick the tab titled "Pricing Fixture"; the window records it, as the side panel would.
+    await picker.getByTestId('picker-choose').click();
+    await expect(picker.getByTestId('picker-recording')).toHaveText('Recording video — keep this window open');
+    await expect
+      .poll(() => liveVideo(serviceWorker), { timeout: 10_000 })
+      .toMatchObject({ state: 'recording', recorder: 'surface', start_offset_ms: expect.any(Number) });
+    await expect(pricing.getByTestId('toolbar-no-video')).toHaveCount(0);
+
+    // Stop takes the window's video and closes the window.
+    await pricing.bringToFront();
+    await pricing.waitForTimeout(2500);
+    const closed = picker.waitForEvent('close');
+    const review = await stopFromToolbar(context, pricing);
+    await closed;
+    const row = await review.evaluate(async (id) => {
+      const idb = await new Promise<IDBDatabase>((res, rej) => {
+        const r = indexedDB.open('inkup');
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      const out = await new Promise<{ video: { chunk_count: number } | null; video_off_reason: string | null }>(
+        (res, rej) => {
+          const r = idb.transaction('sessions').objectStore('sessions').get(id);
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        },
+      );
+      idb.close();
+      return out;
+    }, sessionId);
+    expect(row.video_off_reason).toBeNull();
+    expect(row.video?.chunk_count).toBeGreaterThan(0);
+  });
+
+  test('Record without video in the picker window: the Session goes on without video, and the toolbar says so', async ({
+    context,
+    serviceWorker,
+    site,
+    openExtensionPage,
+  }) => {
+    const { pricing, picker } = await startWithoutTabCapture(context, serviceWorker, site, openExtensionPage);
+    const closed = picker.waitForEvent('close');
+    await picker.getByTestId('picker-without-video').click();
+    await closed;
     await expect(pricing.getByTestId('toolbar-no-video')).toHaveText('No video');
-    const video = await serviceWorker.evaluate(
-      async () => ((await chrome.storage.session.get('activeSession')).activeSession as { video: unknown }).video,
-    );
-    expect(video).toEqual({ state: 'off', reason: 'unavailable' });
+    expect(await liveVideo(serviceWorker)).toEqual({ state: 'off', reason: 'picker_cancelled' });
     await stopFromToolbar(context, pricing);
+  });
+
+  test('a Session stopped before a pick closes the picker window', async ({
+    context,
+    serviceWorker,
+    site,
+    openExtensionPage,
+  }) => {
+    const { pricing, picker } = await startWithoutTabCapture(context, serviceWorker, site, openExtensionPage);
+    const closed = picker.waitForEvent('close');
+    await pricing.bringToFront();
+    await stopFromToolbar(context, pricing);
+    await closed;
   });
 });

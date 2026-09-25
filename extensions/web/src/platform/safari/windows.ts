@@ -77,12 +77,13 @@ export function extensionWindow(key: string, path: string, size: { width: number
   }
 
   async function open(near: number | undefined): Promise<number> {
-    const win = await chrome.windows.create({
-      url: chrome.runtime.getURL(`/${path}`),
-      type: 'popup',
-      focused: true,
-      ...size,
-      ...(await besideWindow(near, size.width)),
+    const create = (at: { left?: number; top?: number }) =>
+      chrome.windows.create({ url: chrome.runtime.getURL(`/${path}`), type: 'popup', focused: true, ...size, ...at });
+    // Chrome refuses bounds less than half on a screen (a window reaching past the screen's edge): then it places it.
+    const at = await besideWindow(near, size.width);
+    const win = await create(at).catch((e: unknown) => {
+      if (at.left === undefined) throw e;
+      return create({});
     });
     const tabId = win?.tabs?.[0]?.id;
     if (win?.id === undefined || tabId === undefined) throw new Error(`could not open ${path} in a window`);

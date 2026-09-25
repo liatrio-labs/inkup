@@ -146,7 +146,7 @@ test('an exported zip restores the Session with the same items, screenshots and 
     expect(await reviewView(restored)).toEqual(before);
 
     // Edit the restored item, then restore the zip again: the clash dialog opens the existing copy, whose review is
-    // open already, so that tab comes forward instead of a second one (decisions log #39)…
+    // open already, so that tab comes forward instead of a second one (decisions log #40)…
     const item = restored.getByTestId('change-item').first();
     await item.getByTestId('edit-item').click();
     await item.getByTestId('edit-title').fill('An edit the Replace throws away');

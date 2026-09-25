@@ -227,6 +227,8 @@ export interface ProtocolMap {
   startSession(input: { video: StartVideo; clicked_at?: number; from_toolbar?: boolean }): StartResult;
   /** Side panel → service worker: its video recorder started, or sharing ended. */
   videoStatus(input: VideoStatusInput): void;
+  /** The picker window → service worker: the video it will record for a Session that started without, or none. */
+  attachVideo(input: { session_id: string; video: StartVideo }): { ok: boolean };
   stopSession(): { ok: boolean; session_id: string | null };
   /** "Open review" (a plain click): focus the tab already showing this Session's review, else open one. */
   openReview(sessionId: string): { tab_id: number | null; reused: boolean };
