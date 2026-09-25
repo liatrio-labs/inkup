@@ -7,6 +7,7 @@ export default defineConfig({
       'packages/core',
       'packages/protocol',
       'extensions/web',
+      'apps/desktop',
       {
         test: {
           name: 'repo',

@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "type": "module",
-  "description": "Workspace root: packages/core (@inkup/core), extensions/web (the WXT browser extension), repo-level scripts and e2e.",
+  "description": "Workspace root: packages/core (@inkup/core), extensions/web (the WXT browser extension), apps/desktop (the Tauri desktop app), repo-level scripts and e2e.",
   "scripts": {
     "prepare": "node scripts/install-hooks.mjs",
     "dev": "pnpm -C extensions/web dev",
@@ -21,6 +21,8 @@
     "lint:fix": "biome check --write .",
     "test:e2e": "pnpm build && pnpm host:build && playwright test --project=chrome",
     "host:build": "cargo build --quiet --manifest-path host/Cargo.toml -p inkup",
+    "desktop:dev": "pnpm -C apps/desktop dev",
+    "desktop:build": "pnpm -C apps/desktop build",
     "test:e2e:firefox": "pnpm build:firefox && playwright test --project=firefox",
     "icons": "bash scripts/gen-icons.sh",
     "fixtures:serve": "node scripts/serve-fixtures.ts",

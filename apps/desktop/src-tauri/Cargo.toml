@@ -1,0 +1,46 @@
+# Its own workspace: Tauri, WebKit and GTK stay out of the host's `cargo test` and release builds (host/).
+[workspace]
+
+[package]
+name = "inkup-desktop"
+description = "The InkUp desktop app: hosts the server, or drives the host already running on the data dir"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+publish = false
+
+[lib]
+name = "inkup_desktop"
+path = "src/lib.rs"
+
+[[bin]]
+name = "inkup-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive", "env"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["json", "query"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tauri = { version = "2", features = ["tray-icon"] }
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["full"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+inkup-server = { path = "../../../host/crates/server" }
+inkup-store = { path = "../../../host/crates/store" }
+inkup-protocol = { path = "../../../host/crates/protocol" }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }

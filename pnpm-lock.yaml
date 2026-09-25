@@ -31,10 +31,68 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.1
-        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
+        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
       ws:
         specifier: ^8.21.3
         version: 8.21.3
+
+  apps/desktop:
+    dependencies:
+      '@tauri-apps/api':
+        specifier: ^2.11.1
+        version: 2.11.1
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^1.47.0
+        version: 1.47.0(react@19.3.0)
+      radix-ui:
+        specifier: ^1.6.7
+        version: 1.6.7(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: ^19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.3.0
+        version: 19.3.0(react@19.3.0)
+      tailwind-merge:
+        specifier: ^3.7.0
+        version: 3.7.0
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
+      '@tauri-apps/cli':
+        specifier: ^2.11.5
+        version: 2.11.5
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: ^6.1.1
+        version: 6.1.1(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^8.3.1
+        version: 8.3.1(@types/node@26.6.2)(jiti@2.7.0)
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
 
   extensions/web:
     dependencies:
@@ -131,7 +189,7 @@ importers:
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.3.3
-        version: 4.3.3(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
+        version: 4.3.3(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
       '@types/chrome':
         specifier: ^0.3.0
         version: 0.3.0
@@ -146,7 +204,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       '@wxt-dev/module-react':
         specifier: ^1.2.2
-        version: 1.2.2(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))(wxt@0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0)))
+        version: 1.2.2(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))(wxt@0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0)))
       happy-dom:
         specifier: ^20.14.5
         version: 20.14.5
@@ -161,10 +219,10 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.1
-        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
+        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
       wxt:
         specifier: ^0.21.4
-        version: 0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
+        version: 0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
 
   packages/core:
     dependencies:
@@ -198,7 +256,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.1
-        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
+        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
 
   packages/protocol:
     dependencies:
@@ -217,7 +275,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: ^5.0.1
-        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
+        version: 5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
 
 packages:
 
@@ -1500,6 +1558,85 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
+  '@tauri-apps/api@2.11.1':
+    resolution: {integrity: sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA==}
+
+  '@tauri-apps/cli-darwin-arm64@2.11.5':
+    resolution: {integrity: sha512-tggOiVOohjIHdiElbjeBfB41s6cmfsq+ZQ0PX0fEtCdsDdZ9cCi54e5gNK7tdPbR6JbdDe7RA4kbQdyyBUUk/Q==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@tauri-apps/cli-darwin-x64@2.11.5':
+    resolution: {integrity: sha512-SrO+KCbqvG1IvVPdlzQX4GEGZRQDISrmDY9bGcW68DLVFBCC06H+Loz6oyUZETUxsSMR6B4oDfvbQVgD4hxsqQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.11.5':
+    resolution: {integrity: sha512-qLrOaCa8hLD5QVPQRjAgOXvhlTFKXmTliVF773GgvADYcWZSdmncnF5zBFAkdu1uQK8KfQbDlBUwqQYZqBfBRQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [linux]
+
+  '@tauri-apps/cli-linux-arm64-gnu@2.11.5':
+    resolution: {integrity: sha512-Tq32xpQjiQEdIrvwDq7lwHhXemn070CXWdbCvr9rdi9rsv9NFTbQ6izVSIfNE+59QaerxuwtUtZ5IxDNWaoYBw==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tauri-apps/cli-linux-arm64-musl@2.11.5':
+    resolution: {integrity: sha512-+OdWKj5Aq+C8HXypQ4t926V8cpVnc0ZcJIdhTXWjVAJHkaNuo8EuQR6KRZKHWIbJJgKdMPCDosvwzIFaBBqHKQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@tauri-apps/cli-linux-riscv64-gnu@2.11.5':
+    resolution: {integrity: sha512-Q0V2hjpllyDW8dWQZSsITuQDfcY9BpBZuhXkMa2T5AFLZAn+FJPXQSyvnxWNVxRowdQ59Xn0QVtGm6HEHNUEvw==}
+    engines: {node: '>= 10'}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tauri-apps/cli-linux-x64-gnu@2.11.5':
+    resolution: {integrity: sha512-Xz1s87gFjZJZMQKAhLa77YeiCJM6yVog3f9OxDgVd/KxDIoB1dA5V2xOnMM+SRkOGk9juwIBqesVAjV0kUB0DA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tauri-apps/cli-linux-x64-musl@2.11.5':
+    resolution: {integrity: sha512-6A88wqAZXZHgMaBrGiy/Bpa4GgUnftXM7uquKOeOXCuK78/XdBxEECicK/1oHgrT179XBFOaA6lQEHysjRmGig==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@tauri-apps/cli-win32-arm64-msvc@2.11.5':
+    resolution: {integrity: sha512-sRGgF/ObRfLcS3PtUdyTbJtkGq3E+PNZTknvAURwMNUtHw9DU/BF6S5si43y9lS5yEO9bWJCA+GGYvnn6cphQw==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@tauri-apps/cli-win32-ia32-msvc@2.11.5':
+    resolution: {integrity: sha512-bHOv/yxqfKpI7ioIFQi5wOfZ7jkbPzJD/UhXY52I/hrmE3qNh71cohIPyqZB5GQn3LZeJWdCUOqmIg/w6XX+Wg==}
+    engines: {node: '>= 10'}
+    cpu: [ia32]
+    os: [win32]
+
+  '@tauri-apps/cli-win32-x64-msvc@2.11.5':
+    resolution: {integrity: sha512-vaaOmavqdCeS7oMib2banBZemgrC5v54tSkwoBV+bxrXQZhQZrOwE2EO2i4x+CHNtvQUM/6bSs3iymZMAsycWg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@tauri-apps/cli@2.11.5':
+    resolution: {integrity: sha512-YbeJ6tctNoo40purO4u3Eeo3RVqmsjJr0NoKQRu+4pvO4gMLzkjta7x0k96SxSLmx+rQ+8um1ThOlw+HLpgFug==}
+    engines: {node: '>= 10'}
+    hasBin: true
+
   '@topcli/prompts@4.0.0':
     resolution: {integrity: sha512-kkKYPb4k/6kRdnESt77B5vJrrYnYHIYczwv0P1c+tfN/IWEx3KZeKEHoUq7sImIyBEXWdA2uakIroD9pmRJziQ==}
     engines: {node: '>=22.0.0'}
@@ -2739,8 +2876,8 @@ packages:
       '@types/react':
         optional: true
 
-  vite@8.3.0:
-    resolution: {integrity: sha512-lhZBVvEHefgE+HQZC9O7EBJgCU/nVzFNl7vkS4RE0APtWLP02/8QVIkQtzBxPquh7lq5/78NHipTj7ODQ6XuyQ==}
+  vite@8.3.1:
+    resolution: {integrity: sha512-/bvH9E9tmCXRGp2uXY3WbOldqpTwFkbha/8ANaEQ6VkxhH60KyqLwgZq6lG2y+4uT55x9+9eUHMpQ7uGnOCKjA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -4079,12 +4216,61 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.3
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.3
 
-  '@tailwindcss/vite@4.3.3(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))':
+  '@tailwindcss/vite@4.3.3(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))':
     dependencies:
       '@tailwindcss/node': 4.3.3
       '@tailwindcss/oxide': 4.3.3
       tailwindcss: 4.3.3
-      vite: 8.3.0(@types/node@26.6.2)(jiti@2.7.0)
+      vite: 8.3.1(@types/node@26.6.2)(jiti@2.7.0)
+
+  '@tauri-apps/api@2.11.1': {}
+
+  '@tauri-apps/cli-darwin-arm64@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-darwin-x64@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-linux-arm-gnueabihf@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-linux-arm64-gnu@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-linux-arm64-musl@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-linux-riscv64-gnu@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-linux-x64-gnu@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-linux-x64-musl@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-win32-arm64-msvc@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-win32-ia32-msvc@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli-win32-x64-msvc@2.11.5':
+    optional: true
+
+  '@tauri-apps/cli@2.11.5':
+    optionalDependencies:
+      '@tauri-apps/cli-darwin-arm64': 2.11.5
+      '@tauri-apps/cli-darwin-x64': 2.11.5
+      '@tauri-apps/cli-linux-arm-gnueabihf': 2.11.5
+      '@tauri-apps/cli-linux-arm64-gnu': 2.11.5
+      '@tauri-apps/cli-linux-arm64-musl': 2.11.5
+      '@tauri-apps/cli-linux-riscv64-gnu': 2.11.5
+      '@tauri-apps/cli-linux-x64-gnu': 2.11.5
+      '@tauri-apps/cli-linux-x64-musl': 2.11.5
+      '@tauri-apps/cli-win32-arm64-msvc': 2.11.5
+      '@tauri-apps/cli-win32-ia32-msvc': 2.11.5
+      '@tauri-apps/cli-win32-x64-msvc': 2.11.5
 
   '@topcli/prompts@4.0.0': {}
 
@@ -4190,19 +4376,19 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@vitejs/plugin-react@6.1.1(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))':
+  '@vitejs/plugin-react@6.1.1(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.0(@types/node@26.6.2)(jiti@2.7.0)
+      vite: 8.3.1(@types/node@26.6.2)(jiti@2.7.0)
 
-  '@vitest/mocker@5.0.1(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))':
+  '@vitest/mocker@5.0.1(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.0.1
       estree-walker: 3.0.3
       magic-string: 1.4.1
     optionalDependencies:
-      vite: 8.3.0(@types/node@26.6.2)(jiti@2.7.0)
+      vite: 8.3.1(@types/node@26.6.2)(jiti@2.7.0)
 
   '@vitest/spy@5.0.1': {}
 
@@ -4228,11 +4414,11 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-react@1.2.2(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))(wxt@0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0)))':
+  '@wxt-dev/module-react@1.2.2(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))(wxt@0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0)))':
     dependencies:
-      '@vitejs/plugin-react': 6.1.1(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
-      vite: 8.3.0(@types/node@26.6.2)(jiti@2.7.0)
-      wxt: 0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
+      '@vitejs/plugin-react': 6.1.1(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
+      vite: 8.3.1(@types/node@26.6.2)(jiti@2.7.0)
+      wxt: 0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
     transitivePeerDependencies:
       - '@rolldown/plugin-babel'
       - babel-plugin-react-compiler
@@ -5163,7 +5349,7 @@ snapshots:
 
   undici-types@8.9.0: {}
 
-  unimport@6.5.0(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0)):
+  unimport@6.5.0(rolldown@1.2.9)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0)):
     dependencies:
       acorn: 8.18.0
       escape-string-regexp: 5.0.0
@@ -5177,7 +5363,7 @@ snapshots:
       scule: 1.3.0
       strip-literal: 4.0.0
       tinyglobby: 0.2.17
-      unplugin: 3.4.0(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
+      unplugin: 3.4.0(rolldown@1.2.9)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
       unplugin-utils: 0.3.2
     optionalDependencies:
       rolldown: 1.2.9
@@ -5197,14 +5383,14 @@ snapshots:
       pathe: 2.0.3
       picomatch: 4.0.7
 
-  unplugin@3.4.0(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0)):
+  unplugin@3.4.0(rolldown@1.2.9)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0)):
     dependencies:
       '@jridgewell/remapping': 2.3.5
       picomatch: 4.0.7
       webpack-virtual-modules: 0.6.2
     optionalDependencies:
       rolldown: 1.2.9
-      vite: 8.3.0(@types/node@26.6.2)(jiti@2.7.0)
+      vite: 8.3.1(@types/node@26.6.2)(jiti@2.7.0)
 
   unzipit@2.1.1: {}
 
@@ -5223,7 +5409,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
-  vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0):
+  vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -5235,10 +5421,10 @@ snapshots:
       fsevents: 2.3.3
       jiti: 2.7.0
 
-  vitest@5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0)):
+  vitest@5.0.1(@types/node@26.6.2)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.1(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
+      '@vitest/mocker': 5.0.1(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
       chai: 6.2.2
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -5249,7 +5435,7 @@ snapshots:
       tinybench: 6.1.4
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
-      vite: 8.3.0(@types/node@26.6.2)(jiti@2.7.0)
+      vite: 8.3.1(@types/node@26.6.2)(jiti@2.7.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.6.2
@@ -5278,7 +5464,7 @@ snapshots:
 
   ws@8.21.3: {}
 
-  wxt@0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0)):
+  wxt@0.21.4(rolldown@1.2.9)(typescript@7.0.2)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0)):
     dependencies:
       '@1natsu/wait-element': 4.2.0
       '@aklinker1/rollup-plugin-visualizer': 5.12.0
@@ -5308,8 +5494,8 @@ snapshots:
       tiny-open: 1.3.0
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
-      unimport: 6.5.0(rolldown@1.2.9)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
-      vite: 8.3.0(@types/node@26.6.2)(jiti@2.7.0)
+      unimport: 6.5.0(rolldown@1.2.9)(vite@8.3.1(@types/node@26.6.2)(jiti@2.7.0))
+      vite: 8.3.1(@types/node@26.6.2)(jiti@2.7.0)
     optionalDependencies:
       typescript: 7.0.2
     transitivePeerDependencies:
