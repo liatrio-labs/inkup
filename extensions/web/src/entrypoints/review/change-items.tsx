@@ -26,6 +26,7 @@ import { GripVertical } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { EvidenceShot, locationShot, type ShotIndex } from '@/components/evidence-shot';
 import { RESOLUTION_LABEL, RESOLUTION_STYLE } from '@/components/resolution-style';
+import { TONE } from '@/components/tone';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -171,7 +172,7 @@ export function ProcessSection({
             </span>
           </p>
           {phase.warnings.map((w) => (
-            <p key={w.limit} className="w-full text-amber-700" data-testid="process-limit-warning">
+            <p key={w.limit} className={cn('w-full', TONE.warnText)} data-testid="process-limit-warning">
               {limitText(w, phase.estimate.model)}
             </p>
           ))}
@@ -247,7 +248,7 @@ function RunCoverage({ run }: { run: ProcessRunRow }) {
         <p>No item for {dropped.map((d) => `#${d.annotation} (${d.reason.replace(/\.$/, '')})`).join('; ')}.</p>
       )}
       {unaccounted.length > 0 && (
-        <p className="text-amber-700">
+        <p className={TONE.warnText}>
           No item uses Annotation {unaccounted.map((n) => `#${n}`).join(', ')}, and the model gave no reason.
         </p>
       )}
@@ -574,7 +575,7 @@ function ChangeItemCard({
       ref={ref}
       className={cn(
         'flex flex-col gap-3 rounded-lg border bg-background p-4',
-        low && 'border-amber-400 bg-amber-50/40',
+        low && TONE.unsureCard,
         selected && 'ring-2 ring-primary',
         isDragging && 'opacity-60',
       )}
@@ -607,7 +608,7 @@ function ChangeItemCard({
           <div className="flex flex-wrap items-center gap-2">
             {low && (
               <span
-                className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-950"
+                className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', TONE.unsureChip)}
                 data-testid="check-me"
               >
                 check me
@@ -685,7 +686,7 @@ function ChangeItemCard({
       {resolution && <ResolutionLine resolution={resolution} />}
       {/* A combine surfaces contradictions between the merged requests here too, whatever the confidence. */}
       {item.ambiguity && (
-        <p className="text-amber-950" data-testid="ambiguity">
+        <p className={TONE.warnStrongText} data-testid="ambiguity">
           {item.ambiguity}
         </p>
       )}

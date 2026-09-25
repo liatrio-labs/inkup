@@ -5,6 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Toaster, toast } from 'sonner';
 import { DiscardUndo } from '@/components/discard-undo';
+import { TONE } from '@/components/tone';
 import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import { PANEL_PORT, type PanelToWorker, type WorkerToPanel } from '@/lib/panel-port';
@@ -230,18 +231,14 @@ export function App() {
 
   return (
     <main className="flex min-h-screen flex-col gap-4 p-4 text-sm">
-      <Toaster position="bottom-center" />
+      <Toaster position="bottom-center" theme="system" />
       <header className="flex items-center justify-between">
         <h1 className="text-base font-semibold">InkUp</h1>
         <span
           data-testid="status"
           className={cn(
             'rounded-full px-2 py-0.5 text-xs font-medium',
-            session?.paused
-              ? 'bg-amber-100 text-amber-900'
-              : recording
-                ? 'bg-red-100 text-red-800'
-                : 'bg-muted text-muted-foreground',
+            session?.paused ? TONE.pausedBadge : recording ? TONE.recordingBadge : 'bg-muted text-muted-foreground',
           )}
         >
           {session?.stopping
@@ -273,12 +270,7 @@ export function App() {
             </span>
           </div>
           {softCap !== null && (
-            <p
-              className="rounded-md bg-amber-50 p-2 text-amber-900"
-              role="note"
-              data-testid="soft-cap"
-              data-minutes={softCap}
-            >
+            <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="soft-cap" data-minutes={softCap}>
               {softCapMessage(softCap)}
             </p>
           )}
@@ -297,7 +289,7 @@ export function App() {
                 : `Video: ${videoLabel(session.video.label)}`}
           </p>
           {session.mode === 'no_overlay' && (
-            <p className="rounded-md bg-amber-50 p-2 text-amber-900" role="note" data-testid="no-overlay">
+            <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="no-overlay">
               Drawing is off on this page: it belongs to Chrome or to another extension, where this extension cannot
               draw or read the page. The Session still records your voice, the transcript, video and the address. Press
               Alt+Shift+S for a screenshot; the Snap button cannot capture this page.
@@ -313,11 +305,7 @@ export function App() {
             </p>
           )}
           {session.captions === 'unavailable' && (
-            <div
-              className="flex flex-col gap-2 rounded-md bg-amber-50 p-2 text-amber-900"
-              role="note"
-              data-testid="captions-off"
-            >
+            <div className={cn('flex flex-col gap-2 rounded-md p-2', TONE.note)} role="note" data-testid="captions-off">
               <p>
                 {platform.capabilities().speechRecognition
                   ? 'Live captions are off: on-device speech is not installed for this language, and server speech is not allowed.'
@@ -342,7 +330,7 @@ export function App() {
             </p>
           )}
           {session.transcription && session.transcription.engine === 'webspeech' && !session.transcription.local && (
-            <p className="rounded-md bg-amber-50 p-2 text-amber-900" role="note" data-testid="server-speech">
+            <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="server-speech">
               Captions use Chrome&apos;s server speech service, as allowed in setup: your audio goes to Google.
             </p>
           )}
@@ -424,7 +412,7 @@ export function App() {
             </p>
           )}
           {session.muted && (
-            <p className="rounded-md bg-amber-50 p-2 text-amber-900" role="note" data-testid="muted-note">
+            <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="muted-note">
               Microphone off: nothing you say is recorded or transcribed. Drawing, picks and screenshots go on.
             </p>
           )}
@@ -505,7 +493,7 @@ export function App() {
         </section>
       )}
       {storage?.warn && (
-        <p className="rounded-md bg-amber-50 p-2 text-amber-900" role="note" data-testid="storage-warning">
+        <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="storage-warning">
           Storage is {Math.round(storage.ratio * 100)}% full.{' '}
           <a className="underline" href="/sessions.html" target="_blank" rel="noopener">
             Delete old Sessions

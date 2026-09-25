@@ -8,11 +8,13 @@ import { DiscardUndo } from '@/components/discard-undo';
 import { HostBackfill } from '@/components/host-backfill';
 import { RestoreSession } from '@/components/restore-session';
 import { SessionRow } from '@/components/session-row';
+import { TONE } from '@/components/tone';
 import { db } from '@/db';
 import { sessionSummaries } from '@/db/sessions';
 import { useOriginLabel } from '@/lib/use-origin-label';
 import { useStorageEstimate } from '@/lib/use-storage-estimate';
 import { useStorageItem } from '@/lib/use-storage-item';
+import { cn } from '@/lib/utils';
 import { activeSession } from '@/session-state';
 
 export function App() {
@@ -47,7 +49,7 @@ export function App() {
       {storage?.warn && (
         <p
           role="alert"
-          className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900"
+          className={cn('rounded-md border p-3', TONE.noteBorder, TONE.note)}
           data-testid="storage-warning"
         >
           Storage is {Math.round(storage.ratio * 100)}% full. Delete Sessions you no longer need, or delete their video

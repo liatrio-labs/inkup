@@ -8,9 +8,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
 import { type FoundHost, isLoopbackUrl, normalizeAddress, parsePairLink } from '@/adapters/host';
 import { HostBackfill } from '@/components/host-backfill';
+import { TONE } from '@/components/tone';
 import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import { useStorageItem } from '@/lib/use-storage-item';
+import { cn } from '@/lib/utils';
 import { sendMessage } from '@/messaging';
 import { platform } from '@/platform';
 import { hostStatus } from '@/session-state';
@@ -155,7 +157,7 @@ export function HostSection() {
             {new Date(pairing.paired_at).toLocaleString()}.
           </p>
           {!isLoopbackUrl(pairing.url) && (
-            <p className="text-amber-700 dark:text-amber-400" data-testid="host-network-note">
+            <p className={TONE.warnText} data-testid="host-network-note">
               {NETWORK_NOTE}
             </p>
           )}
@@ -257,7 +259,7 @@ export function HostSection() {
                     {hub.url} · {hub.version}
                   </span>
                   {!isLoopbackUrl(hub.url) && (
-                    <span className="text-xs text-amber-700 dark:text-amber-400">Unencrypted network hub</span>
+                    <span className={cn('text-xs', TONE.warnText)}>Unencrypted network hub</span>
                   )}
                 </div>
                 <Button

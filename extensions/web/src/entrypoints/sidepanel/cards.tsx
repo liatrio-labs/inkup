@@ -9,6 +9,7 @@ import { type EventOf, sortTimeline, type TimelineEvent, type TimestampQuality }
 import { stripCommandPhrase } from '@inkup/core/voice-command-effects';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
+import { TONE } from '@/components/tone';
 import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import { useBlobUrl } from '@/lib/use-blob-url';
@@ -60,7 +61,7 @@ export function DraftCards({
         )}
       </div>
       {note && (
-        <p role="note" className="rounded-md bg-amber-50 p-2 text-xs text-amber-900" data-testid="draft-note">
+        <p role="note" className={cn('rounded-md p-2 text-xs', TONE.note)} data-testid="draft-note">
           {note}
         </p>
       )}
@@ -221,7 +222,7 @@ function AnnotationCard({
         <img
           src={thumb}
           alt={`Screenshot of Annotation ${a.index}`}
-          className="h-14 w-20 shrink-0 rounded border bg-muted object-contain"
+          className={cn('h-14 w-20 shrink-0 rounded border bg-muted object-contain', TONE.shotFrame)}
           data-testid="annotation-thumb"
         />
       ) : (
