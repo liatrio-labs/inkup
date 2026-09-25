@@ -333,9 +333,9 @@ test('capture the site media: toolbar, Stroke, Draft Items, Change Items and the
 
     // Start and the first note with its caption, the second note with its caption, then Stop: about 11 s.
     const cuts: [number, number][] = [
-      [at(startedAt) - 0.4, at(firstCaptionAt) + 0.9],
-      [at(arrowFrom) - 0.3, at(captionedAt) + 0.9],
-      [at(stoppedAt) - 0.3, at(stoppedAt) + 1.4],
+      [at(startedAt) - 0.2, at(firstCaptionAt) + 0.6],
+      [at(arrowFrom) - 0.3, at(captionedAt) + 0.6],
+      [at(stoppedAt) - 0.2, at(stoppedAt) + 1.2],
     ];
     const clip = encodeClip(raw, cuts, at(circledAt) - cuts[0]![0] + 0.1);
     record([...shots, ...clip]);
