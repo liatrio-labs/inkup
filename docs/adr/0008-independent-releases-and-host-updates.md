@@ -24,13 +24,14 @@ releases in a repo that also holds extension releases.
 **release-please cuts both trains.** `release-please.yml` runs on every push to `main` with `release-please-config.json`
 and `.release-please-manifest.json`, and keeps one release pull request open per train. It picks a commit's train by
 path: the extension is `extensions/web/`; the host is the repo root minus `.github`, `docs`, `extensions`, `fixtures`,
-`packages`, `scripts` and `tests`, so `host/`, `apps/desktop/` (whose DMG ships with the host) and `contract/` all count.
-The pull request bumps the version, the host crates' lockfile entries in `host/Cargo.lock` and
+`packages`, `scripts` and `tests`, so `host/`, `apps/desktop/` (whose DMG ships with the host) and `contract/` all
+count. The pull request bumps the version, the host crates' lockfile entries in `host/Cargo.lock` and
 `apps/desktop/src-tauri/Cargo.lock` (release-please's rust type and cargo-workspace plugin cannot read a
 `[workspace.package]` version in `host/`, so the host package is `simple` with TOML `extra-files`), and the train's
-`CHANGELOG.md`, where only `feat`, `fix`, `perf` and `revert` show. Merging it tags the merge commit and creates the
-GitHub Release: a draft for the host, which dist uploads to and publishes (`create-release = false`), and a published
-one for the extension, which both extension workflows add their zip to. It runs with a personal access token
+`CHANGELOG.md`, where only `feat`, `fix`, `perf` and `revert` show. The pull request is set to auto-merge, so releases
+need no one: CI skips every job on it and it merges once `ci-ok` passes. Merging it tags the merge commit and creates
+the GitHub Release: a draft for the host, which dist uploads to and publishes (`create-release = false`), and a
+published one for the extension, which both extension workflows add their zip to. It runs with a personal access token
 (`RELEASE_PLEASE_TOKEN`), because a tag or pull request made with `GITHUB_TOKEN` starts no workflow. Only the host has
 release candidates, with release-please's `prerelease` versioning switched by the host package's `prerelease` setting;
 Chrome takes only dotted numbers as a manifest version, so the extension has none.
@@ -166,3 +167,7 @@ Clients behind.
   and `ci-ok` passes: the pull request only bumps versions and changelogs of code already tested on its own pull
   request. A bump that breaks the build shows up in the tag's release run instead, before anything is published. The
   path routing also ignores release-please's files on other pull requests.
+- 2026-09-25: a maintainer merged each release pull request and approved the `release` and `chrome-web-store`
+  deployments. Now releases are automatic: release-please sets its pull request to auto-merge with
+  RELEASE_PLEASE_TOKEN, and neither environment has a required reviewer. Every releasable commit on `main` ships
+  within minutes. The environments' tag policies keep the signing and store secrets to release tags.

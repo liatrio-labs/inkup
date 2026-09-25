@@ -87,9 +87,9 @@ host. `.github/workflows/desktop-macos.yml` runs on the same `inkup-v*` tag as c
 workflow of its own rather than a job in dist's. It first checks the tag (`scripts/desktop-tag.ts`): a host release
 tag that exists on the remote. Its version says whether it is a pre-release, by the rule dist and release-please use
 (a `-` in the version). The build checks out the commit the tag points at. The job runs on a GitHub-hosted macOS
-runner in the `release` environment, which holds the signing secrets, needs a maintainer's approval, and takes
-`inkup-v*` tags only. A maintainer can run it again for an existing tag with `workflow_dispatch`, dispatched on that
-tag so the environment admits it. There is one run per tag at a time.
+runner in the `release` environment, which holds the signing secrets and takes `inkup-v*` tags only; it has no
+required reviewer, so the DMG builds as soon as the tag is out. A maintainer can run it again for an existing tag with
+`workflow_dispatch`, dispatched on that tag so the environment admits it. There is one run per tag at a time.
 
 - fastlane match puts the Developer ID Application certificate in a temporary keychain. It reads the shared match
   repo read-only, so CI never creates or renews a certificate (`apps/desktop/fastlane`).
@@ -108,7 +108,7 @@ tag so the environment admits it. There is one run per tag at a time.
   formula. Its `zap` removes only the app's own `dev.inkup.desktop` caches and preferences: the host's data dir is
   the CLI's too.
 
-Nothing in dist's workflow waits on this one, so a failed, slow or unapproved desktop build never holds up or undoes
+Nothing in dist's workflow waits on this one, so a failed or slow desktop build never holds up or undoes
 the host release: the release just has no DMG until the job is re-run. Pre-releases run it too, which is how the path
 is proven.
 
@@ -177,3 +177,5 @@ recognisably the same product.
 - Tauri 2 prerequisites and the tray: <https://v2.tauri.app/start/prerequisites/>, <https://v2.tauri.app/learn/system-tray/>
 - `File::try_lock` (advisory, released on process exit): <https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock>
 - shadcn/ui: <https://ui.shadcn.com/docs>
+- 2026-09-25: the `release` environment needed a maintainer's approval for each DMG build. Now it has no required
+  reviewer, because releases are automatic (ADR 0008); its tag policy alone keeps the signing secrets to release tags.

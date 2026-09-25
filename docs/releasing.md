@@ -35,17 +35,19 @@ last release, it keeps one release pull request open and up to date: `chore(rele
 release's section to the train's changelog (`host/CHANGELOG.md`, `extensions/web/CHANGELOG.md`), and records the version
 in `.release-please-manifest.json`. `release-please-config.json` configures both trains.
 
-1. Read the release pull request: the version and the changelog. CI skips every job on it, so `ci-ok` passes at
-   once: the code in it was tested on its own pull request.
-2. Merge it (squash, like any pull request).
+Nobody reviews a release; every step runs on its own:
+
+1. release-please sets its pull request to auto-merge (squash). CI skips every job on it, so `ci-ok` passes at once:
+   the code in it was tested on its own pull request. It merges within minutes of the releasable commit. To hold a
+   release, turn auto-merge off on the pull request (`gh pr merge --disable-auto <number>`); it is set again on the
+   next push to `main`, so close the pull request or set the component's version in the config for a longer hold.
+2. The pull request merges.
 3. release-please, run again by the merge, tags the merge commit and creates the GitHub Release with the changelog
    section as its notes. A host release starts as a draft; dist publishes it once the artifacts are on it.
 4. The tag starts the train's workflows: `inkup-v-release.yml` for the host; `release.yml` and `firefox-release.yml`
    for the extension.
-5. Approve the deployments they wait on (Actions → the run → Review deployments):
-   - host: `release`, for the desktop app's DMG (`desktop-macos.yml`);
-   - extension: `chrome-web-store`, before the Chrome Web Store upload. `firefox-amo` has no reviewer; its upload runs
-     straight away.
+5. The `release`, `chrome-web-store` and `firefox-amo` environments have no required reviewer. Each admits only its
+   own release tags, and that is what keeps their secrets to release runs.
 
 ### Which commits count
 
@@ -80,7 +82,7 @@ It is `true` while 0.2.0 is in release candidates. To ship the final release, se
 the release pull request then proposes `0.2.0`. Set it back to `true` to start the next version's candidates.
 
 A candidate is a GitHub pre-release. Homebrew skips it (dist's formula job and `desktop-macos`'s cask step), and
-`inkup update` does not offer it; the desktop app's DMG is still built, after approval.
+`inkup update` does not offer it; the desktop app's DMG is still built.
 
 ### Without release-please
 
@@ -122,8 +124,8 @@ for development or testing, but it is not a one-click install. So a Chrome relea
 - refuses tags that are not on `main` or do not end in the extensions/web/package.json version,
 - runs typecheck, unit tests and `pnpm zip` with `INKUP_RELEASE_BUILD=1`, the one build with the plain icon,
 - adds the zip to the tag's GitHub Release,
-- uploads the zip to the Chrome Web Store and submits it for review, once the `chrome-web-store` deployment is
-  approved and if store credentials are configured (otherwise it logs a notice and skips).
+- uploads the zip to the Chrome Web Store and submits it for review, in the `chrome-web-store` environment, if store
+  credentials are configured (otherwise it logs a notice and skips).
 
 ### Firefox
 
@@ -165,9 +167,8 @@ The tag is dist's `<package>-v<version>` form, and the package is the `inkup` cr
   `dist-workspace.toml`), marking it a pre-release for a `-` version,
 - pushes the formula to `liatrio-labs/homebrew-tap` (stable releases only).
 
-The same tag starts `.github/workflows/desktop-macos.yml`, which waits for approval in the `release` environment and
-attaches the desktop app's DMG, then pushes its cask on a stable release
-([The desktop app's DMG](#the-desktop-apps-dmg)).
+The same tag starts `.github/workflows/desktop-macos.yml`, which runs in the `release` environment and attaches the
+desktop app's DMG, then pushes its cask on a stable release ([The desktop app's DMG](#the-desktop-apps-dmg)).
 
 Users install with any of:
 
@@ -231,9 +232,8 @@ for a pre-release, and a job whose ancestor was skipped is skipped too.) Its `ta
 version, whether it is a pre-release (a `-` in the version, the rule dist and release-please use) and the commit it
 points at. Its `desktop-macos` job then:
 
-1. waits for a maintainer to approve the `release` environment (Actions → the run → Review deployments). The
-   environment admits `inkup-v*` tags only and holds the secrets below. It then checks out the commit the tag
-   points at;
+1. runs in the `release` environment, which admits `inkup-v*` tags only and holds the secrets below, and checks out
+   the commit the tag points at;
 2. runs `bundle exec fastlane mac signing` in `apps/desktop`: `setup_ci` makes a temporary default keychain, and
    `match` (read-only, `apps/desktop/fastlane/Matchfile`) installs the Developer ID Application certificate from
    `git@github.com:dbhagen/fastlane-match.git` (branch `master`, team `3K3TD4KSB2`) into it;
@@ -279,7 +279,7 @@ brew audit --cask --new inkup-local/audit/inkup   # downloads the cask's url, so
 brew untap inkup-local/audit
 ```
 
-dist's workflow waits on nothing here, so a failed or unapproved job never blocks the host release. Fix the cause and
+dist's workflow waits on nothing here, so a failed job never blocks the host release. Fix the cause and
 re-run the failed job: the upload replaces any earlier DMG, and the cask takes the new DMG's sha256.
 
 Secrets, in the `release` environment:
@@ -293,8 +293,8 @@ Secrets, in the `release` environment:
 | `APPLE_API_KEY_P8` | The key's `.p8`, base64-encoded. The job decodes it into `$RUNNER_TEMP` as `APPLE_API_KEY_PATH` |
 
 **Proving it with a pre-release.** Merge a release candidate's release pull request (see "Release candidates"). The
-release is a pre-release, so Homebrew skips it (the formula and the cask), but `desktop-macos.yml` still runs. Approve
-it, and when it is green:
+release is a pre-release, so Homebrew skips it (the formula and the cask), but `desktop-macos.yml` still runs. When it is
+green:
 
 ```sh
 gh release download inkup-v0.2.0-rc.1 -R liatrio-labs/inkup -p '*.dmg'
@@ -377,10 +377,9 @@ The store API cannot create a new item, so the first upload is manual.
    Back each one up to 1Password as you create it (secrets-backup). Optional repository variable
    `CHROME_SKIP_SUBMIT_REVIEW=true` uploads without submitting.
 
-From then on every extension release uploads and submits automatically once the environment's required reviewer
-approves the deployment, and Google's store review gates the new version going live. GitHub gives public repos
-required reviewers for free (private repos need a paid plan); add or change reviewers under the environment's
-protection rules.
+From then on every extension release uploads and submits automatically, and Google's store review gates the new
+version going live. To gate uploads on a person again, add a required reviewer under the environment's protection
+rules (free on public repos).
 
 ## One-time addons.mozilla.org setup
 

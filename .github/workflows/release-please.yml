@@ -3,7 +3,8 @@ name: release-please
 # Keeps one release pull request open per train (release-please-config.json): `inkup` for the host, `inkup-extension`
 # for the Chrome extension and the Firefox add-on. Merging one creates its tag and GitHub Release, and the tag starts
 # the train's release workflow: inkup-v-release.yml for `inkup-v*`, release.yml and firefox-release.yml for
-# `inkup-extension-v*`. See docs/releasing.md.
+# `inkup-extension-v*`. Releases are automatic: each release pull request is set to auto-merge, so it merges once
+# ci-ok passes (CI skips every job on it) and the tag goes out with no one reviewing it. See docs/releasing.md.
 on:
   push:
     branches: [main]
@@ -39,3 +40,14 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+      # The merge must be made with RELEASE_PLEASE_TOKEN too: a push made with GITHUB_TOKEN starts no workflows, so
+      # release-please would not run again to tag it.
+      - name: Auto-merge the release pull requests
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          REPO: ${{ github.repository }}
+        if: env.GH_TOKEN != ''
+        run: |
+          gh pr list -R "$REPO" --state open --json number,headRefName \
+            --jq '.[] | select(.headRefName | startswith("release-please--")) | .number' |
+            while read -r pr; do gh pr merge "$pr" -R "$REPO" --auto --squash; done
