@@ -643,6 +643,17 @@ export const SAMPLES: Samples = {
       },
     },
   ],
+  session_rename: [
+    {
+      event: {
+        id: 'e1a4c1d2-0b6f-4d52-9d64-5e3a2f1b0c30',
+        type: 'session_rename',
+        t: 30000,
+        name: 'Pricing page header pass',
+        edited_at: '2026-09-23T10:08:00.000Z',
+      },
+    },
+  ],
 };
 
 /** A Change Item with every optional field filled: the `items` push. */

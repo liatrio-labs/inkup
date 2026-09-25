@@ -44,7 +44,8 @@ import { z } from 'zod';
 // the `overlay_cleared` event.
 // v18 (E8, adaptive contrast): a Stroke records its ink `color` (absent before: the old red).
 // v19 (F5, review-page Undo/Redo): item_edit ops `undo` and `redo`.
-export const SCHEMA_VERSION = 19 as const;
+// v20 (review page redesign): the `session_rename` review edit (the Session's name, typed on the review page).
+export const SCHEMA_VERSION = 20 as const;
 
 /** ms since t0. */
 export const Offset = z.number().int().nonnegative().describe('ms since the Session t0');
@@ -468,6 +469,11 @@ export const TranscriptEditEvent = base('transcript_edit').extend({
   text: z.string(),
   edited_at: z.iso.datetime(),
 });
+/** The reviewer renamed the Session on the review page. The latest wins over `session_start.title` (sessionName). */
+export const SessionRenameEvent = base('session_rename').extend({
+  name: z.string().min(1).max(200).describe("the Session's name, trimmed"),
+  edited_at: z.iso.datetime(),
+});
 const itemId = z.string().min(1);
 export const ItemEditOp = z.discriminatedUnion('op', [
   z.object({
@@ -565,6 +571,7 @@ export const TimelineEventSchema = z.discriminatedUnion('type', [
   MicUnmutedEvent,
   VoiceOnEvent,
   OverlayClearedEvent,
+  SessionRenameEvent,
 ]);
 
 export type TimelineEvent = z.infer<typeof TimelineEventSchema>;
