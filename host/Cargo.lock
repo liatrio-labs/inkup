@@ -1460,6 +1460,7 @@ dependencies = [
  "inkup-server",
  "inkup-store",
  "inkup-tui",
+ "inkup-update-check",
  "reqwest",
  "serde_json",
  "tempfile",
@@ -1536,6 +1537,20 @@ dependencies = [
  "qrcode",
  "ratatui",
  "rqrr",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "inkup-update-check"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "axoupdater",
+ "inkup-store",
+ "reqwest",
+ "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
 ]

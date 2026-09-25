@@ -88,12 +88,12 @@
         {
           "type": "toml",
           "path": "host/Cargo.lock",
-          "jsonpath": "$.package[?(@.name.value=='inkup' || @.name.value=='inkup-protocol' || @.name.value=='inkup-server' || @.name.value=='inkup-store' || @.name.value=='inkup-tui')].version"
+          "jsonpath": "$.package[?(@.name.value=='inkup' || @.name.value=='inkup-protocol' || @.name.value=='inkup-server' || @.name.value=='inkup-store' || @.name.value=='inkup-tui' || @.name.value=='inkup-update-check')].version"
         },
         {
           "type": "toml",
           "path": "apps/desktop/src-tauri/Cargo.lock",
-          "jsonpath": "$.package[?(@.name.value=='inkup-protocol' || @.name.value=='inkup-server' || @.name.value=='inkup-store')].version"
+          "jsonpath": "$.package[?(@.name.value=='inkup-protocol' || @.name.value=='inkup-server' || @.name.value=='inkup-store' || @.name.value=='inkup-update-check')].version"
         }
       ]
     },

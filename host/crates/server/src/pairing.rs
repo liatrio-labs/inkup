@@ -4,7 +4,8 @@
 //! - From this machine (loopback): the user answers yes or no.
 //! - From another machine (network mode): the Host issues a 6-digit code that the request carries, with a
 //!   `inkup://pair` link for a QR code. The user types the code into the Client, which connects again with
-//!   it. A code lasts two minutes and survives four wrong guesses; the user can refuse it early.
+//!   it. A code lasts two minutes and survives four wrong guesses; the user can refuse it early. A machine that asks
+//!   again gets a new code in place of its last one.
 
 use std::net::IpAddr;
 use std::sync::Mutex;
@@ -74,11 +75,13 @@ impl PairingRequest {
 
 /// A code is refused at its fifth wrong guess.
 pub(crate) const MAX_WRONG_CODES: u32 = 5;
-/// Codes waiting at once; a flood of hellos from the LAN cannot fill the TUI.
+/// Codes waiting at once, one per machine; a flood of hellos from the LAN cannot fill the TUI.
 const MAX_WAITING: usize = 4;
 
 struct Waiting {
     id: u64,
+    /// The machine that asked: asking again replaces its code.
+    from: IpAddr,
     code: String,
     issued: Instant,
     wrong: u32,
@@ -115,10 +118,13 @@ impl PairingCodes {
         self.ttl
     }
 
-    /// A new code for a Client on another machine, unless too many are waiting. Returns its id (for `expire`).
-    pub(crate) fn issue(&self, decision: oneshot::Receiver<PairingDecision>) -> Option<(u64, String)> {
+    /// A new code for a Client on another machine, unless too many machines are waiting. Returns its id (for
+    /// `expire`). The machine's earlier code, if one waits, is dropped: its Client asked again (Connect clicked
+    /// twice, the options page reopened), and stacking its codes would refuse its fifth ask as if the user had.
+    pub(crate) fn issue(&self, from: IpAddr, decision: oneshot::Receiver<PairingDecision>) -> Option<(u64, String)> {
         let mut waiting = self.lock();
         self.prune(&mut waiting);
+        waiting.retain(|w| w.from != from);
         if waiting.len() >= MAX_WAITING {
             return None;
         }
@@ -129,7 +135,7 @@ impl PairingCodes {
             }
         };
         let id = self.next.fetch_add(1, Ordering::Relaxed);
-        waiting.push(Waiting { id, code: code.clone(), issued: Instant::now(), wrong: 0, decision });
+        waiting.push(Waiting { id, from, code: code.clone(), issued: Instant::now(), wrong: 0, decision });
         Some((id, code))
     }
 
@@ -195,9 +201,17 @@ mod tests {
         assert_eq!(request.prompt(), "Chrome extension \"Work[2J laptop\" wants to connect");
     }
 
+    fn machine(n: u8) -> IpAddr {
+        IpAddr::from([192, 168, 1, n])
+    }
+
     fn issued(codes: &PairingCodes) -> (String, oneshot::Sender<PairingDecision>) {
+        issued_to(codes, machine(20))
+    }
+
+    fn issued_to(codes: &PairingCodes, from: IpAddr) -> (String, oneshot::Sender<PairingDecision>) {
         let (tx, rx) = oneshot::channel();
-        let (_, code) = codes.issue(rx).unwrap();
+        let (_, code) = codes.issue(from, rx).unwrap();
         (code, tx)
     }
 
@@ -231,9 +245,21 @@ mod tests {
     }
 
     #[test]
-    fn at_most_four_codes_wait() {
+    fn at_most_four_machines_wait() {
         let codes = PairingCodes::new(Duration::from_secs(120));
-        let _held: Vec<_> = (0..MAX_WAITING).map(|_| issued(&codes)).collect();
-        assert!(codes.issue(oneshot::channel().1).is_none());
+        let held: Vec<_> = (1..=4).map(|n| issued_to(&codes, machine(n))).collect();
+        assert_eq!(held.len(), MAX_WAITING);
+        assert!(codes.issue(machine(5), oneshot::channel().1).is_none());
+    }
+
+    #[test]
+    fn a_machine_that_asks_again_gets_a_new_code_in_place_of_its_last() {
+        let codes = PairingCodes::new(Duration::from_secs(120));
+        let (first, first_tx) = issued(&codes);
+        let held: Vec<_> = (0..MAX_WAITING + 2).map(|_| issued(&codes)).collect();
+        assert!(first_tx.is_closed(), "the code it replaced stops showing");
+        assert_eq!(codes.redeem(&first), Redeemed::Wrong { tries_left: MAX_WRONG_CODES - 1 });
+        let (newest, _) = held.last().unwrap();
+        assert_eq!(codes.redeem(newest), Redeemed::Paired);
     }
 }

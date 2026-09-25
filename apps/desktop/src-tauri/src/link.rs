@@ -32,6 +32,9 @@ impl HostLink {
         let http = reqwest::Client::builder()
             // Loopback: a proxy from the environment has no business in between.
             .no_proxy()
+            // A connection per request: a pooled one to a server that restarted (network mode switched) is dead,
+            // and the first request after the restart failed on it. On loopback a new connection costs nothing.
+            .pool_max_idle_per_host(0)
             .timeout(Duration::from_secs(5))
             .build()
             .unwrap_or_default();

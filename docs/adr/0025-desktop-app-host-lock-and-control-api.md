@@ -30,11 +30,11 @@ any free port).
 - A holder whose control API version differs from the app's is refused with a message naming both versions
   (`StartupError::Incompatible`).
 
-**The desktop app embeds the host.** It builds the host's crates (`inkup-server`, `inkup-store`, `inkup-protocol`)
-from `host/` and runs the same server in-process, rather than shipping the `inkup` binary as a sidecar. It has its own
-cargo workspace in `apps/desktop/src-tauri`, so Tauri, WebKitGTK and GTK stay out of the host's `cargo test` and
-release builds. CI runs it as a separate `desktop` job on the same three platforms. The job runs when
-`apps/desktop/`, `host/`, `packages/` or the workspace's install files change (ADR 0007).
+**The desktop app embeds the host.** It builds the host's crates (`inkup-server`, `inkup-store`, `inkup-protocol`,
+`inkup-update-check`) from `host/` and runs the same server in-process, rather than shipping the `inkup` binary as a
+sidecar. It has its own cargo workspace in `apps/desktop/src-tauri`, so Tauri, WebKitGTK and GTK stay out of the
+host's `cargo test` and release builds. CI runs it as a separate `desktop` job on the same three platforms. The job
+runs when `apps/desktop/`, `host/`, `packages/` or the workspace's install files change (ADR 0007).
 
 **The control API.** A window, or any other local front end, runs a host through `/api/host/*` on the host's own
 port (`host/crates/server/src/control.rs`). It exposes what the TUI's keys do: the state with the timeline, a
@@ -57,7 +57,8 @@ long-poll for changes, Session commands, agent tokens, network mode, pairing ans
 app, when it hosts, asks in its window: `Server::ask_pairing_over_control` routes requests to the control API's
 pending list instead of a terminal. A request from another machine shows its pairing code and a QR code. The window can
 only refuse it, because the Client pairs by typing the code (ADR 0006). When the app is another host's window, that
-host asks.
+host asks. A network-mode restart drops the waiting requests (their Clients are cut off and ask again), and a request's
+id is never reused within the process, so an answer meant for a dropped request is a 404, never another request's.
 
 **The app's own settings.** `[desktop]` in `config.toml` holds `menubar` and `dock`: whether the app shows a menu bar
 (tray) icon and a Dock icon (the taskbar outside macOS). At least one stays on. Saving both off is refused, and a file
@@ -150,8 +151,9 @@ recognisably the same product.
   on macOS.
 - Anything the TUI can do that a window should also do becomes a control API route, added to the contract first,
   with a `CONTROL_API` bump when it breaks.
-- When the app hosts, it does not check for host updates yet: `ControlState.update` is null. The notice shows only
-  when a CLI host reports one.
+- When the app hosts, it runs the host's daily update check (ADR 0008) and its notice fills `ControlState.update`,
+  which the window shows as "Update available": `brew upgrade --cask inkup` when the cask installed the app, else the
+  release's DMG. When the app is a CLI host's window, that host checks and words the notice.
 - The app has no Windows or Linux release and does not update itself: a newer DMG is installed over it. The host's
   self-update (ADR 0008) covers only the `inkup` binary.
 - A release depends on the match repo (`dbhagen/fastlane-match`) and its read-only deploy key, and on an App Store
@@ -168,6 +170,11 @@ recognisably the same product.
 - 2026-09-25: the DMG was a download only; now stable releases also publish it as the Homebrew cask `inkup` in
   `liatrio-labs/homebrew-tap`, so the app installs and upgrades with `brew`. The cask names no macOS floor: the app's
   (Tauri's default, 10.13) is below every macOS Homebrew supports, and Homebrew refuses a floor it has dropped.
+- 2026-09-25: the app hosting did not check for updates (`ControlState.update` stayed null); now it runs the same
+  daily check as the TUI and `serve`, so a window on the app's own host says when a release is out.
+- 2026-09-25: pending pairing ids counted from 1 again after a network-mode restart, so a dialog left open from
+  before it could answer a new request; now ids are unique for the process, and the window's link opens a connection
+  per request, since a pooled one to the stopped server failed the first request after a restart.
 - 2026-09-25: we hooked the DMG to dist's post-announce; an rc (inkup-v0.2.0-rc.2) skipped it because implicit
   `success()` skips on any skipped ancestor; now it runs on the tag itself, in its own workflow that waits for
   release-please's draft release, and can be dispatched for an existing tag.

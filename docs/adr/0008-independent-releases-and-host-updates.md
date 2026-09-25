@@ -59,11 +59,14 @@ order decides which runs. `inkup update` says which one PATH picks, and suggests
 (`cargo install`, a dev build) has no receipt and does not update itself: it says a release exists and prints the
 install commands.
 
-**A quiet daily check.** The TUI and `inkup serve` start a background check that never delays startup or the server: at
-most once a day, cached in `update-check.json` in the data dir, and only when stdout is a terminal, `CI` is unset and
-`INKUP_NO_UPDATE_CHECK` is unset. Offline, or on any error, it gives up silently and tries again next start. A newer
-release shows in the TUI's key line (while no command outcome is showing), and on stderr for `serve`, with the command
-to run: `inkup update`, or `brew upgrade inkup` for a Homebrew copy that has not chosen "self".
+**A quiet daily check.** Whichever process hosts (the TUI, `inkup serve`, or the desktop app when it hosts) starts a
+background check that never delays startup or the server: at most once a day, cached in `update-check.json` in the
+data dir, and only for a person (the CLI when stdout is a terminal; the desktop app always), when `CI` is unset and
+`INKUP_NO_UPDATE_CHECK` is unset. It lives in the `inkup-update-check` crate, which the desktop app embeds with the
+server. Offline, or on any error, it gives up silently and tries again next start. A newer release shows in the TUI's
+key line (while no command outcome is showing), on stderr for `serve`, and in the desktop window's "Update available"
+banner (`ControlState.update`), with what to do: `inkup update`, or `brew upgrade inkup` for a Homebrew copy that has
+not chosen "self"; for the app, `brew upgrade --cask inkup` when the cask installed it, else the release's DMG.
 
 **`inkup-update` still ships.** dist's installers write the receipt only when `install-updater` is on, and that setting
 also installs the standalone `inkup-update`. `inkup update` needs the receipt, so the setting stays; `inkup-update` is
@@ -164,6 +167,9 @@ Clients behind.
   extension had a tag per store. Now release-please cuts them from release pull requests, and one
   `inkup-extension-v<version>` tag releases both stores; `inkup-chrome-v…` and `inkup-firefox-v…` remain for releasing
   one store alone. dist uploads to release-please's draft release instead of creating one.
+- 2026-09-25: only the TUI and `serve` ran the daily check, so a desktop app hosting never showed an update. Now the
+  check is its own crate (`inkup-update-check`) and the app runs it when it hosts, sharing the cache and the rules;
+  each host words the notice for how it is updated.
 - 2026-09-25: the DMG's `desktop-macos.yml` ran as dist's post-announce job, which a pre-release skipped. Now it
   runs on the `inkup-v*` tag push itself, beside dist's workflow (ADR 0025).
 - 2026-09-25: a release pull request ran all of CI, extension e2e included, because the path routing counted
