@@ -309,7 +309,7 @@ async fn a_token_is_shown_once_and_revoked() {
     let made: inkup_protocol::control::NewToken = response.json().await.unwrap();
     assert_eq!(made.name, "claude-code on laptop");
     let secret = made.token.to_string();
-    assert!(secret.starts_with("ink1_"), "{secret}");
+    assert!(secret.starts_with("ink1_"), "an agent token starts ink1_");
     let listed = state_of(&host).await["state"]["agent_tokens"].clone();
     assert_eq!(listed.as_array().unwrap().len(), 1);
     assert_eq!(listed[0]["id"], made.id);
