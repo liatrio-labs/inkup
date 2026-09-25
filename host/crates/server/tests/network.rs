@@ -3,12 +3,11 @@
 //! in through this machine's LAN address, which the server sees as another machine.
 mod common;
 
-use std::net::Ipv4Addr;
 use std::time::Duration;
 
-use common::{Host, expect_error, fixture, hello_with, recv, send};
+use common::{Host, expect_error, fixture, hello_with, lan_ip, recv, send};
 use inkup_protocol::{ErrorCode, ServerMessage};
-use inkup_server::{Config, NetworkConfig, PairingDecision, PairingRequest, lan_addresses};
+use inkup_server::{Config, NetworkConfig, PairingDecision, PairingRequest};
 use rmcp::ServiceExt;
 use rmcp::model::{ClientCapabilities, ClientConfig, Implementation};
 use rmcp::transport::StreamableHttpClientTransport;
@@ -174,18 +173,9 @@ async fn a_code_expires() {
     assert_eq!(code_error(&hello_with_code(&host, &code).await), ErrorCode::PairingTimeout);
 }
 
-/// The first LAN address, if this machine has one.
-fn lan_ip() -> Option<Ipv4Addr> {
-    let ip = lan_addresses().into_iter().next();
-    if ip.is_none() {
-        eprintln!("skipped: this machine has no LAN address");
-    }
-    ip
-}
-
 #[tokio::test]
 async fn a_real_peer_on_the_lan_address_is_another_machine() {
-    let Some(ip) = lan_ip() else { return };
+    let Some(ip) = lan_ip().await else { return };
     let mut host = Host::start_with(network(false)).await;
     let mut requests = host.server.take_pairing_requests().unwrap();
     let port = host.addr().port();
@@ -222,7 +212,7 @@ async fn a_real_peer_on_the_lan_address_is_another_machine() {
 
 #[tokio::test]
 async fn without_network_mode_only_loopback_is_bound() {
-    let Some(ip) = lan_ip() else { return };
+    let Some(ip) = lan_ip().await else { return };
     let host = Host::start(false).await;
     assert!(host.addr().ip().is_loopback());
     let reached = reqwest::Client::new()
@@ -241,7 +231,7 @@ async fn mdns_advertises_the_service_and_claims_the_name() {
         eprintln!("skipped on CI: needs multicast");
         return;
     }
-    if lan_ip().is_none() {
+    if lan_ip().await.is_none() {
         return;
     }
     let config = network(true);

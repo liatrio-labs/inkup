@@ -6,9 +6,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use common::{Host, expect_error, fixture, hello_with, recv, send};
+use common::{Host, expect_error, fixture, hello_with, lan_ip, recv, send};
 use inkup_protocol::{ErrorCode, ServerMessage};
-use inkup_server::{ActivateHook, Config, Control, NetworkConfig, NetworkHook, lan_addresses};
+use inkup_server::{ActivateHook, Config, Control, NetworkConfig, NetworkHook};
 use inkup_store::instance::{CONTROL_API, HostKind};
 use serde_json::{Value, json};
 
@@ -181,10 +181,7 @@ async fn a_web_page_origin_is_refused() {
 /// sees as another machine. Loopback still gets in.
 #[tokio::test]
 async fn in_network_mode_the_lan_is_refused_and_loopback_is_not() {
-    let Some(ip) = lan_addresses().into_iter().next() else {
-        eprintln!("skipped: no LAN address");
-        return;
-    };
+    let Some(ip) = lan_ip().await else { return };
     let network = NetworkConfig {
         mdns_name: format!("inkup-control-{}", std::process::id()),
         hub_id: "hub-test".into(),
@@ -411,10 +408,7 @@ async fn pairing_is_answered_through_the_control_api() {
 /// Another machine pairs by typing the code the Host shows; the control API can only deny it.
 #[tokio::test]
 async fn a_request_from_another_machine_shows_its_code_and_can_only_be_denied() {
-    let Some(ip) = lan_addresses().into_iter().next() else {
-        eprintln!("skipped: no LAN address");
-        return;
-    };
+    let Some(ip) = lan_ip().await else { return };
     let network = NetworkConfig {
         mdns_name: format!("inkup-control-pair-{}", std::process::id()),
         hub_id: "hub-test".into(),

@@ -107,3 +107,28 @@ pub fn hello_with(token: &str) -> Value {
     hello["token"] = json!(token);
     hello
 }
+
+/// This machine's first LAN address, if it has one and a connection to it gets through. A firewall can hold a new test
+/// binary's incoming data until someone answers the macOS "accept incoming connections?" prompt; the tests that go
+/// through the LAN address would then wait forever, so they skip instead. CI has no such firewall and runs them.
+pub async fn lan_ip() -> Option<std::net::Ipv4Addr> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let Some(ip) = inkup_server::lan_addresses().into_iter().next() else {
+        eprintln!("skipped: this machine has no LAN address");
+        return None;
+    };
+    let listener = tokio::net::TcpListener::bind(("0.0.0.0", 0)).await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let probe = async {
+        let (mut client, (mut server, _)) =
+            tokio::try_join!(TokioTcpStream::connect((ip, port)), listener.accept()).ok()?;
+        client.write_all(b"?").await.ok()?;
+        let mut byte = [0u8; 1];
+        server.read_exact(&mut byte).await.ok()
+    };
+    if tokio::time::timeout(Duration::from_secs(3), probe).await.ok().flatten().is_none() {
+        eprintln!("skipped: the LAN address {ip} doesn't get through (a firewall prompt for this test binary?)");
+        return None;
+    }
+    Some(ip)
+}
