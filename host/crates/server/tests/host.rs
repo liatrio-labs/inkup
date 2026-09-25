@@ -17,7 +17,10 @@ async fn a_client_pairs_reconnects_and_streams_a_session() {
     let http = reqwest::Client::new();
 
     let health: Value = http.get(host.url("/health")).send().await.unwrap().json().await.unwrap();
-    assert_eq!(health, fixture("health.json"));
+    // The fixture's version is an example; the host reports its own, so a release bump doesn't break this test.
+    let mut expected = fixture("health.json");
+    expected["version"] = json!(env!("CARGO_PKG_VERSION"));
+    assert_eq!(health, expected);
 
     let token = host.pair().await;
 
