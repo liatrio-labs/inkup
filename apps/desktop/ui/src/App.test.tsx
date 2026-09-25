@@ -207,6 +207,21 @@ describe('the actions', () => {
     await waitFor(() => expect(calls).toContainEqual({ cmd: 'revoke_token', args: { id: 'a-0f1e2d3c' } }));
   });
 
+  it("gives a new token's command the port this host keeps, while network mode is off", async () => {
+    // Started with --port 0: network mode restarts on the port it has, not on the default 47823.
+    const made = fixture('new-token.json');
+    app({ ...HOST, address: '127.0.0.1:57341' }, state({ network: null, pending_pairing: [] }), { create_token: made });
+    await screen.findByText('Pricing Fixture');
+    openTab(/^Tokens/);
+    fireEvent.click(screen.getByRole('button', { name: 'New token' }));
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'claude-code on laptop' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    expect(
+      await screen.findByText(`inkup mcp install --remote http://<this machine>:57341 --token ${made.token}`),
+    ).toBeTruthy();
+    expect(screen.getByText('It works once network mode is on.')).toBeTruthy();
+  });
+
   it('keeps one of the menu bar and the Dock on', async () => {
     const calls = app(HOST, state({ pending_pairing: [] }));
     const dock = await screen.findByRole('switch', { name: 'Dock' });

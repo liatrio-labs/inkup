@@ -346,9 +346,26 @@ async fn serve(common: Common, flags: Serve) -> Result<()> {
 
     let requests = server.take_pairing_requests().context("pairing requests already taken")?;
     let prompt = tokio::spawn(inkup_tui::prompt_pairing(requests, print_pairing_codes));
-    tokio::signal::ctrl_c().await?;
+    stop_requested().await?;
     prompt.abort();
     server.shutdown().await?;
+    Ok(())
+}
+
+/// Ctrl-C, or on Unix SIGTERM (`kill`, a service manager's stop): either way serve shuts down and gives up the data
+/// dir, host.json included.
+async fn stop_requested() -> Result<()> {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+        let mut terminate = signal(SignalKind::terminate())?;
+        tokio::select! {
+            stopped = tokio::signal::ctrl_c() => stopped?,
+            _ = terminate.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    tokio::signal::ctrl_c().await?;
     Ok(())
 }
 

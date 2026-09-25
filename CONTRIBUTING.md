@@ -15,7 +15,33 @@ is in `host/Cargo.toml`, `rust-version`), and [pre-commit](https://pre-commit.co
 pnpm install                                  # installs the git hooks, and copies the ONNX Runtime and VAD wasm files
 pnpm dev                                      # the extension with hot reload, in a WXT-managed Chrome profile
 cargo build --manifest-path host/Cargo.toml   # the inkup host
+pnpm desktop:dev                              # the desktop app, with hot reload for its UI
 ```
+
+The desktop app is built with [Tauri 2](https://v2.tauri.app/start/prerequisites/). macOS needs the Xcode command
+line tools, and Windows needs WebView2, which Windows 11 already has. On Linux, install WebKitGTK and appindicator
+first. On Debian or Ubuntu:
+
+```sh
+sudo apt-get install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev build-essential file
+```
+
+### Running several hosts at once
+
+Only one host runs per data dir (ADR 0025). The TUI, `inkup serve` and the desktop app all use your real one by
+default (`~/Library/Application Support/dev.inkup.inkup` on macOS, `$XDG_DATA_HOME/inkup` on Linux,
+`%APPDATA%\inkup\inkup\data` on Windows). To run a second host next to it, for a test or a second checkout, give it
+its own data dir with `--data-dir` (or `INKUP_DATA_DIR`). Use port 0 so it takes any free port instead of 47823:
+
+```sh
+cargo run --manifest-path host/Cargo.toml -p inkup -- serve --data-dir /tmp/inkup-a --port 0
+pnpm desktop:dev -- --data-dir /tmp/inkup-b --port 0
+```
+
+Two hosts on one data dir do not both run. The TUI and `serve` say which host is running and exit. The desktop
+app becomes the running host's window, or brings the other app forward. `scripts/desktop-smoke.sh` runs these
+cases with real binaries on temporary data dirs. It is macOS only, and it drives the app's window and menu through
+accessibility, so the terminal needs Accessibility access.
 
 The [README](README.md) lists every command and how to load the extension unpacked in Chrome, Firefox and Safari.
 
@@ -36,6 +62,8 @@ pnpm schema && git diff --exit-code -- contract
 node scripts/contract-compat.ts origin/main   # contract/ changes: breaking without a version bump fails (ADR 0007)
 pnpm test:e2e                                 # Chrome; pnpm test:e2e:firefox for Firefox
 cd host && cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked
+cd apps/desktop/src-tauri && cargo fmt --all --check && cargo clippy --all-targets --locked -- -D warnings && cargo test --locked
+pnpm desktop:build                            # the desktop app, as CI builds it
 ```
 
 - **Conventional Commits.** Messages look like `feat(host): pair by code` or `fix: keep the draft on reload`
@@ -59,7 +87,9 @@ cd host && cargo fmt --all --check && cargo clippy --workspace --all-targets --l
 ## Pull requests
 
 - Keep one change per pull request, with a description of what changed and why and how you verified it.
-- CI must pass: `CI` (lint, core, the Chrome and Firefox builds and e2e) and `Host` (cargo on Linux, macOS and Windows).
+- CI must pass: `ci-ok`, which needs every job the change runs: lint, core, the Chrome and Firefox builds and e2e,
+  the host (cargo on Linux, macOS and Windows) and the desktop app (the same three). A job whose paths did not
+  change is skipped, and a skipped job passes (ADR 0007).
 - A maintainer from `@liatrio-labs/liatrio-labs-maintainers` reviews and merges.
 
 ## License

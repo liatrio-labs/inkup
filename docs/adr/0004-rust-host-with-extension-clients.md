@@ -58,6 +58,12 @@ the extension's code), or needs its own entrypoints or UI, that browser moves to
 - How a Session reaches the Host (the outbox, discards, Forget and backfill) is ADR 0020; what agents do with it over
   MCP is ADR 0021.
 
+## History
+
+- 2026-09-23: the TUI was the Host's one face, with `serve` for scripts. 2026-09-25: the desktop app
+  (`apps/desktop`) is a second face next to it, with the same views. It embeds the same server, or drives the TUI or
+  `serve` already running on the data dir through the control API. One host runs per data dir (ADR 0025).
+
 ## Sources
 
 - typify: <https://github.com/oxidecomputer/typify>

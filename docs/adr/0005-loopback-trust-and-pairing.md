@@ -13,7 +13,8 @@ other machines out. Against web pages it refuses any request whose Host header i
 not bound by CORS, so `/ws` also refuses any Origin that belongs to a web page (`http(s)://` other than the Host
 itself). Extension origins (`chrome-extension://`, `moz-extension://`, `safari-web-extension://`) and clients that send
 no Origin are let through. A Client must pair before it can write. Its first `hello` names its kind and a display name.
-The TUI asks "Chrome extension "…" wants to connect [y/n]" (headless `serve` asks on the terminal). A yes issues a
+Whichever process hosts asks: the TUI asks "Chrome extension "…" wants to connect [y/n]", headless `serve` asks on
+the terminal, and the desktop app asks in its window (ADR 0025). A yes issues a
 random 256-bit token, which the Client keeps in `storage.local` and sends in every later `hello` and as the
 `Authorization: Bearer` token for `/blobs` and the read API. The Host stores only the token's SHA-256, and Forget
 revokes it.
@@ -40,6 +41,13 @@ local processes reach it, and those are out of scope as above.
 - The client name shown in the prompt comes from the Client, so control characters are stripped before it reaches the terminal.
 - Other users on a shared machine can reach loopback. They can pair only if the user at the prompt approves, and they
   can read MCP. Revisit that before any multi-user deployment.
+
+## History
+
+- 2026-09-23: pairing was asked in the TUI or on `serve`'s terminal. 2026-09-25: whichever process hosts asks. The
+  desktop app asks in its window, through the control API's pending list (`Server::ask_pairing_over_control`), and a
+  window driving a CLI host leaves the asking to that host. The control API trusts the same boundary as this ADR:
+  loopback, no web page Origin, and a token only the user can read (ADR 0025).
 
 ## Sources
 

@@ -316,7 +316,13 @@ export function App() {
                 <AgentsView host={host} />
               </TabsContent>
               <TabsContent value="tokens">
-                <TokensView host={host} now={now} onCreate={create} onRevoke={revoke} />
+                <TokensView
+                  host={host}
+                  port={view?.address.split(':').pop() ?? '47823'}
+                  now={now}
+                  onCreate={create}
+                  onRevoke={revoke}
+                />
               </TabsContent>
             </>
           )}

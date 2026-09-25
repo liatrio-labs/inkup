@@ -278,11 +278,14 @@ export function AgentsView({ host }: { host: ControlState }) {
 
 export function TokensView({
   host,
+  port,
   now,
   onCreate,
   onRevoke,
 }: {
   host: ControlState;
+  /** The port the host listens on now: network mode keeps it. */
+  port: string;
   now: number;
   onCreate: (name: string) => Promise<NewToken | null>;
   onRevoke: (id: string) => void;
@@ -290,7 +293,7 @@ export function TokensView({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex justify-end">
-        <NewTokenDialog baseUrl={host.network?.base_url ?? null} onCreate={onCreate} />
+        <NewTokenDialog baseUrl={host.network?.base_url ?? `http://<this machine>:${port}`} onCreate={onCreate} />
       </div>
       <View
         head={[
@@ -345,7 +348,8 @@ function NewTokenDialog({
   baseUrl,
   onCreate,
 }: {
-  baseUrl: string | null;
+  /** The network address, or a placeholder for it while network mode is off. */
+  baseUrl: string;
   onCreate: (name: string) => Promise<NewToken | null>;
 }) {
   const [open, setOpen] = useState(false);
@@ -395,9 +399,11 @@ function NewTokenDialog({
             </div>
             <p className="text-muted-foreground text-sm">On the agent's machine:</p>
             <code className="bg-muted rounded-md p-2 font-mono text-xs break-all">
-              inkup mcp install --remote {baseUrl ?? 'http://<this machine>:47823'} --token {made.token}
+              inkup mcp install --remote {baseUrl} --token {made.token}
             </code>
-            {!baseUrl && <p className="text-muted-foreground text-sm">It works once network mode is on.</p>}
+            {baseUrl.includes('<this machine>') && (
+              <p className="text-muted-foreground text-sm">It works once network mode is on.</p>
+            )}
             <DialogFooter>
               <Button onClick={() => reset(false)}>Done</Button>
             </DialogFooter>

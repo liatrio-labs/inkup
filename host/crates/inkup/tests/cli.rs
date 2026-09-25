@@ -196,6 +196,20 @@ fn a_killed_host_leaves_the_data_dir_free() {
     assert_eq!(info.port, port);
 }
 
+/// SIGTERM, as `kill` or a service manager stops it, gives up the data dir like Ctrl-C: no stale host.json.
+#[cfg(unix)]
+#[test]
+fn serve_gives_up_the_data_dir_on_sigterm() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut host, _) = serving(dir.path());
+    assert!(inkup_store::instance::holder(dir.path()).unwrap().is_some());
+    let pid = host.0.id().to_string();
+    assert!(Command::new("kill").args(["-TERM", &pid]).status().unwrap().success());
+    let exit = host.0.wait().unwrap();
+    assert!(exit.success(), "{exit:?}");
+    assert!(!dir.path().join(inkup_store::instance::HOST_FILE).exists(), "host.json is left behind");
+}
+
 #[test]
 fn host_json_names_the_holder_and_status_prints_it() {
     let dir = tempfile::tempdir().unwrap();
