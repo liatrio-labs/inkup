@@ -1,4 +1,4 @@
-// The tabs showing a Session's review page, as the service worker sees them (decisions log #39: one per Session).
+// The tabs showing a Session's review page, as the service worker sees them (decisions log #40: one per Session).
 import type { Worker } from '@playwright/test';
 
 export function reviewTabs(sw: Worker, sessionId: string): Promise<{ id: number; active: boolean }[]> {
