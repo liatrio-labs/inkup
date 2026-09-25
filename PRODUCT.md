@@ -55,9 +55,12 @@ Success over the next few months:
   agent can claim and resolve them over MCP.
 - **It is free, open source and local first.**
   - There is no paid plan. You bring your own AI keys, and they go from your browser straight to the provider.
-  - Without a key, transcription runs on the device and nothing is sent anywhere. Never call this a "free tier" in
-    user-facing copy: there is nothing to upgrade to.
-  - There is no backend and no sign-in.
+  - Process, and so every Change Item, needs the user's Anthropic key. Without a Deepgram or ElevenLabs key,
+    transcription runs on the device. Never say "free tier": there is nothing to upgrade to, and nothing useful comes
+    out without a key.
+  - Liatrio runs no servers for InkUp and never sees user data. The optional host is a local server on the user's own
+    machine, so never write "no server" or "no backend" without saying whose.
+  - There is no account and no sign-in.
 
 ## Operating Context
 

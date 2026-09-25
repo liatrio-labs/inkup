@@ -21,9 +21,9 @@ act on. Each item names its element, carries a screenshot and a transcript excer
   With an Anthropic key, Draft Items also appear in the panel while you talk.
 - **Review and export.** Edit, reorder and delete items, then export a zip with `session.json`, the screenshots and
   an agent prompt.
-- **Local first.** Sessions stay in the browser's IndexedDB until you delete them. Without a key, transcription
-  runs on your device and nothing is sent anywhere. InkUp is free. For better transcription (Deepgram, ElevenLabs) and
-  for Process (Anthropic), add your own keys in Settings.
+- **Local first.** Sessions stay in the browser's IndexedDB until you delete them. InkUp is free, and you bring your
+  own AI keys, entered in Settings. Process needs an Anthropic key. Transcription runs on your device unless you add a
+  Deepgram or ElevenLabs key.
 
 The product requirements are in `docs/PRD.md`. The vocabulary (Session, Stroke, Annotation, Candidate, Change Item,
 Draft Item, Voice Command, …) is defined in `CONTEXT.md`, and the code uses those terms.
