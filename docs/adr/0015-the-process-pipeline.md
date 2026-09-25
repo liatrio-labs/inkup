@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; superseded in part by 0009 (the low-confidence second pass is now vetting of every item)
 date: 2026-09-22
 ---
 
@@ -37,8 +37,8 @@ list `dropped_annotations` with a reason; an Annotation neither used nor dropped
 missing is stored as `unaccounted_annotations` and shown in amber.
 
 **After the model, in this order** (`anthropic.ts`): Text Comments merged (`mergeTextComments`), pins enforced
-(`pins.ts`, ADR 0017), the low-confidence second pass (each item under 0.6 re-sent alone with its screenshots as
-images), style and page API changes passed through (`attachStyleChanges`), viewport sizes (`withViewportSizes`), then
+(`pins.ts`, ADR 0017), vetting (every item checked against the recording, or its screenshots and crops, ADR 0009),
+style and page API changes passed through (`attachStyleChanges`), viewport sizes (`withViewportSizes`), then
 `groundItems` last.
 
 **Code does what code can.**
@@ -96,3 +96,6 @@ running when a worker starts was cut off and is marked failed (`interrupted`).
 - 2026-09-23 (E11): Process without a model. 2026-09-23 (E12): Combine after a merge, originally with its own
   `mergeModel` setting (now the Merge role, ADR 0016).
 - 2026-09-24 (#37): Process reads VAD-aligned speech (ADR 0014).
+- 2026-09-24 (PR D): we previously re-sent each item under confidence 0.6 alone with its screenshots (the second pass),
+  and only the text script fed the main call. Now every item is vetted per window, and a model that takes video gets
+  the recording with each call (ADR 0009).

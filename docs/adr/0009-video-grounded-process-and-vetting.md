@@ -1,5 +1,6 @@
 ---
 status: accepted
+supersedes: the low-confidence second pass in 0015
 date: 2026-09-24
 ---
 

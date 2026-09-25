@@ -20,7 +20,8 @@ migrated in storage. "Has a key" is per role: each feature needs a key for its o
 **The Gateway is a second provider, not a second adapter.** It serves the Anthropic Messages API (streaming,
 structured output, images, `count_tokens`), so a Gateway role uses the same Anthropic adapter with the Gateway key and
 base URL. Its model ids are `creator/model`; a model that cannot do structured output or effort there fails the call
-like any API error.
+like any API error. The one exception is a Process model that takes video: its calls go through the Gateway's Chat
+Completions endpoint instead (`adapters/llm/chat.ts`, ADR 0009), behind the same adapter.
 
 **Effort is `output_config.effort`**: Default (send nothing), `low`, `medium`, `high`, `xhigh`, `max`, offered for
 every model. Which levels a model accepts changes by model, and the API's 400 says so plainly. Effort is sent on the
@@ -56,7 +57,8 @@ one warning per limit.
 ## Consequences
 
 - Price tables are dated and must be refreshed by hand when prices change.
-- The second pass and screenshots are not in the estimate, and the confirm step says so.
+- The estimate counts the vetting calls and, for a model that takes video, the recording (ADR 0009). Screenshots are
+  not in it, and the confirm step says so.
 
 ## History
 
@@ -65,3 +67,6 @@ one warning per limit.
 - 2026-09-24 (#38): roles with a provider each, the Gateway, effort, and model dropdowns from live lists. The old keys
   are still read.
 - 2026-09-24 (#43): auto-run under a threshold and per-call limit warnings.
+- 2026-09-24 (PR D): we previously sent every Gateway call to its Messages endpoint and left the second pass out of
+  the estimate. Now a Process model that takes video uses Chat Completions, and the estimate includes vetting and the
+  recording (ADR 0009).
