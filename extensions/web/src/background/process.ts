@@ -17,11 +17,24 @@ import {
   processWithoutModel,
   type ScreenshotImage,
 } from '@/adapters/llm';
+import { catalogOf, listAnthropicModels, listGatewayModels, type ModelList } from '@/adapters/llm/models';
 import { db, type ProcessRunRow } from '@/db';
 import { queueItems } from '@/db/outbox';
 import { loadSessionDocument } from '@/db/session-export';
-import { anthropicKey, DEFAULT_MERGE_MODEL, devOverrides, processingSettings } from '@/settings';
+import {
+  DEFAULT_MODELS,
+  devOverrides,
+  type Effort,
+  GATEWAY_BASE_URL,
+  type LlmProvider,
+  MODEL_ROLES,
+  type ModelRole,
+  modelLists,
+  providerKey,
+  readProcessingSettings,
+} from '@/settings';
 
+export type ListModelsResult = { ok: true; list: ModelList } | { ok: false; error: string };
 export type EstimateResult = { ok: true; estimate: CostEstimate } | { ok: false; code: string; error: string };
 export type RunResult =
   | { ok: true; run_id: string; items: number }
@@ -29,40 +42,49 @@ export type RunResult =
 
 const running = new Set<string>();
 
-/** The adapter with the saved key and models; null without a key. Process and the live Draft Item pass share it. */
-export async function llm(): Promise<{
-  adapter: LlmAdapter;
-  processModel: string;
-  draftModel: string;
-  mergeModel: string;
-} | null> {
-  const key = (await anthropicKey.getValue()).trim();
+const PROVIDER_NAME: Record<LlmProvider, string> = { anthropic: 'Anthropic', gateway: 'Vercel AI Gateway' };
+
+/** An adapter for one provider with its saved key; null without a key. */
+async function adapterFor(provider: LlmProvider): Promise<LlmAdapter | null> {
+  const key = await providerKey(provider);
   if (!key) return null;
-  const { processModel, draftModel, mergeModel } = await processingSettings.getValue();
-  const base = (await devOverrides.getValue())?.anthropicBaseUrl ?? null;
-  return {
-    adapter: createAnthropicAdapter({ apiKey: key, baseURL: base }),
-    processModel,
-    draftModel,
-    mergeModel: mergeModel?.trim() || DEFAULT_MERGE_MODEL,
-  };
+  const dev = await devOverrides.getValue();
+  const baseURL = provider === 'gateway' ? (dev?.gatewayBaseUrl ?? GATEWAY_BASE_URL) : (dev?.anthropicBaseUrl ?? null);
+  return createAnthropicAdapter({
+    apiKey: key,
+    baseURL,
+    vendor: PROVIDER_NAME[provider],
+    catalog: catalogOf(await modelLists.getValue()),
+  });
 }
 
-const NO_KEY = {
-  ok: false as const,
-  code: 'no_key',
-  error: 'Add an Anthropic API key in the extension options first.',
-};
+/**
+ * A model role's adapter (its provider, with that provider's saved key), model and effort; null when that provider
+ * has no key. Process, the live Draft Item pass and Combine each ask for their own role.
+ */
+export async function llm(
+  role: ModelRole,
+): Promise<{ adapter: LlmAdapter; provider: LlmProvider; model: string; effort?: Effort } | null> {
+  const { provider, model, effort } = (await readProcessingSettings())[role];
+  const adapter = await adapterFor(provider);
+  return adapter ? { adapter, provider, model, ...(effort ? { effort } : {}) } : null;
+}
+
+async function noKey(role: ModelRole) {
+  const { provider } = (await readProcessingSettings())[role];
+  const key = provider === 'gateway' ? 'a Vercel AI Gateway key' : 'an Anthropic API key';
+  return { ok: false as const, code: 'no_key', error: `Add ${key} in the extension options first.` };
+}
 
 /** The processRuns `model` of a run built in code, without a key. */
 export const IN_CODE_MODEL = 'none (built in code)';
 
 export async function estimateProcess(sessionId: string): Promise<EstimateResult> {
-  const a = await llm();
-  if (!a) return NO_KEY;
+  const a = await llm('process');
+  if (!a) return noKey('process');
   try {
     const doc = await loadSessionDocument(db, sessionId);
-    return { ok: true, estimate: await a.adapter.estimate({ doc, model: a.processModel }) };
+    return { ok: true, estimate: await a.adapter.estimate({ doc, model: a.model, effort: a.effort }) };
   } catch (e) {
     const err = e instanceof ProcessError ? e : new ProcessError('api', e instanceof Error ? e.message : String(e));
     return { ok: false, code: err.code, error: err.message };
@@ -123,7 +145,7 @@ export async function runProcess(
   estimate: CostEstimate | null,
   onStarted?: (runId: string) => void,
 ): Promise<RunResult> {
-  const a = await llm();
+  const a = await llm('process');
   if (running.has(sessionId))
     return { ok: false, run_id: null, code: 'busy', error: 'Process is already running for this Session.' };
   running.add(sessionId);
@@ -135,7 +157,7 @@ export async function runProcess(
     created_at: Date.now(),
     finished_at: null,
     status: 'running',
-    model: a?.processModel ?? IN_CODE_MODEL,
+    model: a?.model ?? IN_CODE_MODEL,
     estimate,
     items: null,
     calls: [],
@@ -165,7 +187,7 @@ export async function runProcess(
   try {
     const doc = await loadSessionDocument(db, sessionId);
     const result = a
-      ? await a.adapter.process({ doc, model: a.processModel, loadScreenshot, onProgress: progress })
+      ? await a.adapter.process({ doc, model: a.model, effort: a.effort, loadScreenshot, onProgress: progress })
       : processWithoutModel(doc, IN_CODE_MODEL);
     await finish({
       status: 'done',
@@ -222,11 +244,11 @@ export async function combineItems({
   run_id,
   into,
   from,
-}: { run_id: string } & Omit<CombineInput, 'model'>): Promise<CombineItemsResult> {
-  const a = await llm();
-  if (!a) return NO_KEY;
+}: { run_id: string } & Omit<CombineInput, 'model' | 'effort'>): Promise<CombineItemsResult> {
+  const a = await llm('merge');
+  if (!a) return noKey('merge');
   try {
-    const { changes, calls } = await a.adapter.combine({ into, from, model: a.mergeModel });
+    const { changes, calls } = await a.adapter.combine({ into, from, model: a.model, effort: a.effort });
     await db.processRuns
       .where('id')
       .equals(run_id)
@@ -239,8 +261,33 @@ export async function combineItems({
   }
 }
 
-export async function testAnthropic(): Promise<ConnectionTest> {
-  const a = await llm();
-  if (!a) return { ok: false, message: 'Save a key first.' };
-  return a.adapter.test({ process: a.processModel, draft: a.draftModel });
+/**
+ * Options page, a provider's Test button: its saved key against the models the roles on it use (the provider's
+ * default Process and Draft models when no role uses it).
+ */
+export async function testProvider(provider: LlmProvider): Promise<ConnectionTest> {
+  const adapter = await adapterFor(provider);
+  if (!adapter) return { ok: false, message: 'Save a key first.' };
+  const settings = await readProcessingSettings();
+  const used = MODEL_ROLES.filter((r) => settings[r].provider === provider).map((r) => settings[r].model);
+  const models = used.length ? used : [DEFAULT_MODELS[provider].process, DEFAULT_MODELS[provider].draft];
+  return adapter.test([...new Set(models)]);
+}
+
+/** Options page, after a key is saved: the provider's model list, cached in `modelLists`. */
+export async function listModels(provider: LlmProvider): Promise<ListModelsResult> {
+  const apiKey = await providerKey(provider);
+  if (!apiKey) return { ok: false, error: 'Save a key first.' };
+  const dev = await devOverrides.getValue();
+  try {
+    const models =
+      provider === 'gateway'
+        ? await listGatewayModels({ apiKey, baseURL: dev?.gatewayBaseUrl ?? GATEWAY_BASE_URL })
+        : await listAnthropicModels({ apiKey, baseURL: dev?.anthropicBaseUrl ?? null });
+    const list = { fetched_at: Date.now(), models };
+    await modelLists.setValue({ ...(await modelLists.getValue()), [provider]: list });
+    return { ok: true, list };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }

@@ -9,7 +9,8 @@
 // (`onProgress`). A chunk that stops at max_tokens is split in two and both halves run; a truncated answer is never
 // sent back for repair.
 // Runs in the service worker (dangerouslyAllowBrowser: the key is the user's own, stored locally) and in Node
-// for `pnpm eval`.
+// for `pnpm eval`. The Vercel AI Gateway serves the same Messages API, so a Gateway role uses this adapter with the
+// Gateway's base URL and key (`vendor` names it in errors).
 import Anthropic from '@anthropic-ai/sdk';
 import { partialParse } from '@anthropic-ai/sdk/_vendor/partial-json-parser/parser';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
@@ -28,7 +29,7 @@ import {
   combinedChanges,
   missingCitations,
 } from '@inkup/core/process/combine';
-import { estimateCost, estimateOutputTokens, outputCapFor } from '@inkup/core/process/cost';
+import { estimateCost, estimateOutputTokens, type ModelCatalog, outputCapFor } from '@inkup/core/process/cost';
 import {
   buildDraftPrompt,
   checkDraftOutput,
@@ -72,6 +73,7 @@ import {
   type CombineResult,
   type ConnectionTest,
   type DraftResult,
+  type Effort,
   type LlmAdapter,
   ProcessError,
   type ProcessResult,
@@ -79,8 +81,12 @@ import {
 
 export interface AnthropicAdapterOptions {
   apiKey: string;
-  /** Dev/test only: a local stub server (e2e). Production uses the SDK default. */
+  /** The Gateway's base URL, or a local stub server (e2e). Absent: the SDK default (api.anthropic.com). */
   baseURL?: string | null;
+  /** Who answers, in error messages. Default 'Anthropic'. */
+  vendor?: string;
+  /** The cached model lists: output caps and prices of models the dated tables do not have. */
+  catalog?: ModelCatalog | null;
   /** Override for tests. */
   fetch?: typeof fetch;
   maxRetries?: number;
@@ -110,6 +116,8 @@ type Messages = Anthropic.MessageParam[];
  */
 interface Call<O extends object, T = never> {
   model: string;
+  /** Sent as `output_config.effort` only when set. */
+  effort?: Effort;
   system: string;
   messages: Messages;
   schema: z.ZodType<O>;
@@ -134,16 +142,16 @@ interface Attempt<O> {
 /** A chunk whose answer did not fit: split it instead of repairing it. */
 class Truncated extends Error {}
 
-function toProcessError(e: unknown): ProcessError {
+function toProcessError(e: unknown, vendor = 'Anthropic'): ProcessError {
   if (e instanceof ProcessError) return e;
   if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError)
-    return new ProcessError('auth', `The Anthropic key was rejected (${e.status}).`);
+    return new ProcessError('auth', `The ${vendor} key was rejected (${e.status}).`);
   if (e instanceof Anthropic.RateLimitError)
-    return new ProcessError('rate_limit', 'Anthropic rate limit reached. Try again in a minute.');
+    return new ProcessError('rate_limit', `${vendor} rate limit reached. Try again in a minute.`);
   if (e instanceof Anthropic.APIConnectionError)
-    return new ProcessError('network', `Could not reach Anthropic: ${e.message}`);
+    return new ProcessError('network', `Could not reach ${vendor}: ${e.message}`);
   if (e instanceof Anthropic.APIError)
-    return new ProcessError('api', `Anthropic API error ${e.status ?? ''}: ${e.message}`.trim());
+    return new ProcessError('api', `${vendor} API error ${e.status ?? ''}: ${e.message}`.trim());
   return new ProcessError('api', e instanceof Error ? e.message : String(e));
 }
 
@@ -178,6 +186,12 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
     maxRetries: opts.maxRetries ?? 2,
     dangerouslyAllowBrowser: true,
   });
+  const vendor = opts.vendor ?? 'Anthropic';
+  const catalog = opts.catalog ?? null;
+  const toError = (e: unknown) => toProcessError(e, vendor);
+  const capFor = (model: string) => outputCapFor(model, catalog);
+  /** `output_config` with the format, plus effort only when one is set. */
+  const outputConfig = <F>(format: F, effort: Effort | undefined) => ({ format, ...(effort ? { effort } : {}) });
 
   const systemBlocks = (system: string): Anthropic.TextBlockParam[] => [
     { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
@@ -224,7 +238,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
       max_tokens: call.maxTokens,
       system: systemBlocks(call.system),
       messages: call.messages,
-      output_config: { format },
+      output_config: outputConfig(format, call.effort),
     });
     stream.on('streamEvent', (event) => {
       if (event.type === 'message_start') usage.input_tokens = event.message.usage.input_tokens;
@@ -238,7 +252,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
     try {
       message = await stream.finalMessage();
     } catch (e) {
-      if (e instanceof Anthropic.APIError || !(e instanceof Anthropic.AnthropicError)) throw toProcessError(e);
+      if (e instanceof Anthropic.APIError || !(e instanceof Anthropic.AnthropicError)) throw toError(e);
       // The SDK's parse step failed: cut off at max_tokens, invalid JSON, or a Zod issue (e.g. a rule structured
       // output cannot express).
       if (stop === 'max_tokens') return { output: null, raw, issues: [], usage, truncated: true };
@@ -302,6 +316,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
   type ProcessOutput = z.infer<typeof ChangeItemsOutputSchema>;
   const changeItemsCall = (
     model: string,
+    effort: Effort | undefined,
     system: string,
     messages: Messages,
     ctx: ScriptContext,
@@ -312,6 +327,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
     } = {},
   ): Call<ProcessOutput, ChangeItem> => ({
     model,
+    effort,
     system,
     messages,
     schema: ChangeItemsOutputSchema,
@@ -330,14 +346,14 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
         ? [`items: expected exactly ${opts.expectCount} item, got ${items.length}`]
         : []),
     ],
-    maxTokens: outputCapFor(model),
+    maxTokens: capFor(model),
     onItem: opts.onItem ? { schema: ChangeItemSchema, emit: opts.onItem } : undefined,
   });
 
   const planFor = (doc: SessionDocument, model: string) => {
     const events = processEvents(doc.events);
     const length = sessionLength(doc);
-    return { events, length, windows: planChunks(events, length, { outputCap: outputCapFor(model) }) };
+    return { events, length, windows: planChunks(events, length, { outputCap: capFor(model) }) };
   };
   /** Estimated answer size of one window: its own Annotations and speech (all of them for a single window). */
   const windowEstimate = (doc: SessionDocument, window: ProcessWindow, owned: number[]) =>
@@ -347,12 +363,12 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
     );
 
   return {
-    async estimate({ doc, model }) {
+    async estimate({ doc, model, effort }) {
       // Every chunk is its own call, so the estimate sums them all.
       let input = 0;
       let output = 0;
       // Only explicit Text Comments: converted in code, no call to pay for.
-      if (!needsModel(processEvents(doc.events))) return { ...estimateCost(model, 0, 0), chunks: 0 };
+      if (!needsModel(processEvents(doc.events))) return { ...estimateCost(model, 0, 0, catalog), chunks: 0 };
       const { windows } = planFor(doc, model);
       for (const window of windows) {
         const { system, script, owned } = buildWindowPrompt(doc, window);
@@ -361,18 +377,18 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
             model,
             system: systemBlocks(system),
             messages: [{ role: 'user', content: script }],
-            output_config: { format: zodOutputFormat(ChangeItemsOutputSchema) },
+            output_config: outputConfig(zodOutputFormat(ChangeItemsOutputSchema), effort),
           })
           .catch((e: unknown) => {
-            throw toProcessError(e);
+            throw toError(e);
           });
         input += count.input_tokens;
         output += windowEstimate(doc, window, owned);
       }
-      return { ...estimateCost(model, input, output), chunks: windows.length };
+      return { ...estimateCost(model, input, output, catalog), chunks: windows.length };
     },
 
-    async process({ doc, model, loadScreenshot, onProgress }): Promise<ProcessResult> {
+    async process({ doc, model, effort, loadScreenshot, onProgress }): Promise<ProcessResult> {
       if (!needsModel(processEvents(doc.events))) return processWithoutModel(doc, model);
       const { events: planned, length, windows: initial } = planFor(doc, model);
       const calls: CallRecord[] = [];
@@ -407,19 +423,26 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
           report({ chunk: chunk.id, start: window.start, end: coreEnd(window), status: 'streaming', items: [] });
           try {
             const out = await withRepair(
-              changeItemsCall(model, prompt.system, [{ role: 'user', content: prompt.script }], prompt.context, {
-                ...(windowed ? { coverage: { owned: prompt.owned } } : {}),
-                onItem: (item) => {
-                  streamed.push(restoreScreenshotIds(item, prompt.context));
-                  report({
-                    chunk: chunk.id,
-                    start: window.start,
-                    end: coreEnd(window),
-                    status: 'streaming',
-                    items: [...streamed],
-                  });
+              changeItemsCall(
+                model,
+                effort,
+                prompt.system,
+                [{ role: 'user', content: prompt.script }],
+                prompt.context,
+                {
+                  ...(windowed ? { coverage: { owned: prompt.owned } } : {}),
+                  onItem: (item) => {
+                    streamed.push(restoreScreenshotIds(item, prompt.context));
+                    report({
+                      chunk: chunk.id,
+                      start: window.start,
+                      end: coreEnd(window),
+                      status: 'streaming',
+                      items: [...streamed],
+                    });
+                  },
                 },
-              }),
+              ),
               calls,
               'main',
               { chunk: chunk.id, estimated_output: windowEstimate(doc, window, prompt.owned) },
@@ -432,7 +455,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
           } catch (e) {
             if (!(e instanceof Truncated)) throw e;
             const halves = splitWindow(planned, window, length);
-            if (!halves) throw tooLong({ model, maxTokens: outputCapFor(model) });
+            if (!halves) throw tooLong({ model, maxTokens: capFor(model) });
             return halves;
           }
         });
@@ -505,7 +528,7 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
         const {
           items: [revised],
         } = await withRepair(
-          changeItemsCall(model, prompts[0]!.system, [{ role: 'user', content }], context, { expectCount: 1 }),
+          changeItemsCall(model, effort, prompts[0]!.system, [{ role: 'user', content }], context, { expectCount: 1 }),
           calls,
           'second_pass',
         );
@@ -531,13 +554,14 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
       };
     },
 
-    async draft({ model, ...input }): Promise<DraftResult> {
+    async draft({ model, effort, ...input }): Promise<DraftResult> {
       const prompt = buildDraftPrompt(input);
       if (prompt.empty) return { items: [], calls: [], skipped: true };
       const calls: CallRecord[] = [];
       const { items } = await withRepair<z.infer<typeof DraftOutputSchema>, DraftOutputItem>(
         {
           model,
+          effort,
           system: prompt.system,
           messages: [{ role: 'user', content: prompt.script }],
           schema: DraftOutputSchema,
@@ -554,12 +578,13 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
       };
     },
 
-    async combine({ into, from, model }): Promise<CombineResult> {
+    async combine({ into, from, model, effort }): Promise<CombineResult> {
       const prompt = buildCombinePrompt(into, from);
       const calls: CallRecord[] = [];
       const output = await withRepair(
         {
           model,
+          effort,
           system: prompt.system,
           messages: [{ role: 'user', content: prompt.script }],
           schema: CombineOutputSchema,
@@ -581,18 +606,23 @@ export function createAnthropicAdapter(opts: AnthropicAdapterOptions): LlmAdapte
       return { changes, calls };
     },
 
-    async test({ process: processModel, draft }): Promise<ConnectionTest> {
+    async test(models): Promise<ConnectionTest> {
+      const [first, ...rest] = models;
+      if (!first) return { ok: false, message: 'No model to test.' };
       try {
-        // count_tokens is free and proves the key and the Process model ID; one 1-token message proves the Draft model.
-        await client.messages.countTokens({ model: processModel, messages: [{ role: 'user', content: 'ping' }] });
-        await client.messages.create({
-          model: draft,
-          max_tokens: 1,
-          messages: [{ role: 'user', content: 'Reply with OK.' }],
-        });
-        return { ok: true, message: `Key works with ${processModel} and ${draft}.` };
+        // count_tokens is free and proves the key and the first model ID; one 1-token message proves each other one
+        // (the first too when it is the only one).
+        await client.messages.countTokens({ model: first, messages: [{ role: 'user', content: 'ping' }] });
+        for (const model of rest.length ? rest : [first])
+          await client.messages.create({
+            model,
+            max_tokens: 1,
+            messages: [{ role: 'user', content: 'Reply with OK.' }],
+          });
+        const names = models.length > 1 ? `${models.slice(0, -1).join(', ')} and ${models.at(-1)}` : first;
+        return { ok: true, message: `Key works with ${names}.` };
       } catch (e) {
-        return { ok: false, message: toProcessError(e).message };
+        return { ok: false, message: toError(e).message };
       }
     },
   };

@@ -276,9 +276,9 @@ test('an edit made while the model is still answering wins: the late rewrite is 
           async () =>
             (
               (await chrome.storage.local.get('processingSettings')).processingSettings as
-                | { mergeModel?: string }
+                | { merge?: { model?: string } }
                 | undefined
-            )?.mergeModel,
+            )?.merge?.model,
         ),
       )
       .toBe('claude-merge-e2e');

@@ -10,6 +10,8 @@ import type { SessionMode } from '@inkup/core/target';
 import type { TimestampQuality, TranscriptionInfoSchema } from '@inkup/core/timeline';
 import { storage } from '@wxt-dev/storage';
 import type { z } from 'zod';
+import type { ModelList } from '@/adapters/llm/models';
+import type { Effort } from '@/adapters/llm/types';
 
 export type TranscriptionInfo = z.infer<typeof TranscriptionInfoSchema>;
 
@@ -49,28 +51,101 @@ export const micGranted = storage.defineItem<boolean>('local:micGranted', { fall
 
 /**
  * The reviewer's Anthropic API key (PRD P0-14): `storage.local` only, never `sync`, never logged, never exported.
- * Empty string: no key, so no Draft Items and no Process.
+ * Empty string: no key, so a model role set to Anthropic makes no Draft Items and Process builds items in code.
  */
 export const anthropicKey = storage.defineItem<string>('local:anthropicKey', { fallback: '' });
 
-export const DEFAULT_PROCESS_MODEL = 'claude-sonnet-5';
-export const DEFAULT_DRAFT_MODEL = 'claude-haiku-4-5-20251001';
-export const DEFAULT_MERGE_MODEL = 'claude-haiku-4-5-20251001';
+/**
+ * The reviewer's Vercel AI Gateway key: the same rules as `anthropicKey`. A model role set to the Gateway calls the
+ * Anthropic Messages API at ai-gateway.vercel.sh with it. Empty string: no key.
+ */
+export const gatewayKey = storage.defineItem<string>('local:gatewayKey', { fallback: '' });
 
-export interface ProcessingSettings {
-  /** Model for Process (P0-11). Any model ID the reviewer types. */
-  processModel: string;
-  /** Model for live Draft Items (P0-10, Slice 5). */
-  draftModel: string;
-  /** Model that rewrites two merged Change Items as one (E12). Absent in settings saved before it existed. */
-  mergeModel?: string;
+/** Where a model role's calls go: Anthropic's API, or the Vercel AI Gateway's Anthropic-compatible API. */
+export type LlmProvider = 'anthropic' | 'gateway';
+export const GATEWAY_BASE_URL = 'https://ai-gateway.vercel.sh';
+
+/** Effort per role (the Messages API's `output_config.effort`); absent, it is not sent. */
+export type { Effort };
+export const EFFORTS: readonly Effort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
+
+/** The three calls a reviewer picks a model for: Process (P0-11), live Draft Items (P0-10) and Combine (E12). */
+export type ModelRole = 'process' | 'draft' | 'merge';
+export const MODEL_ROLES: readonly ModelRole[] = ['process', 'draft', 'merge'];
+
+export interface RoleModel {
+  provider: LlmProvider;
+  /** Any model ID the provider accepts: `claude-sonnet-5` on Anthropic, `anthropic/claude-sonnet-5` on the Gateway. */
+  model: string;
+  effort?: Effort;
 }
-export const processingSettings = storage.defineItem<ProcessingSettings>('local:processingSettings', {
-  fallback: { processModel: DEFAULT_PROCESS_MODEL, draftModel: DEFAULT_DRAFT_MODEL },
+
+export type ProcessingSettings = Record<ModelRole, RoleModel>;
+
+export const DEFAULT_MODELS: Readonly<Record<LlmProvider, Record<ModelRole, string>>> = {
+  anthropic: { process: 'claude-sonnet-5', draft: 'claude-haiku-4-5-20251001', merge: 'claude-haiku-4-5-20251001' },
+  gateway: {
+    process: 'anthropic/claude-sonnet-5',
+    draft: 'anthropic/claude-haiku-4.5',
+    merge: 'anthropic/claude-haiku-4.5',
+  },
+};
+export const DEFAULT_PROCESS_MODEL = DEFAULT_MODELS.anthropic.process;
+export const DEFAULT_DRAFT_MODEL = DEFAULT_MODELS.anthropic.draft;
+export const DEFAULT_MERGE_MODEL = DEFAULT_MODELS.anthropic.merge;
+
+/**
+ * What storage may hold: the per-role shape, or the one saved before the Gateway existed (Anthropic model ids, no
+ * effort; `mergeModel` absent before E12). Read it through normalizeProcessingSettings.
+ */
+export type StoredProcessingSettings = Partial<ProcessingSettings> & {
+  processModel?: string;
+  draftModel?: string;
+  mergeModel?: string;
+};
+
+const isProvider = (p: unknown): p is LlmProvider => p === 'anthropic' || p === 'gateway';
+const isEffort = (e: unknown): e is Effort => EFFORTS.includes(e as Effort);
+
+/** Any saved shape (or none) as the per-role settings; a blank or missing model is the provider's default. */
+export function normalizeProcessingSettings(raw: StoredProcessingSettings | null | undefined): ProcessingSettings {
+  const legacy: Record<ModelRole, string | undefined> = {
+    process: raw?.processModel,
+    draft: raw?.draftModel,
+    merge: raw?.mergeModel,
+  };
+  const role = (r: ModelRole): RoleModel => {
+    const saved = raw?.[r];
+    const provider = isProvider(saved?.provider) ? saved.provider : 'anthropic';
+    const model = (typeof saved?.model === 'string' ? saved.model : legacy[r])?.trim() || DEFAULT_MODELS[provider][r];
+    return { provider, model, ...(isEffort(saved?.effort) ? { effort: saved.effort } : {}) };
+  };
+  return { process: role('process'), draft: role('draft'), merge: role('merge') };
+}
+
+export const processingSettings = storage.defineItem<StoredProcessingSettings>('local:processingSettings', {
+  fallback: {},
+});
+
+export const readProcessingSettings = async (): Promise<ProcessingSettings> =>
+  normalizeProcessingSettings(await processingSettings.getValue());
+
+/** The saved key of a provider, trimmed ('' without one). */
+export const providerKey = async (provider: LlmProvider): Promise<string> =>
+  (await (provider === 'gateway' ? gatewayKey : anthropicKey).getValue()).trim();
+
+/**
+ * Each provider's model list as last fetched from the options page: the model selects, Gateway prices for cost
+ * estimates, output caps and context windows (src/adapters/llm/models.ts has the fields).
+ */
+export const modelLists = storage.defineItem<Partial<Record<LlmProvider, ModelList>>>('local:modelLists', {
+  fallback: {},
 });
 
 /** P0-15: the Anthropic notice is shown once, the first time a key is saved. */
 export const anthropicNoticeShown = storage.defineItem<boolean>('local:anthropicNoticeShown', { fallback: false });
+/** The same notice for Vercel, the first time a Gateway key is saved. */
+export const gatewayNoticeShown = storage.defineItem<boolean>('local:gatewayNoticeShown', { fallback: false });
 
 /**
  * Transcription tier (PRD P0-7, P0-14). Free runs on this machine: on-device Web Speech (default) or local
@@ -126,7 +201,8 @@ export interface ScriptedTranscript {
  * - `transcription: 'scripted'` replays `script` instead of using Web Speech (headless Chromium has no
  *   on-device speech pack).
  * - `audioChunkMs` shortens the 30s audio chunk interval so a short test exercises chunking.
- * - `anthropicBaseUrl` points the Anthropic adapter at a local stub server (tests/e2e/process.spec.ts).
+ * - `anthropicBaseUrl` points the Anthropic adapter at a local stub server (tests/e2e/process.spec.ts), and
+ *   `gatewayBaseUrl` the Gateway's (tests/e2e/gateway.spec.ts).
  * - `deepgramBaseUrl`, `elevenlabsBaseUrl` point the paid tiers at local stub servers (tests/support/stt-stubs.ts),
  *   and `sttRetryBaseMs` shortens their reconnect backoff (tests/e2e/stt-tiers.spec.ts).
  */
@@ -135,6 +211,8 @@ export interface DevOverrides {
   script?: ScriptedTranscript;
   audioChunkMs?: number;
   anthropicBaseUrl?: string;
+  /** The Vercel AI Gateway's base (tests point it at the same stub). */
+  gatewayBaseUrl?: string;
   /** Deepgram REST base (http[s]://host:port); the listen WebSocket uses the same host with ws[s]. */
   deepgramBaseUrl?: string;
   /** ElevenLabs REST base; the Scribe WebSocket uses the same host with ws[s]. */
@@ -229,7 +307,7 @@ export interface ActiveSession {
   last_url: string;
   video: LiveVideo;
   /**
-   * Live Draft Items (P0-10): enabled when an Anthropic key was saved at Start; otherwise the panel shows
+   * Live Draft Items (P0-10): enabled when the Draft model's provider had a key at Start; otherwise the panel shows
    * Annotation cards. `note`: why the last pass failed (non-fatal).
    */
   drafts: { enabled: boolean; running: boolean; note: string | null };

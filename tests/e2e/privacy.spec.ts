@@ -29,7 +29,7 @@ import { activeSessionId, ofType, sessionEvents } from './helpers/session';
 test.use({ fakeAudio: 'voice-session.wav', extraArgs: ['--remote-debugging-port=0'] });
 
 const VENDOR_HOSTS =
-  /huggingface\.co|hf\.co|deepgram\.com|elevenlabs\.io|anthropic\.com|google\.com|googleapis\.com|gstatic\.com|jsdelivr\.net/;
+  /huggingface\.co|hf\.co|deepgram\.com|elevenlabs\.io|anthropic\.com|vercel\.sh|google\.com|googleapis\.com|gstatic\.com|jsdelivr\.net/;
 
 /** A local server the positive-control probes hit. */
 async function startControl(): Promise<{ origin: string; hits: string[]; close(): Promise<void> }> {
@@ -320,6 +320,7 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     anthropic: 'sk-ant-api03-PRIVACY-anthropic-key-0123456789',
     deepgram: 'dg-PRIVACY-deepgram-key-0123456789',
     elevenlabs: 'el-PRIVACY-elevenlabs-key-0123456789',
+    gateway: 'vck-PRIVACY-gateway-key-0123456789',
   };
   const consoleLines: string[] = [];
   context.on('console', (m) => consoleLines.push(m.text()));
@@ -363,12 +364,13 @@ test('stored keys for every vendor never reach session.json, the export zip, any
       async ({ keys, dgBase, anthropicBase }) => {
         await chrome.storage.local.set({
           anthropicKey: keys.anthropic,
+          gatewayKey: keys.gateway,
           deepgramKey: keys.deepgram,
           elevenlabsKey: keys.elevenlabs,
           anthropicNoticeShown: true,
           vendorNoticeShown: { deepgram: true, elevenlabs: true },
           transcriptionSettings: { tier: 'better', freeEngine: 'webspeech', whisperModel: 'base' },
-          devOverrides: { deepgramBaseUrl: dgBase, anthropicBaseUrl: anthropicBase },
+          devOverrides: { deepgramBaseUrl: dgBase, anthropicBaseUrl: anthropicBase, gatewayBaseUrl: anthropicBase },
         });
       },
       { keys: KEYS, dgBase: dg.baseURL, anthropicBase: anthropic.baseURL },
@@ -381,11 +383,18 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     await review.getByTestId('process-button').click();
     await review.getByTestId('process-confirm').click();
     await expect(review.getByTestId('change-item')).toHaveCount(1, { timeout: 30_000 });
+    // The Gateway key's Test call (the same stub stands in for the Gateway).
+    const options = await openExtensionPage('options.html');
+    await options.getByTestId('test-gateway').click();
+    await expect(options.getByTestId('gateway-test-result')).toBeVisible();
+    await options.close();
+    await review.bringToFront();
     const sessionJson = await downloadSessionJson(review, serviceWorker);
     const { zip, dir } = await exportZip(review, serviceWorker);
     // The keys were really used, so their absence below means something.
     expect(dg.rest.some((r) => JSON.stringify(r.headers).includes(KEYS.deepgram))).toBe(true);
     expect(anthropic.requests.some((r) => r.headers['x-api-key'] === KEYS.anthropic)).toBe(true);
+    expect(anthropic.requests.some((r) => r.headers['x-api-key'] === KEYS.gateway)).toBe(true);
 
     const zipped = readdirSync(dir, { recursive: true, withFileTypes: true })
       .filter((d) => d.isFile())

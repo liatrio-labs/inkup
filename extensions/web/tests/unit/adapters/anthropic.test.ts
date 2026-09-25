@@ -182,9 +182,52 @@ describe('Anthropic adapter against the stub', () => {
     stub = await startAnthropicStub({
       onMessage: (r) => messageReply(r.body.model, 'OK', { input_tokens: 10, output_tokens: 1 }),
     });
-    const t = await adapter().test({ process: MODEL, draft: 'claude-haiku-4-5-20251001' });
+    const t = await adapter().test([MODEL, 'claude-haiku-4-5-20251001']);
     expect(t).toEqual({ ok: true, message: 'Key works with claude-sonnet-5 and claude-haiku-4-5-20251001.' });
     expect(stub.messages()[0]!.body).toMatchObject({ model: 'claude-haiku-4-5-20251001', max_tokens: 1 });
+    // One model: the count and the one-token call both use it.
+    expect(await adapter().test([MODEL])).toEqual({ ok: true, message: 'Key works with claude-sonnet-5.' });
+    expect(stub.messages()[1]!.body.model).toBe(MODEL);
+  });
+
+  it('sends effort in output_config only when set, next to the format, on every call kind', async () => {
+    stub = await startAnthropicStub({ onMessage: () => messageReply(MODEL, JSON.stringify({ items: [item()] })) });
+    await adapter().process({ doc, model: MODEL, effort: 'low' });
+    await adapter().process({ doc, model: MODEL });
+    await adapter().estimate({ doc, model: MODEL, effort: 'max' });
+    const [withEffort, without] = stub.messages();
+    expect(withEffort!.body.output_config).toMatchObject({ effort: 'low', format: { type: 'json_schema' } });
+    expect(without!.body.output_config).not.toHaveProperty('effort');
+    const count = stub.requests.find((r) => r.path === '/v1/messages/count_tokens')!;
+    expect(count.body.output_config.effort).toBe('max');
+  });
+
+  it('names the Gateway in its errors and prices a Gateway model from the catalog', async () => {
+    stub = await startAnthropicStub({ onMessage: () => errorReply(401, 'authentication_error', 'bad key') });
+    const gateway = createAnthropicAdapter({
+      apiKey: 'vck-test-not-a-real-key',
+      baseURL: stub.baseURL,
+      vendor: 'Vercel AI Gateway',
+      maxRetries: 0,
+      catalog: {
+        as_of: '2026-09-24',
+        models: {
+          'google/gemini-3.1-pro-preview': {
+            id: 'google/gemini-3.1-pro-preview',
+            price: { input: 2, output: 12 },
+            context_window: 1_000_000,
+            max_tokens: 64_000,
+          },
+        },
+      },
+    });
+    await expect(gateway.process({ doc, model: 'anthropic/claude-sonnet-5' })).rejects.toMatchObject({
+      code: 'auth',
+      message: 'The Vercel AI Gateway key was rejected (401).',
+    });
+    const e = await gateway.estimate({ doc, model: 'google/gemini-3.1-pro-preview' });
+    expect(e.usd).not.toBeNull();
+    expect(e.prices_as_of).toBe('2026-09-24');
   });
 
   it("Process keeps a pinned Draft Item the model left out, pinned, and drops the model's rewrite of it", async () => {

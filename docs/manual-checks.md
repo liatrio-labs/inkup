@@ -267,8 +267,9 @@ Needs a key. Back it up with the secrets-backup skill before first use.
 
 | # | Step | Expected |
 | --- | --- | --- |
-| 1 | Open the extension's options page (right-click the toolbar icon, Options). Paste the key, click Save. | A notice says what goes to Anthropic. Save again: the notice does not come back. The key field shows only a masked hint. |
-| 2 | Click Test. | "OK: Key works with claude-sonnet-5 and claude-haiku-4-5-20251001." |
+| 1 | Open the extension's options page (right-click the toolbar icon, Options). Paste the key, click Save. | A notice says what goes to Anthropic. Save again: the notice does not come back. The key field shows only a masked hint. The Process, Draft and Merge model fields turn into lists of your account's models, with the saved models selected. |
+| 2 | Click the Test button beside the key. | "OK: Key works with claude-sonnet-5 and claude-haiku-4-5-20251001." under the key. |
+| 2b | Optional, with a Vercel AI Gateway key: paste it under "Vercel AI Gateway key", Save, set the Process provider to Vercel AI Gateway, pick `anthropic/claude-sonnet-5` and High effort, Save, and click the Test button beside that key. | A notice says what goes to Vercel. The Process model list shows the Gateway's models grouped by maker. "OK: Key works with anthropic/claude-sonnet-5." Step 5 then runs through the Gateway: its dashboard shows the requests. |
 | 3 | Run C1 steps 4–12 (circle the CTA saying "this button should go in the header", then circle the Pro card saying "make this the same height as that one" and circle the Basic card). | The review page opens with Process enabled. |
 | 4 | Click Process. | An estimate with input tokens, output tokens and a dollar amount appears. Nothing has been sent yet. |
 | 5 | Click Run Process. | After up to a minute, Change Items appear. One is a layout item with Subject `button.cta`. Another is a layout item with Subject and Reference on the two plan cards. Unsure items come first with a "check me" badge and a sentence, never a number. Each Location that has a screenshot shows it inside the card, right under its row (role and "Annotation #n" above it), with orange outlines only on that Annotation's Strokes. The right pane shows only the recording. |

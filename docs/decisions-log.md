@@ -2,6 +2,37 @@
 
 Calls made during implementation that the PRD, PLAN and ADRs leave open. Newest slice first.
 
+## #38: model providers, model lists and effort (2026-09-24)
+
+Each model role (Process, Draft, Merge) picks its provider, its model and an effort in the options page. The
+reviewer asked for model dropdowns instead of typed IDs and for the Test button beside the key.
+
+- **The Vercel AI Gateway is a second provider, not a second adapter.** It serves the Anthropic Messages API at
+  `https://ai-gateway.vercel.sh` (`/v1/messages` with streaming, structured output and images, and
+  `/v1/messages/count_tokens`), so a Gateway role uses the same Anthropic adapter with the Gateway key and base URL.
+  Its model IDs are `creator/model` (`anthropic/claude-sonnet-5`); any Gateway model can be picked. A model that does
+  not take structured output or effort there fails the call like any API error.
+- **Settings shape.** `processingSettings` is `{process, draft, merge}`, each `{provider: 'anthropic' | 'gateway',
+  model, effort?}`. Settings saved before (`processModel`, `draftModel`, `mergeModel`, all Anthropic) are read
+  through `normalizeProcessingSettings`, so nothing needs migrating; the next Save writes the new shape. The Gateway
+  key is `gatewayKey` in storage.local, under the same rules as `anthropicKey`, with its own one-time notice.
+- **"Has a key" is per role.** Live Draft Items need a key for the Draft role's provider, Process with a model a key
+  for the Process role's, and Combine one for the Merge role's.
+- **Effort is `output_config.effort`** (platform.claude.com/docs/en/build-with-claude/effort, read 2026-09-24;
+  typed in `@anthropic-ai/sdk` 0.127): `low`, `medium`, `high`, `xhigh`, `max`. The select offers all five plus
+  Default, which sends nothing, whatever the model: which levels a model accepts changes by model, and the API's 400
+  says so plainly. It is also sent on the estimate's count_tokens call, since effort shapes the prompt.
+- **Model lists are live and cached.** The options page asks each provider with a key for its list: Anthropic's
+  `models.list` (every page) and the Gateway's `GET /v1/models`. Both land in `modelLists` (storage.local), which cost
+  reads too. Without a key, or when the list call fails, the model field is the old text input. A saved ID the list
+  lacks still shows as an option.
+- **Cost.** `priceFor` and `outputCapFor` read `anthropic/<id>` as the Anthropic ID (the Gateway's version dots read as
+  dashes), so the dated tables still price them. Other Gateway models use the cached list's per-token prices × 1M,
+  dated by that list's fetch; unlisted, the estimate has no dollar amount as before. `contextWindowFor` reads the same
+  cache (Anthropic's `max_input_tokens`, the Gateway's `context_window`).
+- **Test per key.** Each key's Test button checks the models the roles on that provider use (the provider's default
+  Process and Draft models when none does), with that key.
+
 ## #37: late Web Speech segments are aligned to the VAD before pairing (2026-09-24)
 
 Process paired speech with the wrong Annotation. Strokes are stamped at the pointer event, but Web Speech, the

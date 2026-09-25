@@ -33,7 +33,14 @@ import {
 import { injectIntoOpenTabs } from '@/background/inject';
 import { pageApiCall } from '@/background/page-api';
 import { followSessionForOwner, listenForPanels } from '@/background/panel-port';
-import { combineItems, estimateProcess, startProcess, sweepInterruptedRuns, testAnthropic } from '@/background/process';
+import {
+  combineItems,
+  estimateProcess,
+  listModels,
+  startProcess,
+  sweepInterruptedRuns,
+  testProvider,
+} from '@/background/process';
 import { sampleBackground } from '@/background/screenshots';
 import {
   clearModes,
@@ -110,7 +117,7 @@ export default defineBackground(() => {
   // A cancelled Session is deleted at its Undo deadline, also by a worker that restarted meanwhile (E10).
   initDiscards();
 
-  // Live Draft Items follow the active Session (only with an Anthropic key).
+  // Live Draft Items follow the active Session (only with a key for the Draft model's provider).
   initDrafts();
 
   // A paired Host gets every event and blob through the outbox; unpaired, this does nothing (ADR 0004).
@@ -168,7 +175,8 @@ export default defineBackground(() => {
   onMessage('transcriptionFallback', ({ data }) => recordFallback(data));
   onMessage('estimateProcess', ({ data }) => estimateProcess(data));
   onMessage('startProcess', ({ data }) => startProcess(data.session_id, data.estimate));
-  onMessage('testAnthropic', () => testAnthropic());
+  onMessage('testProvider', ({ data }) => testProvider(data));
+  onMessage('listModels', ({ data }) => listModels(data));
   onMessage('combineItems', ({ data }) => combineItems(data));
   onMessage('hostPair', ({ data }) => pairHost(data));
   onMessage('hostFind', () => findHosts());

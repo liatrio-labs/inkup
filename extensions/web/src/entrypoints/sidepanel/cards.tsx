@@ -1,4 +1,4 @@
-// The side panel's live list (PRD P0-10). With an Anthropic key: Draft Item cards (title, Category, Location
+// The side panel's live list (PRD P0-10). With a key for the Draft model: Draft Item cards (title, Category, Location
 // names) with Discard and Pin. Without one: Annotation cards (screenshot thumbnail, geometric pick, paired
 // speech), and "scratch that" discards Annotations. Both read Dexie through useLiveQuery, newest first.
 
@@ -183,8 +183,8 @@ export function AnnotationCards({ sessionId, quality }: { sessionId: string; qua
         Annotations
       </h2>
       <p className="text-xs text-muted-foreground">
-        No Anthropic key: the panel lists your Annotations instead of Draft Items. &ldquo;Scratch that&rdquo; discards
-        the latest one.
+        No key for the Draft model: the panel lists your Annotations instead of Draft Items. &ldquo;Scratch that&rdquo;
+        discards the latest one.
       </p>
       <ol className="flex flex-col gap-2">
         {[...annotations].reverse().map((a) => (

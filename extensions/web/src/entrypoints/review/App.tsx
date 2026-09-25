@@ -261,7 +261,7 @@ function DraftItemsSection({ drafts }: { drafts: ReturnType<typeof draftViews> }
       </h2>
       {drafts.length === 0 ? (
         <p className="text-muted-foreground">
-          No Draft Items: they are made live during a Session when an Anthropic key is saved.
+          No Draft Items: they are made live during a Session when the Draft model has a key saved.
         </p>
       ) : (
         <>

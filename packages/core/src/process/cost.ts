@@ -49,9 +49,45 @@ export const OUTPUT_CAPS: Readonly<Record<string, number>> = {
 };
 export const DEFAULT_OUTPUT_CAP = 32_000;
 
-export const outputCapFor = (model: string): number => OUTPUT_CAPS[model.trim()] ?? DEFAULT_OUTPUT_CAP;
+/**
+ * What a provider's model list says about one model (the extension caches it: Anthropic's `models.list` and the
+ * Vercel AI Gateway's `GET /v1/models`). Each field is null when the list does not give it.
+ */
+export interface CatalogModel {
+  id: string;
+  /** USD per 1M tokens (the Gateway's per-token prices × 1M). Anthropic's list has no prices. */
+  price: Price | null;
+  /** Largest input, in tokens. */
+  context_window: number | null;
+  /** Largest `max_tokens`. */
+  max_tokens: number | null;
+}
 
-export const priceFor = (model: string): Price | null => PRICES[model.trim()] ?? null;
+/** Models by id, and the day their list was fetched (YYYY-MM-DD, the estimate's "prices as of"). */
+export interface ModelCatalog {
+  models: Readonly<Record<string, CatalogModel>>;
+  as_of: string;
+}
+
+/**
+ * The Anthropic model id behind a Gateway id: `anthropic/claude-sonnet-5` → `claude-sonnet-5`. The Gateway writes
+ * version dots (`anthropic/claude-haiku-4.5`) where Anthropic writes dashes. Any other id comes back unchanged.
+ */
+export function anthropicId(model: string): string {
+  const id = model.trim();
+  return id.startsWith('anthropic/') ? id.slice('anthropic/'.length).replace(/\./g, '-') : id;
+}
+
+/** The dated table first (Anthropic ids, bare or behind `anthropic/`), then the cached list, then DEFAULT_OUTPUT_CAP. */
+export const outputCapFor = (model: string, catalog?: ModelCatalog | null): number =>
+  OUTPUT_CAPS[anthropicId(model)] ?? catalog?.models[model.trim()]?.max_tokens ?? DEFAULT_OUTPUT_CAP;
+
+export const priceFor = (model: string, catalog?: ModelCatalog | null): Price | null =>
+  PRICES[anthropicId(model)] ?? catalog?.models[model.trim()]?.price ?? null;
+
+/** The model's input limit in tokens from the cached list; null when no list gave it. */
+export const contextWindowFor = (model: string, catalog?: ModelCatalog | null): number | null =>
+  catalog?.models[model.trim()]?.context_window ?? catalog?.models[anthropicId(model)]?.context_window ?? null;
 
 /**
  * Rough output size: each Change Item is ~350 tokens of JSON (the agent_prompt dominates), about one per
@@ -68,15 +104,23 @@ export interface CostEstimate {
   output_tokens: number;
   /** Process calls the Session is split into (packages/core/src/process/sections.ts); absent: 1. */
   chunks?: number;
-  /** null when the model is not in PRICES. */
+  /** null when neither PRICES nor the cached model list prices the model. */
   usd: number | null;
+  /** PRICES_AS_OF, or the day the model list that priced it was fetched. */
   prices_as_of: string;
 }
 
-export function estimateCost(model: string, inputTokens: number, outputTokens: number): CostEstimate {
-  const p = priceFor(model);
+export function estimateCost(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  catalog?: ModelCatalog | null,
+): CostEstimate {
+  const listed = PRICES[anthropicId(model)];
+  const p = priceFor(model, catalog);
   const usd = p ? (inputTokens * p.input + outputTokens * p.output) / 1_000_000 : null;
-  return { model, input_tokens: inputTokens, output_tokens: outputTokens, usd, prices_as_of: PRICES_AS_OF };
+  const asOf = listed || !p || !catalog ? PRICES_AS_OF : catalog.as_of;
+  return { model, input_tokens: inputTokens, output_tokens: outputTokens, usd, prices_as_of: asOf };
 }
 
 /** "$0.0123" below a dollar, "$1.23" above. */
