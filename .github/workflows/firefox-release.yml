@@ -53,6 +53,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm zip:firefox
+      # AMO reviewers rebuild from the sources zip: check that it rebuilds the same add-on.
+      - run: bash scripts/verify-sources-zip.sh --no-zip
       - id: zip
         run: |
           echo "name=$(basename extensions/web/.output/*-firefox.zip)" >> "$GITHUB_OUTPUT"

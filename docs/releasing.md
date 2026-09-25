@@ -67,13 +67,17 @@ for development or testing, but it is not a one-click install. So a Chrome relea
 4. `.github/workflows/firefox-release.yml` then:
    - refuses tags that are not on `main` or do not equal `inkup-firefox-v` + the extensions/web/package.json version,
    - runs typecheck, unit tests and `pnpm zip:firefox`, which writes the add-on zip and a sources zip,
+   - rebuilds the add-on from the sources zip and checks it matches (`scripts/verify-sources-zip.sh`),
    - creates the GitHub Release with `inkup-<version>-firefox.zip` and generated notes,
    - uploads both zips to addons.mozilla.org and submits the add-on for review, if AMO credentials are configured
      (otherwise it logs a notice and skips).
 
-The sources zip is what AMO reviewers rebuild the bundled add-on from. It holds `extensions/web` only, not the
-workspace packages it imports (`packages/core`, `packages/protocol`), so a reviewer cannot rebuild from it yet. Fix
-that (WXT's `zip.sourcesRoot` and `zip.includeSources`) before the first listed submission.
+The sources zip is what AMO reviewers rebuild the bundled add-on from. It is the part of the pnpm workspace the build
+reads, from the repo root: `extensions/web`, the workspace packages it imports (`packages/core`, `packages/protocol`),
+the root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` and `tsconfig.json`, and `SOURCE_BUILD.md` with the
+build commands. No tests, fixtures, `host/` or `node_modules`. `zip.includeSources` in `extensions/web/wxt.config.ts`
+lists it; add a path there when the build starts reading a new one, and `scripts/verify-sources-zip.sh` fails until
+you do.
 
 ## Cutting a host release
 
@@ -230,6 +234,7 @@ From then on every `inkup-firefox-v*` tag uploads and submits automatically, and
 ```sh
 pnpm zip                                    # extensions/web/.output/*-chrome.zip
 pnpm zip:firefox                            # extensions/web/.output/*-firefox.zip and *-sources.zip
+bash scripts/verify-sources-zip.sh --no-zip # rebuild from the sources zip in a temp dir; must match
 cd extensions/web && pnpm exec wxt submit --dry-run --chrome-zip .output/*-chrome.zip
 cd extensions/web && pnpm exec wxt submit --dry-run --firefox-zip .output/*-firefox.zip \
   --firefox-sources-zip .output/*-sources.zip

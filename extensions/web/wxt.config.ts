@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'wxt';
 import type { Browser } from 'wxt/browser';
@@ -114,6 +115,28 @@ export default defineConfig({
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
     },
     action: { default_title: 'InkUp' },
+  },
+  // The Firefox sources zip AMO reviewers rebuild from (docs/browsers.md): the part of the pnpm workspace the build
+  // reads, from the repo root, so @inkup/core and @inkup/protocol come along. Patterns are relative to the repo root.
+  // public/ort and public/vad are copied from node_modules on install. scripts/verify-sources-zip.sh rebuilds from it.
+  zip: {
+    sourcesRoot: fileURLToPath(new URL('../..', import.meta.url)),
+    includeSources: [
+      'SOURCE_BUILD.md',
+      'LICENSE',
+      'package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+      'tsconfig.json',
+      // The root `prepare` script; without a .git it exits at once.
+      'scripts/install-hooks.mjs',
+      'packages/{core,protocol}/{package.json,tsconfig.json}',
+      'packages/{core,protocol}/src/**',
+      'extensions/web/{package.json,tsconfig.json,wxt.config.ts,components.json}',
+      'extensions/web/{src,public,assets}/**',
+      'extensions/web/scripts/copy-wasm-assets.mjs',
+    ],
+    excludeSources: ['extensions/web/public/{ort,vad}/**', '**/tests/**', '**/test/**', '**/fixtures/**'],
   },
   vite: () => ({
     plugins: [tailwindcss(), dedupeOrtWasm, vadUsesTransformersOrt],
