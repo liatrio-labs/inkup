@@ -1,0 +1,5 @@
+# fastlane, for the signing step of the desktop app's macOS release (.github/workflows/desktop-macos.yml). Pinned with
+# its lockfile; `bundle exec fastlane mac signing` from apps/desktop.
+source "https://rubygems.org"
+
+gem "fastlane", "2.240.1"

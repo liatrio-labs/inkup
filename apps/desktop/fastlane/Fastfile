@@ -1,0 +1,12 @@
+# The desktop app's macOS release signing (.github/workflows/desktop-macos.yml, ADR 0025). Tauri builds, signs,
+# notarizes and staples; fastlane only puts the certificate where codesign finds it.
+default_platform(:mac)
+
+platform :mac do
+  desc "CI only: a temporary default keychain with the Developer ID Application certificate from match"
+  lane :signing do
+    # On CI (CI=true), a throwaway keychain as the default, unlocked, so codesign never prompts. Not run elsewhere.
+    setup_ci
+    match # fastlane/Matchfile
+  end
+end
