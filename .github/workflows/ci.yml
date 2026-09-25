@@ -23,9 +23,11 @@ jobs:
   # Which side of the contract the change touches (scripts/ci-changes.ts, ADR 0007): contract/ runs both sides and
   # the breaking-change guard, host/ the host, the rest of the workspace the extension, docs lint alone. The desktop
   # app runs for apps/desktop and for what it is built from (host/, packages/, the lockfile). A push with no usable
-  # base runs everything.
+  # base runs everything. A release pull request (release-please--*) runs nothing: it only bumps versions and
+  # changelogs of code that was tested on its own pull request (ADR 0008), so every job skips and ci-ok passes.
   changes:
     name: changes
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -80,6 +82,7 @@ jobs:
   # history. host.yml runs the cargo hooks; gitleaks's hook only reads staged changes, so it runs as a step here.
   lint:
     name: lint
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
