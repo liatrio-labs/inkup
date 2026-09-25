@@ -29,6 +29,8 @@ import { ChangeItemSchema } from '@inkup/core/process/change-item';
 import { TimelineEventSchema } from '@inkup/core/timeline';
 import { z } from 'zod';
 
+export * from './host-control.ts';
+
 /** Bump on a breaking change to any message. Every envelope carries it as `v`. */
 export const PROTOCOL_VERSION = 1 as const;
 
