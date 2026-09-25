@@ -1,4 +1,5 @@
-@import "tailwindcss";
+/* Scan src/ only, so tests and generated files add no classes and the AMO sources zip rebuilds the same CSS. */
+@import "tailwindcss" source("../");
 @import "tw-animate-css";
 
 /* Dark mode follows the system (prefers-color-scheme), live and with no script: `dark:` utilities and the tokens

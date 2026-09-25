@@ -67,13 +67,17 @@ for development or testing, but it is not a one-click install. So a Chrome relea
 4. `.github/workflows/firefox-release.yml` then:
    - refuses tags that are not on `main` or do not equal `inkup-firefox-v` + the extensions/web/package.json version,
    - runs typecheck, unit tests and `pnpm zip:firefox`, which writes the add-on zip and a sources zip,
+   - rebuilds the add-on from the sources zip and checks it matches (`scripts/verify-sources-zip.sh`),
    - creates the GitHub Release with `inkup-<version>-firefox.zip` and generated notes,
    - uploads both zips to addons.mozilla.org and submits the add-on for review, if AMO credentials are configured
      (otherwise it logs a notice and skips).
 
-The sources zip is what AMO reviewers rebuild the bundled add-on from. It holds `extensions/web` only, not the
-workspace packages it imports (`packages/core`, `packages/protocol`), so a reviewer cannot rebuild from it yet. Fix
-that (WXT's `zip.sourcesRoot` and `zip.includeSources`) before the first listed submission.
+The sources zip is what AMO reviewers rebuild the bundled add-on from. It is the part of the pnpm workspace the build
+reads, from the repo root: `extensions/web`, the workspace packages it imports (`packages/core`, `packages/protocol`),
+the root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` and `tsconfig.json`, and `SOURCE_BUILD.md` with the
+build commands. No tests, fixtures, `host/` or `node_modules`. `zip.includeSources` in `extensions/web/wxt.config.ts`
+lists it; add a path there when the build starts reading a new one, and `scripts/verify-sources-zip.sh` fails until
+you do.
 
 ## Cutting a host release
 
@@ -164,7 +168,8 @@ a browser-downloaded archive will be blocked until notarised. When signing is ad
 
 ## One-time host setup
 
-1. Create the public repo `liatrio-labs/homebrew-tap` (a README is enough; dist manages `Formula/`).
+1. Create the public repo `liatrio-labs/homebrew-tap` (a README is enough; dist manages `Formula/`). Done: the repo
+   exists.
 2. Create a token that can push to it: a fine-grained personal access token (or a GitHub App token) with access to
    `liatrio-labs/homebrew-tap` only, permission **Contents: Read and write**. A classic token needs the `repo` scope.
 3. Add it to this repo as the Actions secret `HOMEBREW_TAP_TOKEN`, and back it up to 1Password (secrets-backup).
@@ -187,7 +192,8 @@ The store API cannot create a new item, so the first upload is manual.
    <https://developer.chrome.com/docs/webstore/service-accounts>. Add the service account's email to the publisher in
    the dev console.
 5. In GitHub → Settings → Environments, create `chrome-web-store`, restrict its deployments to the tag pattern
-   `inkup-chrome-v*`, and add these environment secrets:
+   `inkup-chrome-v*`, and add these environment secrets. The environment already exists, with that tag rule and a
+   required reviewer; only the secrets are left to add:
 
    | Secret | Value |
    | --- | --- |
@@ -199,10 +205,10 @@ The store API cannot create a new item, so the first upload is manual.
    Back each one up to 1Password as you create it (secrets-backup). Optional repository variable
    `CHROME_SKIP_SUBMIT_REVIEW=true` uploads without submitting.
 
-From then on every `inkup-chrome-v*` tag uploads and submits automatically. The human gate is pushing the tag, and
-Google's store review before the new version goes live. Required reviewers on the environment would add an approval
-click, but GitHub only offers them on private repos with a paid plan; if the plan changes, add yourself under the
-environment's protection rules.
+From then on every `inkup-chrome-v*` tag uploads and submits automatically once the environment's required reviewer
+approves the deployment, and Google's store review gates the new version going live. GitHub gives public repos
+required reviewers for free (private repos need a paid plan); add or change reviewers under the environment's
+protection rules.
 
 ## One-time addons.mozilla.org setup
 
@@ -213,7 +219,8 @@ AMO needs the add-on's first version uploaded by hand before the API can update 
    id is the gecko id in `extensions/web/wxt.config.ts`; the workflow already sets it as `FIREFOX_EXTENSION_ID`.
 2. Create API credentials at <https://addons.mozilla.org/developers/addon/api/key/>: a JWT issuer and a JWT secret.
 3. In GitHub → Settings → Environments, create `firefox-amo`, restrict its deployments to the tag pattern
-   `inkup-firefox-v*`, and add these environment secrets:
+   `inkup-firefox-v*`, and add these environment secrets. The environment already exists, with that tag rule; only
+   the secrets are left to add:
 
    | Secret | Value |
    | --- | --- |
@@ -230,6 +237,7 @@ From then on every `inkup-firefox-v*` tag uploads and submits automatically, and
 ```sh
 pnpm zip                                    # extensions/web/.output/*-chrome.zip
 pnpm zip:firefox                            # extensions/web/.output/*-firefox.zip and *-sources.zip
+bash scripts/verify-sources-zip.sh --no-zip # rebuild from the sources zip in a temp dir; must match
 cd extensions/web && pnpm exec wxt submit --dry-run --chrome-zip .output/*-chrome.zip
 cd extensions/web && pnpm exec wxt submit --dry-run --firefox-zip .output/*-firefox.zip \
   --firefox-sources-zip .output/*-sources.zip

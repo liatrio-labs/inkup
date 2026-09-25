@@ -9,7 +9,7 @@ Nothing is left half-working.
 | Build | Command | Output |
 | --- | --- | --- |
 | Chrome (MV3) | `pnpm build`, `pnpm zip` | `extensions/web/.output/chrome-mv3`, `…-chrome.zip` |
-| Firefox (MV3) | `pnpm build:firefox`, `pnpm zip:firefox` | `extensions/web/.output/firefox-mv3`, `…-firefox.zip` (plus `…-sources.zip` for AMO) |
+| Firefox (MV3) | `pnpm build:firefox`, `pnpm zip:firefox` | `extensions/web/.output/firefox-mv3`, `…-firefox.zip` (plus `…-sources.zip` for AMO: the workspace the build reads; `bash scripts/verify-sources-zip.sh` rebuilds from it) |
 | Safari | see `docs/spikes/safari.md` | |
 
 ## Capability matrix

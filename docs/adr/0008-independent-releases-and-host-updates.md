@@ -91,8 +91,9 @@ Clients behind.
 - `releases/latest` points at whichever train released last, so install links name a specific `inkup-v…` release.
 - The tap repo and its `HOMEBREW_TAP_TOKEN` secret must exist before a host release can publish the formula. Without
   them the GitHub Release still goes out, and only the Homebrew job fails.
-- The Firefox sources zip AMO reviewers rebuild from covers `extensions/web` only, not the workspace packages it
-  imports; that must be fixed before the first listed AMO submission.
+- The Firefox sources zip AMO reviewers rebuild from is the part of the pnpm workspace the build reads, from the repo
+  root (`zip.includeSources` in `extensions/web/wxt.config.ts`). The release workflow rebuilds the add-on from it and
+  fails if the result differs (`scripts/verify-sources-zip.sh`).
 - A user who updates a Homebrew copy with "self" has two copies until they uninstall one; `inkup update` says so.
 - zizmor findings that come from dist's template are ignored for `inkup-v-release.yml` only, each with its reason in
   `.github/zizmor.yml`. Upgrading dist means re-reading those findings.
@@ -111,3 +112,7 @@ Clients behind.
   in `hello` in the store, and a warning with a confirmation (or `--yes`) in `inkup update` and a mention in the daily
   notice. The config.toml header the host writes is now the file's first lines; toml_edit had kept it as trailing
   decor, so it ended up at the bottom.
+- 2026-09-25: the sources zip covered `extensions/web` only, so reviewers could not rebuild it without
+  `packages/core` and `packages/protocol`. It is now zipped from the repo root with the workspace packages, the root
+  lockfile and `SOURCE_BUILD.md`. Tailwind scans `src/` only (`source("../")`), because it had picked up class names
+  from tests and from the generated `public/ort` files, and the CSS differed between the repo and the zip.
