@@ -1,13 +1,21 @@
 import type { WxtStorageItem } from '@wxt-dev/storage';
 import { useEffect, useState } from 'react';
 
-/** Current value of a @wxt-dev/storage item, kept live across contexts. `undefined` until first read. */
+/**
+ * Current value of a @wxt-dev/storage item, kept live across contexts. `undefined` until first read. A change heard
+ * while the first read is still out is newer than what that read returns, so the read's answer is then dropped (a
+ * component mounted as the Host paired read "pairing" after hearing "connected", and kept it).
+ */
 export function useStorageItem<T>(item: WxtStorageItem<T, Record<string, unknown>>): T | undefined {
   const [value, setValue] = useState<T | undefined>(undefined);
   useEffect(() => {
     let alive = true;
-    void item.getValue().then((v) => alive && setValue(v));
-    const unwatch = item.watch((v) => setValue(v));
+    let heard = false;
+    void item.getValue().then((v) => alive && !heard && setValue(v));
+    const unwatch = item.watch((v) => {
+      heard = true;
+      setValue(v);
+    });
     return () => {
       alive = false;
       unwatch();
