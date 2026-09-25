@@ -1,0 +1,174 @@
+<!doctype html>
+<!--
+  The page InkUp reviews in the marketing site's captures (tests/e2e/site-captures.spec.ts). Tallybook is fictional.
+  It has three flaws on purpose, one per scripted note: the trial button is the quiet one, the headline runs long, and
+  the Pro price has no period.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tallybook: invoicing for freelancers</title>
+<style>
+  @font-face {
+    font-family: 'Manrope';
+    font-style: normal;
+    font-weight: 400 800;
+    src: url(/vendor/fonts/manrope-latin.woff2) format('woff2');
+  }
+  :root {
+    --paper: #f7f4ee;
+    --card: #fffdf9;
+    --ink: #1c2321;
+    --muted: #5d6763;
+    --line: #e4ddd1;
+    --moss: #2f5d50;
+    --moss-soft: #dfe9e3;
+    --sun: #f2c14e;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body { margin: 0; font: 16px/1.55 Manrope, system-ui, sans-serif; color: var(--ink); background: var(--paper); }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+  header.site-header { display: flex; align-items: center; justify-content: space-between; height: 76px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+  .logo-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--moss); display: grid; place-items: center; }
+  .logo-mark span { width: 14px; height: 3px; background: var(--sun); border-radius: 2px; box-shadow: 0 -5px 0 var(--paper), 0 5px 0 var(--paper); }
+  header nav { display: flex; gap: 32px; font-weight: 600; font-size: 15px; color: var(--muted); }
+  .header-actions { display: flex; align-items: center; gap: 20px; font-weight: 600; font-size: 15px; }
+  .pill-button { padding: 9px 16px; border-radius: 999px; border: 1.5px solid var(--ink); }
+
+  .hero { display: grid; grid-template-columns: 1.08fr 0.92fr; gap: 64px; align-items: center; padding: 36px 0 44px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 18px; padding: 5px 12px 5px 8px; border-radius: 999px; background: var(--moss-soft); color: var(--moss); font-weight: 700; font-size: 13px; }
+  .eyebrow::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--moss); }
+  .hero h1 { margin: 0 0 18px; font-size: 44px; line-height: 1.08; letter-spacing: -0.03em; font-weight: 800; }
+  .lede { margin: 0 0 30px; max-width: 30em; font-size: 18px; color: var(--muted); }
+  .actions { display: flex; align-items: center; gap: 22px; }
+  .tour { display: inline-flex; align-items: center; gap: 12px; padding: 16px 24px; border: 0; border-radius: 14px; background: var(--ink); color: var(--card); font: 700 17px Manrope, system-ui, sans-serif; cursor: pointer; }
+  .tour .play { width: 22px; height: 22px; border-radius: 50%; background: var(--sun); display: grid; place-items: center; }
+  .tour .play::after { content: ''; border-left: 7px solid var(--ink); border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; margin-left: 2px; }
+  button.cta { padding: 8px 4px; border: 0; background: none; color: var(--muted); font: 600 15px Manrope, system-ui, sans-serif; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+  .trust { display: flex; align-items: center; gap: 10px; margin-top: 30px; font-size: 14px; color: var(--muted); }
+  .faces { display: flex; }
+  .faces i { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--paper); margin-left: -8px; }
+  .faces i:first-child { margin-left: 0; background: #c98b6b; }
+  .faces i:nth-child(2) { background: #7aa5a0; }
+  .faces i:nth-child(3) { background: #e2b567; }
+  .faces i:nth-child(4) { background: #8a7fb3; }
+
+  .invoice { position: relative; margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 26px 28px 40px; box-shadow: 0 30px 60px -30px rgba(28, 35, 33, 0.35); }
+  .invoice-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .invoice-head small { display: block; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .invoice-head strong { font-size: 19px; letter-spacing: -0.01em; }
+  .status { padding: 4px 10px; border-radius: 999px; background: var(--moss-soft); color: var(--moss); font-weight: 700; font-size: 12px; }
+  .line { display: grid; grid-template-columns: 1fr auto; padding: 11px 0; border-top: 1px solid var(--line); font-size: 15px; }
+  .line span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; padding-top: 14px; border-top: 2px solid var(--ink); }
+  .total strong { font-size: 28px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .toast { position: absolute; left: -36px; bottom: -30px; display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; background: var(--ink); color: var(--card); font-size: 14px; font-weight: 600; box-shadow: 0 16px 30px -16px rgba(28, 35, 33, 0.6); }
+  .toast b { color: var(--sun); }
+
+  .plans-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 16px; }
+  .plans-head h2 { margin: 0; font-size: 24px; letter-spacing: -0.02em; }
+  .plans-head p { margin: 0; color: var(--muted); font-size: 15px; }
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .plan { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px 24px; }
+  .plan h3 { margin: 0 0 4px; font-size: 16px; }
+  .plan .price { margin: 0 0 6px; font-size: 32px; font-weight: 800; letter-spacing: -0.03em; }
+  .plan .price small { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+  .plan p { margin: 0; color: var(--muted); font-size: 14px; }
+  .plan.featured { background: var(--moss); color: var(--card); border-color: var(--moss); }
+  .plan.featured p, .plan.featured .price small { color: var(--moss-soft); }
+  .plan .tag { float: right; padding: 3px 9px; border-radius: 999px; background: var(--sun); color: var(--ink); font-size: 12px; font-weight: 700; }
+
+  footer { margin-top: 56px; padding: 24px 0 32px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 0 20px; }
+    header nav, .header-actions a:first-child { display: none; }
+    .hero { grid-template-columns: 1fr; gap: 36px; padding: 18px 0 40px; }
+    .hero h1 { font-size: 32px; }
+    .lede { font-size: 16px; margin-bottom: 24px; }
+    .actions { flex-wrap: wrap; gap: 12px; }
+    .toast { left: 12px; }
+    .plans { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site-header">
+      <a class="logo" href="/demo-store.html"><span class="logo-mark"><span></span></span>Tallybook</a>
+      <nav aria-label="Main">
+        <a href="#hero-title">Product</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#trust">Customers</a>
+        <a href="#plans-title">Changelog</a>
+      </nav>
+      <div class="header-actions">
+        <a href="#pricing">Sign in</a>
+        <a class="pill-button" href="#pricing">Book a demo</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">Invoicing for independents</p>
+          <h1 id="hero-title">Invoicing software that finally understands how freelancers and small studios actually get paid on time</h1>
+          <p class="lede">Send a clean invoice in a minute, chase late payments without the awkward emails, and see what's coming in this month.</p>
+          <div class="actions">
+            <button class="tour" type="button"><span class="play"></span>Watch the 2-minute tour</button>
+            <button class="cta" type="button">Start free trial</button>
+          </div>
+          <div class="trust" id="trust">
+            <span class="faces"><i></i><i></i><i></i><i></i></span>
+            Used by 4,200 designers, developers and writers
+          </div>
+        </div>
+
+        <figure class="invoice" aria-label="Example invoice">
+          <div class="invoice-head">
+            <div><small>Invoice #1042</small><strong>Studio Marlow</strong></div>
+            <span class="status">Paid</span>
+          </div>
+          <div class="line"><span>Brand refresh, phase 2</span><span>$3,200.00</span></div>
+          <div class="line"><span>Website copy, 6 pages</span><span>$1,140.00</span></div>
+          <div class="line"><span>Illustration licence</span><span>$520.00</span></div>
+          <div class="total"><span>Total</span><strong>$4,860.00</strong></div>
+          <div class="toast"><b>&#10003;</b> Paid in 3 days, 9 days faster than usual</div>
+        </figure>
+      </section>
+
+      <section id="pricing" aria-labelledby="plans-title">
+        <div class="plans-head">
+          <h2 id="plans-title">Simple plans</h2>
+          <p>Every plan includes unlimited clients.</p>
+        </div>
+        <div class="plans">
+          <div class="plan" id="plan-solo">
+            <h3>Solo</h3>
+            <p class="price">$0 <small>per month</small></p>
+            <p>Five invoices a month, card payments.</p>
+          </div>
+          <div class="plan featured" id="plan-pro">
+            <span class="tag">Popular</span>
+            <h3>Pro</h3>
+            <p class="price" id="pro-price">$12</p>
+            <p>Unlimited invoices, reminders, recurring billing.</p>
+          </div>
+          <div class="plan" id="plan-studio">
+            <h3>Studio</h3>
+            <p class="price">$29 <small>per month</small></p>
+            <p>Up to five teammates, shared clients, reports.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>Demo page for InkUp captures. Tallybook is a fictional product.</footer>
+  </div>
+</body>
+</html>

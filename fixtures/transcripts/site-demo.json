@@ -1,0 +1,8 @@
+{
+  "timestamp_quality": "approximate",
+  "cues": [
+    { "at_ms": 4519, "duration_ms": 2719, "text": "make this button the first thing people see" },
+    { "at_ms": 9585, "duration_ms": 1866, "text": "this headline is too long" },
+    { "at_ms": 15059, "duration_ms": 2274, "text": "the price here should say per month" }
+  ]
+}

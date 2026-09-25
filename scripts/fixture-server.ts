@@ -16,6 +16,7 @@ const TYPES: Record<string, string> = {
   '.js': 'text/javascript; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
 };
 
 /** Pages served with extra headers. no-frame.html refuses framing, as many real sites do (E6's frame host). */

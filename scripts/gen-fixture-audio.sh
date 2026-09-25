@@ -65,3 +65,6 @@ make_wav voice-session "~2|this button|~1.5|scratch that|~2|the video should|pau
 # (5) The Draft Item e2e (tests/e2e/drafts.spec.ts): a note on the CTA, a long silence for the draft pass, "pin
 # that" between silences, then a second note, and trailing silence so the looped file stays quiet for the test.
 make_wav drafts-session "~2|this button should go in the header|~11|pin that|~3|make this card taller|~20"
+# (6) The marketing site's captures (tests/e2e/site-captures.spec.ts) on fixtures/site/demo-store.html: three review
+# notes, each made while a Stroke is drawn, with room between them for a Draft Item pass, then a long quiet tail.
+make_wav site-demo "~1.5|make this button the first thing people see|~3.5|this headline is too long|~3.5|the price here should say per month|~25"
