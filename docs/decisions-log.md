@@ -2,6 +2,31 @@
 
 Calls made during implementation that the PRD, PLAN and ADRs leave open. Newest slice first.
 
+## #43: Process runs without asking under a threshold, and warns near model limits (2026-09-24)
+
+The reviewer asked for Process to skip its confirm step when the estimate is small, and for a warning when a run is
+close to the model's token limits (review items 15 and 16).
+
+- **Threshold.** `processingSettings.autoRunBelowUsd` (USD), set in options as "Run Process without asking when the
+  estimate is under $…" and saved with the rest of Processing. Absent, empty, zero or not a number: off, so Process
+  always asks, as before. Strictly under: an estimate equal to the threshold asks.
+- **When it still asks.** An unknown price (no dollar amount) always asks. A limit warning always asks. **Process
+  again** always asks: it replaces the items and the reviewer's edits to them. "Again" is the review page's `done`
+  (the Session's latest run with status `done`, App.tsx), the same flag that labels the button "Process again" and
+  shows the replace note, not a click count. A failed run with no earlier items does not count, so Retry may
+  auto-run.
+- **The line.** An auto-run shows "Estimated $x, under your $y limit: processing…", then "processed without asking."
+  until the next estimate, so the reviewer sees what was spent without a confirm step.
+- **Limits are per call.** A long Session runs as several calls, and each limit applies to one call, so the estimate
+  now carries `chunk_tokens` (each call's counted input and estimated output). `limitWarnings` flags a call at 80% or
+  more of the model's context window (from the cached model list; skipped when no list gives it) or of its output cap
+  (`outputCapFor`), one warning per limit for the largest call, as an amber line in the estimate panel with the part,
+  the tokens, the share and the limit. The chunk planner already keeps each call's expected answer well under the
+  output cap, so the output warning is rare; the input one is the likely one, on a smaller-window model. Screenshots
+  sent for unsure items are not in the count, as for the price.
+- **The decision is pure.** `shouldAutoRun({usd, threshold, done, warnings})` and `limitWarnings` live in
+  packages/core (cost.ts), unit-tested; the service worker adds the warnings to the `estimateProcess` answer.
+
 ## #41: a picker window when toolbar Start has no tabCapture (2026-09-24)
 
 **Toolbar Start recorded no video on a tab the extension was not invoked on** (review item: "Enable starting capture
