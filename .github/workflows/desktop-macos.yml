@@ -3,7 +3,8 @@ name: Desktop macOS
 # The desktop app's signed, notarized DMG, attached to a host release (ADR 0025). inkup-v-release.yml calls this once it
 # has published the release: dist-workspace.toml lists it in post-announce-jobs, so `dist generate` keeps the call and
 # this file is ours to edit. It runs in the `release` environment, which holds the signing secrets, waits for a
-# maintainer's approval and takes inkup-v* tags only. A pre-release tag (inkup-v0.2.0-rc.1) runs it too.
+# maintainer's approval and takes inkup-v* tags only. A pre-release tag (inkup-v0.2.0-rc.1) runs it too, but only a
+# stable release updates the Homebrew cask.
 on:
   workflow_call:
     inputs:
@@ -125,6 +126,42 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" "$DMG" --clobber
+
+      # The Homebrew cask, Casks/inkup.rb in liatrio-labs/homebrew-tap, rendered by scripts/cask.ts. Stable releases
+      # only, the rule dist's publish-homebrew-formula job follows, so a pre-release never touches the tap. A re-run
+      # that leaves the cask unchanged pushes nothing; one that rebuilt the DMG pushes its new sha256.
+      - name: Publish the Homebrew cask
+        if: ${{ !fromJson(inputs.plan).announcement_is_prerelease || fromJson(inputs.plan).publish_prereleases }}
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN is not set"
+            exit 1
+          fi
+          version="${TAG#inkup-v}"
+          if [ "$(basename "$DMG")" != "InkUp_${version}_universal.dmg" ]; then
+            echo "::error::$DMG is not InkUp_${version}_universal.dmg, the name the cask's url expects"
+            exit 1
+          fi
+          sha="$(shasum -a 256 "$DMG" | cut -d ' ' -f 1)"
+          basic="$(printf 'x-access-token:%s' "$TAP_TOKEN" | base64)"
+          echo "::add-mask::$basic"
+          auth="AUTHORIZATION: basic $basic"
+          tap="$RUNNER_TEMP/homebrew-tap"
+          git -c http.extraheader="$auth" clone --depth 1 https://github.com/liatrio-labs/homebrew-tap.git "$tap"
+          mkdir -p "$tap/Casks"
+          node scripts/cask.ts "$version" "$sha" > "$tap/Casks/inkup.rb"
+          cd "$tap"
+          git add Casks/inkup.rb
+          if git diff --cached --quiet; then
+            echo "Casks/inkup.rb is already at $version with this DMG; nothing to push"
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "inkup $version (cask)"
+          git -c http.extraheader="$auth" push origin HEAD
 
       - name: Remove the key and the keychain
         if: always()
