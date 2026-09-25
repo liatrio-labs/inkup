@@ -69,7 +69,11 @@
           }
         }
       ],
-      "source": "reviewer"
+      "source": "reviewer",
+      "vetting": {
+        "verdict": "corrected",
+        "reason": "The footage shows the circle around the link, not the heading."
+      }
     }
   ]
 }

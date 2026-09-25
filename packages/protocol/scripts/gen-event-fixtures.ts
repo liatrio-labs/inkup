@@ -690,6 +690,7 @@ export const ITEM: ChangeItem = {
     },
   ],
   source: 'reviewer',
+  vetting: { verdict: 'corrected', reason: 'The footage shows the circle around the link, not the heading.' },
 };
 
 /** File name → message, in a stable order. */

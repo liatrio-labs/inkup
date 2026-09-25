@@ -3650,6 +3650,30 @@
               "reviewer",
               "page_api"
             ]
+          },
+          "vetting": {
+            "description": "how the item fared when checked against the recording after Process; absent: not checked",
+            "type": "object",
+            "properties": {
+              "verdict": {
+                "type": "string",
+                "enum": [
+                  "confirmed",
+                  "corrected",
+                  "unverified"
+                ],
+                "description": "confirmed: the recording shows the item as written; corrected: it was rewritten to match the recording; unverified: the recording could not confirm it"
+              },
+              "reason": {
+                "type": "string",
+                "description": "one sentence: what the check saw, or why it could not confirm the item"
+              }
+            },
+            "required": [
+              "verdict",
+              "reason"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -3948,6 +3972,30 @@
                   "reviewer",
                   "page_api"
                 ]
+              },
+              "vetting": {
+                "description": "how the item fared when checked against the recording after Process; absent: not checked",
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": "string",
+                    "enum": [
+                      "confirmed",
+                      "corrected",
+                      "unverified"
+                    ],
+                    "description": "confirmed: the recording shows the item as written; corrected: it was rewritten to match the recording; unverified: the recording could not confirm it"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "one sentence: what the check saw, or why it could not confirm the item"
+                  }
+                },
+                "required": [
+                  "verdict",
+                  "reason"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [

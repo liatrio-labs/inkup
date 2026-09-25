@@ -182,6 +182,9 @@ async fn an_agent_watches_implements_and_resolves() {
     assert_eq!(found["locations"][0]["selector"], "main .hero a.cta");
     assert_eq!(found["locations"][0]["source"]["file"], "src/Hero.tsx");
     assert_eq!(found["crops"], json!(["shot-1.crop"]));
+    // The check against the recording, as the extension sent it.
+    assert_eq!(found["vetting"], item["vetting"]);
+    assert_eq!(found["vetting"]["verdict"], "corrected");
     assert!(hub.watchers().is_empty(), "the watcher is gone once it returns");
 
     // Change Items supersede the Signals.

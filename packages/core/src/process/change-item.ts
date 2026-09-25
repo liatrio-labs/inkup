@@ -88,11 +88,29 @@ const GroundedEvidenceSchema = EvidenceSchema.extend({
     .describe('ids of element crops (screenshots/<id>.png) of the Annotations this item uses'),
 });
 
+// Vetting (./vet.ts): after Process, each item is checked against the recording (the footage, or the screenshots when
+// the model takes no video) and flagged. A new optional field with its own enum, so older readers ignore it.
+export const VetVerdict = z
+  .enum(['confirmed', 'corrected', 'unverified'])
+  .describe(
+    'confirmed: the recording shows the item as written; corrected: it was rewritten to match the recording; unverified: the recording could not confirm it',
+  );
+export type VetVerdict = z.infer<typeof VetVerdict>;
+
+export const VettingSchema = z.object({
+  verdict: VetVerdict,
+  reason: z.string().describe('one sentence: what the check saw, or why it could not confirm the item'),
+});
+export type Vetting = z.infer<typeof VettingSchema>;
+
 const StoredChangeItemObject = ChangeItemObject.extend({
   locations: z.array(GroundedLocationSchema).min(1),
   evidence: GroundedEvidenceSchema,
   source: AnnotationSource.optional().describe(
     "'page_api': every Annotation it comes from was made by a script on the page, not the reviewer; absent: the reviewer",
+  ),
+  vetting: VettingSchema.optional().describe(
+    'how the item fared when checked against the recording after Process; absent: not checked',
   ),
 });
 
@@ -124,8 +142,10 @@ function refine(item: z.infer<typeof ChangeItemObject>, ctx: z.RefinementCtx) {
 
 /** A Change Item as stored, pushed to the Host and exported: the model's item plus its grounding. */
 export const ChangeItemSchema = StoredChangeItemObject.superRefine(refine);
+/** What the model answers, before the rules structured output cannot express (the vetting pass checks them itself). */
+export const ModelChangeItemObject = ChangeItemObject.omit({ style_changes: true });
 /** What the model answers: no grounding fields and no style_changes. */
-export const ModelChangeItemSchema = ChangeItemObject.omit({ style_changes: true }).superRefine(refine);
+export const ModelChangeItemSchema = ModelChangeItemObject.superRefine(refine);
 export type ChangeItem = z.infer<typeof ChangeItemSchema>;
 export type ChangeItemInput = z.input<typeof ChangeItemSchema>;
 

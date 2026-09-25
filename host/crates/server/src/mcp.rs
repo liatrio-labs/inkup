@@ -274,6 +274,11 @@ pub(crate) fn agent_item(item: &Item) -> Value {
     if let Some(source) = body.str("source") {
         view["source"] = json!(source);
     }
+    // How the item fared when checked against the recording after Process: confirmed, corrected or unverified.
+    let vetting = body.get("vetting");
+    if let Some(verdict) = vetting.str("verdict") {
+        view["vetting"] = json!({ "verdict": verdict, "reason": vetting.str("reason").unwrap_or_default() });
+    }
     // Element crops of the item's Annotations, fetched like screenshots (`<id>.crop`).
     let crops = evidence.array("crops");
     if !crops.is_empty() {
