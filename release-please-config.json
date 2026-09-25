@@ -68,7 +68,7 @@
       "draft": true,
       "versioning": "prerelease",
       "prerelease-type": "rc.1",
-      "prerelease": true,
+      "prerelease": false,
       "changelog-path": "host/CHANGELOG.md",
       "exclude-paths": [
         ".github",
