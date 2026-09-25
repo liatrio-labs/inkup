@@ -1449,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "inkup"
-version = "0.2.0-rc.2"
+version = "0.2.0-rc.3"
 dependencies = [
  "anyhow",
  "axoupdater",
@@ -1472,7 +1472,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-protocol"
-version = "0.2.0-rc.2"
+version = "0.2.0-rc.3"
 dependencies = [
  "prettyplease",
  "regress",
@@ -1485,7 +1485,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-server"
-version = "0.2.0-rc.2"
+version = "0.2.0-rc.3"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -1510,7 +1510,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-store"
-version = "0.2.0-rc.2"
+version = "0.2.0-rc.3"
 dependencies = [
  "directories",
  "getrandom 0.4.3",
@@ -1527,7 +1527,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-tui"
-version = "0.2.0-rc.2"
+version = "0.2.0-rc.3"
 dependencies = [
  "crossterm",
  "futures-util",

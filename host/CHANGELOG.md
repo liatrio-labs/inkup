@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-rc.3](https://github.com/liatrio-labs/inkup/compare/inkup-v0.2.0-rc.2...inkup-v0.2.0-rc.3) (2026-09-25)
+
+
+### Bug Fixes
+
+* **release:** build the desktop DMG on the tag, not as dist's post-announce job ([#34](https://github.com/liatrio-labs/inkup/issues/34)) ([15a89d2](https://github.com/liatrio-labs/inkup/commit/15a89d2dee5e7269d9035446305de204becf509c))
+
 ## [0.2.0-rc.2](https://github.com/liatrio-labs/inkup/compare/inkup-v0.2.0-rc.1...inkup-v0.2.0-rc.2) (2026-09-25)
 
 
