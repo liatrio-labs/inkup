@@ -1,7 +1,17 @@
 // scripts/install-hooks.mjs under parallel `pnpm install` in worktrees that share one .git: one install, no
 // `.legacy` self-copies, and a self-copy left by an earlier race heals.
-import { spawn } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -38,6 +48,35 @@ let hooks: string;
 let log: string;
 let env: NodeJS.ProcessEnv;
 
+/**
+ * The child environment, built without the caller's GIT_* variables. `pnpm test` runs from the pre-push hook, where
+ * GIT_DIR, GIT_INDEX_FILE and the rest point at the real repo; passed on, they made `git init` here reinitialise it.
+ * No system config, HOME in the temp dir, and git never searches above the temp dir either.
+ */
+function isolatedEnv(bin: string): NodeJS.ProcessEnv {
+  const outer = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
+  return {
+    ...outer,
+    CI: '',
+    PATH: `${bin}:${process.env.PATH}`,
+    STUB_LOG: log,
+    HOME: dir,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CEILING_DIRECTORIES: dir,
+  };
+}
+
+/** Runs git in `cwd`, after checking that the repo it would write to is inside the temp dir. */
+function git(cwd: string, ...args: string[]) {
+  const found = spawnSync('git', ['rev-parse', '--absolute-git-dir'], { cwd, env, encoding: 'utf8' });
+  const gitDir = found.status === 0 ? found.stdout.trim() : null;
+  const root = realpathSync(dir);
+  if (gitDir ? !gitDir.startsWith(`${root}/`) : args[0] !== 'init')
+    throw new Error(`refusing \`git ${args.join(' ')}\` in ${cwd}: its git dir ${gitDir} is outside ${root}`);
+  const done = spawnSync('git', args, { cwd, env, encoding: 'utf8' });
+  if (done.status !== 0) throw new Error(`git ${args.join(' ')}: ${done.stderr}`);
+}
+
 function run(cwd = repo) {
   return new Promise<{ code: number | null; out: string }>((done) => {
     const child = spawn(process.execPath, [SCRIPT], { cwd, env });
@@ -55,29 +94,42 @@ function run(cwd = repo) {
 const installs = () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').length : 0);
 const legacies = () => TYPES.filter((t) => existsSync(join(hooks, `${t}.legacy`)));
 
-function git(...args: string[]) {
-  return new Promise<void>((done, fail) =>
-    spawn('git', args, { cwd: repo, env }).on('close', (c) => (c === 0 ? done() : fail(new Error(`git ${args}`)))),
-  );
+/** A temp dir with a stub pre-commit on PATH and an empty repo with no hooks. */
+function setup() {
+  dir = mkdtempSync(join(tmpdir(), 'inkup-hooks-'));
+  repo = join(dir, 'repo');
+  const bin = join(dir, 'bin');
+  mkdirSync(repo);
+  mkdirSync(bin);
+  log = join(dir, 'installs.log');
+  writeFileSync(join(bin, 'pre-commit'), STUB);
+  chmodSync(join(bin, 'pre-commit'), 0o755);
+  env = isolatedEnv(bin);
+  git(repo, 'init', '-q');
+  if (!existsSync(join(repo, '.git', 'HEAD'))) throw new Error(`git init did not create ${repo}/.git`);
+  // git init ships only *.sample hooks; start from none.
+  rmSync(join(repo, '.git', 'hooks'), { recursive: true, force: true });
+  hooks = join(repo, '.git', 'hooks');
+  writeFileSync(join(repo, '.pre-commit-config.yaml'), `default_install_hook_types: [${TYPES.join(', ')}]\n`);
+}
+
+function commit(cwd: string) {
+  git(cwd, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init', '--no-verify');
+}
+
+/** Every file under `root`, with its contents: a before/after fingerprint of a repo. */
+function snapshot(root: string): Record<string, string> {
+  const files: Record<string, string> = {};
+  for (const entry of readdirSync(root, { recursive: true, withFileTypes: true }))
+    if (entry.isFile()) {
+      const path = join(entry.parentPath, entry.name);
+      files[path.slice(root.length)] = readFileSync(path, 'base64');
+    }
+  return files;
 }
 
 describe('install-hooks', () => {
-  beforeEach(async () => {
-    dir = mkdtempSync(join(tmpdir(), 'inkup-hooks-'));
-    repo = join(dir, 'repo');
-    const bin = join(dir, 'bin');
-    mkdirSync(repo);
-    mkdirSync(bin);
-    log = join(dir, 'installs.log');
-    writeFileSync(join(bin, 'pre-commit'), STUB);
-    chmodSync(join(bin, 'pre-commit'), 0o755);
-    env = { ...process.env, CI: '', PATH: `${bin}:${process.env.PATH}`, STUB_LOG: log };
-    await git('init', '-q');
-    // git init ships only *.sample hooks; start from none so every hook is foreign-free.
-    rmSync(join(repo, '.git', 'hooks'), { recursive: true, force: true });
-    hooks = join(repo, '.git', 'hooks');
-    writeFileSync(join(repo, '.pre-commit-config.yaml'), `default_install_hook_types: [${TYPES.join(', ')}]\n`);
-  });
+  beforeEach(setup);
 
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -95,20 +147,9 @@ describe('install-hooks', () => {
   });
 
   it('shares the lock and the hooks across worktrees', async () => {
-    await git(
-      '-c',
-      'user.name=t',
-      '-c',
-      'user.email=t@t',
-      'commit',
-      '-q',
-      '--allow-empty',
-      '-m',
-      'init',
-      '--no-verify',
-    );
+    commit(repo);
     const trees = ['a', 'b', 'c'].map((n) => join(dir, n));
-    for (const [i, t] of trees.entries()) await git('worktree', 'add', '-q', '-b', `w${i}`, t);
+    for (const [i, t] of trees.entries()) git(repo, 'worktree', 'add', '-q', '-b', `w${i}`, t);
     for (const t of trees)
       writeFileSync(join(t, '.pre-commit-config.yaml'), readFileSync(join(repo, '.pre-commit-config.yaml')));
     const results = await Promise.all([...trees, ...trees].map((t) => run(t)));
@@ -149,5 +190,47 @@ describe('install-hooks', () => {
     mkdirSync(outside);
     expect(await run(outside)).toEqual({ code: 0, out: '' });
     expect(installs()).toBe(0);
+  });
+
+  it('leaves the repo that GIT_DIR points at alone, as inside a git hook', async () => {
+    const decoyDir = mkdtempSync(join(tmpdir(), 'inkup-decoy-'));
+    const decoy = join(decoyDir, 'repo');
+    try {
+      // The decoy, made with this suite's own guarded helpers.
+      const [outerDir, outerRepo, outerEnv] = [dir, repo, env];
+      [dir, repo] = [decoyDir, decoy];
+      mkdirSync(decoy);
+      git(decoy, 'init', '-q');
+      commit(decoy);
+      [dir, repo, env] = [outerDir, outerRepo, outerEnv];
+      const before = snapshot(join(decoy, '.git'));
+
+      // What a pre-push hook exports, pointing at the decoy.
+      const hookEnv = {
+        GIT_DIR: join(decoy, '.git'),
+        GIT_WORK_TREE: decoy,
+        GIT_INDEX_FILE: join(decoy, '.git', 'index'),
+        GIT_COMMON_DIR: join(decoy, '.git'),
+        GIT_OBJECT_DIRECTORY: join(decoy, '.git', 'objects'),
+      };
+      Object.assign(process.env, hookEnv);
+      try {
+        rmSync(dir, { recursive: true, force: true });
+        setup();
+        commit(repo);
+        git(repo, 'worktree', 'add', '-q', '-b', 'w0', join(dir, 'a'));
+        // The script itself, run with the hook's variables, installs into the repo it runs in.
+        const direct = spawnSync(process.execPath, [SCRIPT], { cwd: repo, env: { ...env, ...hookEnv } });
+        expect(direct.status).toBe(0);
+      } finally {
+        for (const k of Object.keys(hookEnv)) delete process.env[k];
+      }
+
+      expect(installs()).toBe(1);
+      for (const t of TYPES) expect(readFileSync(join(hooks, t), 'utf8')).toBe(HOOK(t));
+      expect(snapshot(join(decoy, '.git'))).toEqual(before);
+    } finally {
+      rmSync(decoyDir, { recursive: true, force: true });
+    }
   });
 });

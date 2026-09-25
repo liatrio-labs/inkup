@@ -15,6 +15,9 @@ import { join, resolve } from 'node:path';
 const LOCK_STALE_MS = 60_000;
 const LOCK_WAIT_MS = 120_000;
 const shell = process.platform === 'win32';
+// `prepare` can run inside a git hook, where GIT_DIR and friends name that hook's repo. Git and pre-commit find the
+// repo from the working directory instead, so they act on the checkout being installed.
+const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('GIT_')));
 
 const ci = (process.env.CI ?? '').trim().toLowerCase();
 if (ci !== '' && ci !== 'false' && ci !== '0') {
@@ -23,14 +26,14 @@ if (ci !== '' && ci !== 'false' && ci !== '0') {
 }
 if (!existsSync('.git')) process.exit(0);
 
-const common = spawnSync('git', ['rev-parse', '--git-common-dir'], { encoding: 'utf8', shell });
+const common = spawnSync('git', ['rev-parse', '--git-common-dir'], { encoding: 'utf8', shell, env });
 if (common.status !== 0) process.exit(0);
 const commonDir = resolve(common.stdout.trim());
 const hookTypes = readHookTypes();
 
 if (healthy()) process.exit(0);
 
-const found = spawnSync('pre-commit', ['--version'], { stdio: 'ignore', shell });
+const found = spawnSync('pre-commit', ['--version'], { stdio: 'ignore', shell, env });
 if (found.status !== 0) {
   warn([
     'WARNING: pre-commit is not installed. The git hooks are NOT set up.',
@@ -58,7 +61,7 @@ if (!acquire(lock)) {
 try {
   // Another worktree may have installed while this one waited for the lock.
   if (!healthy({ heal: true })) {
-    const run = spawnSync('pre-commit', ['install'], { stdio: 'inherit', shell });
+    const run = spawnSync('pre-commit', ['install'], { stdio: 'inherit', shell, env });
     if (run.status !== 0)
       warn([
         'WARNING: pre-commit install failed. The git hooks are NOT set up.',
