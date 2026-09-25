@@ -22,6 +22,7 @@ import {
   type ProcessingSettings,
   processingSettings,
   type RoleModel,
+  readAutoRunBelowUsd,
 } from '@/settings';
 
 const mask = (key: string) => (key.length > 12 ? `${key.slice(0, 7)}…${key.slice(-4)}` : 'saved');
@@ -57,6 +58,8 @@ export function ProcessingSection() {
   const cached = useStorageItem(modelLists);
   const [drafts, setDrafts] = useState<Record<LlmProvider, string>>({ anthropic: '', gateway: '' });
   const [roles, setRoles] = useState<ProcessingSettings>(() => normalizeProcessingSettings(undefined));
+  /** The auto-run threshold as typed; empty: always ask. */
+  const [autoRun, setAutoRun] = useState('');
   const [notices, setNotices] = useState<LlmProvider[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<LlmProvider, TestState>>({ anthropic: null, gateway: null });
@@ -64,7 +67,10 @@ export function ProcessingSection() {
   const saved: Record<LlmProvider, string> = { anthropic: savedAnthropic ?? '', gateway: savedGateway ?? '' };
 
   useEffect(() => {
-    if (stored !== undefined) setRoles(normalizeProcessingSettings(stored));
+    if (stored === undefined) return;
+    const next = normalizeProcessingSettings(stored);
+    setRoles(next);
+    setAutoRun(next.autoRunBelowUsd !== undefined ? String(next.autoRunBelowUsd) : '');
   }, [stored]);
 
   // Each provider with a saved key lists its models; a new or removed key asks again.
@@ -113,10 +119,12 @@ export function ProcessingSection() {
       ...r,
       model: r.model.trim() || DEFAULT_MODELS[r.provider][role],
     });
+    const autoRunBelowUsd = readAutoRunBelowUsd(autoRun.trim() ? Number(autoRun) : undefined);
     await processingSettings.setValue({
       process: trimmed(roles.process, 'process'),
       draft: trimmed(roles.draft, 'draft'),
       merge: trimmed(roles.merge, 'merge'),
+      ...(autoRunBelowUsd !== undefined ? { autoRunBelowUsd } : {}),
     });
     setDrafts({ anthropic: '', gateway: '' });
     setTests({ anthropic: null, gateway: null });
@@ -193,6 +201,28 @@ export function ProcessingSection() {
             onChange={(change) => setRole(role, change)}
           />
         ))}
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="auto-run-below" className="flex flex-wrap items-center gap-2 font-medium">
+            Run Process without asking when the estimate is under $
+            <input
+              id="auto-run-below"
+              type="number"
+              min={0}
+              step={0.01}
+              inputMode="decimal"
+              data-testid="auto-run-below"
+              className="w-28 rounded-md border px-3 py-2"
+              placeholder="Always ask"
+              value={autoRun}
+              onChange={(e) => setAutoRun(e.target.value)}
+            />
+          </label>
+          <span className="text-muted-foreground">
+            Leave it empty to always see the estimate first. Process still asks when the price is unknown, when a part
+            is close to the model's limits, and before it replaces items you already have.
+          </span>
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <Button type="submit" data-testid="save-processing">
