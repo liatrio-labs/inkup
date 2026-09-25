@@ -4,6 +4,11 @@
 # opens app windows on this machine, and drives the window and the tray through macOS accessibility (osascript and
 # System Events: the terminal needs Accessibility access).
 #
+# System Events addresses a process by its name, even one looked up by pid, and every build of the app is named
+# inkup-desktop: with another one running (`desktop:dev`, a second instance here) it could drive the wrong window. So
+# each launch runs its own copy of the binary, named for this run and that launch (`instance`), and the AppleScript
+# drives the process of that name only after checking its pid.
+#
 #   1. `inkup serve` hosts A, with a Session in its DB. The app on A comes up as its client and reads that Session.
 #   2. Quit serve: the window shows "The InkUp host stopped"; its "Host here" button makes the app host A.
 #   3. The app hosts A. A second launch on A exits 0 and the first brings its window forward.
@@ -46,6 +51,16 @@ wait_for() {
   for _ in $(seq 150); do grep -q "$2" "$1" 2>/dev/null && return 0; sleep 0.1; done
   return 1
 }
+# A copy of the app binary named for this run and launch, $1: its process name is unique on the machine. A clone
+# where the file system can (APFS), so it costs no space.
+instance() {
+  local copy="$WORK/bin/inkup-smoke-$$-$1"
+  mkdir -p "$WORK/bin"
+  cp -c "$APP" "$copy" 2>/dev/null || cp "$APP" "$copy"
+  echo "$copy"
+}
+# The process name System Events knows pid $1 by: its executable's file name.
+process_name() { basename "$(ps -p "$1" -o comm=)"; }
 field() { node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync('$1/host.json','utf8')).$2))"; }
 # GET /api/host/state with the control token: what the app's window reads through its commands.
 state() {
@@ -54,15 +69,19 @@ state() {
 
 # Presses the button titled $2 in the window of pid $1 (AXPress), once it shows: up to 15 s.
 press_button() {
+  local name
+  name="$(process_name "$1")"
   for _ in $(seq 30); do
-    osascript - "$1" "$2" <<'OSA' | grep -q '^pressed' && return 0
+    osascript - "$1" "$name" "$2" <<'OSA' | grep -q '^pressed' && return 0
 on run argv
   tell application "System Events"
-    set els to entire contents of window 1 of (first process whose unix id is ((item 1 of argv) as integer))
+    set p to application process (item 2 of argv)
+    if unix id of p is not ((item 1 of argv) as integer) then return "not that process"
+    set els to entire contents of window 1 of p
     repeat with i from 1 to count of els
       set el to item i of els
       try
-        if value of attribute "AXRole" of el is "AXButton" and value of attribute "AXTitle" of el is (item 2 of argv) then
+        if value of attribute "AXRole" of el is "AXButton" and value of attribute "AXTitle" of el is (item 3 of argv) then
           perform action "AXPress" of el
           return "pressed"
         end if
@@ -78,17 +97,20 @@ OSA
 }
 # The tray menu of pid $1: presses item $2 when given, else prints each item as name|enabled|check mark.
 tray() {
-  osascript - "$@" <<'OSA'
+  local pid="$1"
+  shift
+  osascript - "$pid" "$(process_name "$pid")" "$@" <<'OSA'
 on run argv
   tell application "System Events"
-    tell (first process whose unix id is ((item 1 of argv) as integer))
+    tell application process (item 2 of argv)
+      if unix id is not ((item 1 of argv) as integer) then return "not that process"
       set bar to menu bar item 1 of (last menu bar)
       click bar
       delay 0.4
       set m to menu 1 of bar
-      if (count of argv) > 1 then
-        click menu item (item 2 of argv) of m
-        return "pressed " & (item 2 of argv)
+      if (count of argv) > 2 then
+        click menu item (item 3 of argv) of m
+        return "pressed " & (item 3 of argv)
       end if
       set out to ""
       repeat with entry in menu items of m
@@ -126,7 +148,7 @@ node --input-type=module -e "
   };
   setTimeout(() => { console.error('no ack'); process.exit(1); }, 10000);
 " || fail "could not record a Session on A"
-start "$APP" --data-dir "$A" --port 0 >"$WORK/app-client.log" 2>&1
+start "$(instance client)" --data-dir "$A" --port 0 >"$WORK/app-client.log" 2>&1
 PIDS+=($!)
 CLIENT=$!
 if wait_for "$WORK/app-client.log" "Client of inkup serve on 127.0.0.1:$PORT_A"; then
@@ -164,11 +186,11 @@ kill "$CLIENT"
 wait "$CLIENT" 2>/dev/null
 
 echo "== 3. the app hosts A; a second launch brings it forward and exits 0"
-start "$APP" --data-dir "$A" --port 0 >"$WORK/app-a.log" 2>&1
+start "$(instance a)" --data-dir "$A" --port 0 >"$WORK/app-a.log" 2>&1
 PIDS+=($!)
 wait_for "$WORK/app-a.log" "Hosting on" && pass "the app hosts A ($(grep -o 'Hosting on [0-9.:]*' "$WORK/app-a.log"))" \
   || fail "the app did not host A: $(cat "$WORK/app-a.log")"
-run "$APP" --data-dir "$A" --port 0 >"$WORK/app-a2.log" 2>&1
+run "$(instance a2)" --data-dir "$A" --port 0 >"$WORK/app-a2.log" 2>&1
 code=$?
 [ "$code" = 0 ] && grep -q "InkUp is already running (desktop app" "$WORK/app-a2.log" \
   && pass "second launch exited $code: $(grep 'already running' "$WORK/app-a2.log")" \
@@ -177,7 +199,7 @@ wait_for "$WORK/app-a.log" "another launch asked for the window" && pass "the fi
   || fail "the first app was not asked to come forward"
 
 echo "== 4. an app on B runs alongside"
-start "$APP" --data-dir "$B" --port 0 >"$WORK/app-b.log" 2>&1
+start "$(instance b)" --data-dir "$B" --port 0 >"$WORK/app-b.log" 2>&1
 PIDS+=($!)
 if wait_for "$WORK/app-b.log" "Hosting on" && [ "$(field "$B" kind)" = desktop ] \
   && [ "$(field "$B" port)" != "$(field "$A" port)" ]; then
@@ -200,7 +222,7 @@ done
   && pass "the app's window came forward for the TUI" || fail "the TUI did not bring the app forward"
 
 echo "== 6. the Dock toggle, from the tray, survives Quit and a relaunch"
-# System Events finds a process by name, so with two apps up it may drive the other one's tray: A goes first.
+# The app on A quits first, so B's tray is the only InkUp one in the menu bar.
 APP_A="$(field "$A" pid)"
 kill "$APP_A"
 wait "$APP_A" 2>/dev/null
@@ -218,7 +240,7 @@ if ! kill -0 "$APP_B" 2>/dev/null && [ ! -e "$B/host.json" ]; then
 else
   fail "Quit InkUp left the app or host.json behind ($pressed)"
 fi
-start "$APP" --data-dir "$B" --port 0 >"$WORK/app-b2.log" 2>&1
+start "$(instance b2)" --data-dir "$B" --port 0 >"$WORK/app-b2.log" 2>&1
 PIDS+=($!)
 APP_B=$!
 if wait_for "$WORK/app-b2.log" "menu bar on, Dock off"; then
