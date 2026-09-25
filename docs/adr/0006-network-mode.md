@@ -44,8 +44,9 @@ device name, its IP, a 6-digit code, and a terminal QR code of `inkup://pair?url
 The Client asks its user for the code (typed, scanned, or pasted as the link) and connects again with
 `hello{pairing_code}`, which gets `paired` then `welcome`. A code lasts 2 minutes. Every wrong code counts against every
 waiting code, and the fifth refuses it (`pairing_denied`), so guessing across several requests gains nothing. At most 4
-codes wait at once, so hellos from the LAN cannot flood the TUI. The user can refuse a code early (n or Esc). Pairing
-from this machine is unchanged (y/n).
+codes wait at once, one per machine, so hellos from the LAN cannot flood the TUI: a machine that asks again gets a new
+code in place of its last one. The user can refuse a code early (n or Esc). Pairing from this machine is unchanged
+(y/n).
 
 **`--auto-approve-pairing` stays loopback-only.** With `--network` it is refused, unless the hidden test flag
 `--print-pairing-codes` is also given. That flag prints each code as a `pairing code: <code>` stdout line for e2e
@@ -89,6 +90,9 @@ harnesses. Even then a Client on another machine pairs only with its code.
   let the extension's own origin reach a LAN address with no Local Network Access prompt (`docs/browsers.md`).
 - 2026-09-23 (E14 review): the guard fails closed. A request with no known peer address used to count as loopback and
   needed no token; it now counts as another machine.
+- 2026-09-25: a machine's codes stacked, so its fifth ask within two minutes (Connect clicked again while nobody read
+  the code, say with the desktop window hidden) was refused as `pairing_denied`, which the extension shows as "Pairing
+  was declined at the host" though nobody declined. Now each machine has one waiting code, its newest.
 
 ## Sources
 

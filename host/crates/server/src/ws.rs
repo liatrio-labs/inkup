@@ -366,7 +366,7 @@ impl Connection {
     /// Shows a new code on the Host for a Client on another machine, and tells the Client to come back with it.
     fn issue_code(&self, re: &str, kind: String, name: String) -> Refusal {
         let (mut request, decision) = PairingRequest::new(kind, name);
-        let Some((id, code)) = self.state.codes.issue(decision) else {
+        let Some((id, code)) = self.state.codes.issue(self.peer.ip, decision) else {
             return Refusal::new(
                 Some(re),
                 ErrorCode::PairingDenied,

@@ -162,6 +162,24 @@ async fn five_wrong_codes_refuse_the_request() {
     assert_eq!(code_error(&hello_with_code(&host, &code).await), ErrorCode::PairingTimeout);
 }
 
+/// A Client that asks again (Connect clicked again, the options page reopened, the window hidden so nobody read the
+/// code) gets a new code in place of its last one. Its codes used to stack, and its fifth ask within two minutes was
+/// answered `pairing_denied` though nobody refused it: "Pairing was declined at the host".
+#[tokio::test]
+async fn asking_again_replaces_the_code_and_is_never_denied() {
+    let mut host = Host::start_with(remote()).await;
+    let mut requests = host.server.take_pairing_requests().unwrap();
+    let mut asked = Vec::new();
+    for _ in 0..6 {
+        asked.push(ask_for_a_code(&host, &mut requests).await);
+    }
+    let newest = asked.pop().unwrap();
+    assert!(asked.iter().all(PairingRequest::is_cancelled), "only the newest code shows");
+    let ServerMessage::PairedMessage(_) = hello_with_code(&host, &newest.remote.clone().unwrap().code).await else {
+        panic!("expected paired with the newest code");
+    };
+}
+
 #[tokio::test]
 async fn a_code_expires() {
     let mut host = Host::start_with(Config { pairing_code_ttl: Duration::from_millis(300), ..remote() }).await;
