@@ -41,6 +41,39 @@ To load it, open `chrome://extensions`, turn on Developer mode, click "Load unpa
 onboarding tab opens on install and asks for the microphone. Then open a page, click the extension's icon to show the
 toolbar, and click Start.
 
+## The host and the desktop app
+
+The extension works alone. Pair it with a host to keep Sessions in one store across browsers and to hand Change
+Items to coding agents over MCP (`docs/adr/0004-rust-host-with-extension-clients.md`). There are three ways to run
+the host, and all three are the same server on the same data dir:
+
+| Run | What you get |
+| --- | --- |
+| `inkup` | The TUI in a terminal: Clients, Sessions, Timeline, Items, Agents and Tokens, with pairing asked there |
+| `inkup serve` | The server with no UI, for scripts and services. Pairing is asked on the terminal |
+| The desktop app (`apps/desktop`) | The same six views in a window, plus a menu bar and Dock icon. Pairing is asked in the window |
+
+Only one host runs per data dir. The first one takes the lock and writes `host.json` with its port. What starts
+second depends on what it is (`docs/adr/0025-desktop-app-host-lock-and-control-api.md`):
+
+- A second `inkup` or `inkup serve` says which host is running and exits 1. If the running host is the desktop app,
+  the app's window also comes forward.
+- The desktop app next to `inkup` or `inkup serve` becomes their window: it shows that host and drives it. It never
+  takes over on its own. When that host stops, the window says so, and **Host here** makes the app the host.
+- A second desktop app brings the first one's window forward and exits.
+
+The app is a prototype and has no release build yet. To run it from a checkout:
+
+```sh
+pnpm desktop:dev                                   # the app with hot reload for its UI, on your data dir
+pnpm desktop:app                                   # macOS: a debug InkUp.app in apps/desktop/src-tauri/target/debug/bundle/macos/
+pnpm desktop:build                                 # any OS: a debug build, apps/desktop/src-tauri/target/debug/inkup-desktop
+```
+
+Closing the window hides it, and the app keeps hosting. **Quit InkUp** in the menu bar menu stops it. **Show in Menu
+Bar** and **Show in Dock**, in the menu and in the window's header, choose where its icons show. One of them always
+stays on. Both are saved under `[desktop]` in `config.toml` in the data dir.
+
 ## Develop
 
 The repo is a pnpm workspace:
@@ -49,6 +82,9 @@ The repo is a pnpm workspace:
 | --- | --- |
 | `packages/core` | `@inkup/core`: the pure TypeScript domain (timeline, grouping, shapes, Candidates, Process, export, the Zod schemas). No browser APIs, no DOM |
 | `extensions/web` | The WXT extension (package `inkup`). Browser-specific calls sit behind `src/platform` |
+| `packages/protocol` | `@inkup/protocol`: the Zod schemas of the host's wire protocol and its control API |
+| `host/` | The Rust host (a cargo workspace): the `inkup` binary, its server, store and TUI |
+| `apps/desktop` | The Tauri desktop app: a React and shadcn/ui window in `ui/`, and its own cargo workspace in `src-tauri/` that builds the host's crates |
 | `scripts/`, `fixtures/`, `tests/e2e`, `tests/support` | Repo-level scripts, the fixture site and data, the Playwright e2e and shared test stubs |
 | `docs/` | PRD, plan, ADRs, the generated `session.json` schema |
 
@@ -65,7 +101,9 @@ its own, use `pnpm -C packages/core test` or `pnpm -C extensions/web test`.
 | `pnpm build:firefox`, `pnpm zip:firefox` | The same for Firefox (`firefox-mv3`). What each browser can do is in `docs/browsers.md` |
 | `pnpm typecheck` | `tsc --noEmit` in each package, then the repo-level scripts and tests |
 | `pnpm fixtures:serve` | The fixture site on `http://localhost:4401` and `http://127.0.0.1:4402` |
-| `pnpm schema` | Regenerates the Session and wire protocol JSON Schemas in `contract/` |
+| `pnpm schema` | Regenerates the Session, wire protocol and control API JSON Schemas in `contract/` |
+| `pnpm host:build` | The `inkup` host, a debug build in `host/target/debug/inkup` |
+| `pnpm desktop:dev`, `pnpm desktop:build`, `pnpm desktop:app` | The desktop app: dev with hot reload, a debug build, or a debug `InkUp.app` on macOS |
 | `pnpm validate:session <file>` | Validates an exported `session.json` against the schema |
 | `pnpm metrics <dir>` | PRD §8 metrics over a folder of exported `session.json` files |
 | `pnpm fixtures:sessions` | Regenerates the Process fixtures in `fixtures/sessions/` |
@@ -75,7 +113,7 @@ its own, use `pnpm -C packages/core test` or `pnpm -C extensions/web test`.
 
 | Command | What it runs |
 | --- | --- |
-| `pnpm test` | Vitest unit and adapter tests across `packages/core`, `extensions/web` and the repo, with stand-in models and stub servers |
+| `pnpm test` | Vitest unit and adapter tests across `packages/core`, `extensions/web`, the desktop app's UI and the repo, with stand-in models and stub servers |
 | `pnpm test:e2e` | Builds, then Playwright in headless Chromium with the extension loaded, fake media and local stubs for every vendor |
 | `pnpm test:e2e:firefox` | Builds the Firefox add-on and runs `tests/e2e-firefox` in Playwright's Firefox (the add-on is installed over Firefox's remote debugging protocol) |
 | `pnpm test:e2e:whisper` | The local Whisper e2e, which downloads a real model from Hugging Face |
