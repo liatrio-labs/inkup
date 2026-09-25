@@ -19,6 +19,13 @@ cannot map the stream back to a tab id.
   wrong pick makes video and screenshots disagree. The panel shows the picked surface's label to make this visible.
 - The `tabCapture` path from the toolbar icon is kept as P1-5 and is the fallback if the picker path regresses.
 
+## History
+
+- 2026-09-23 (E1): the `tabCapture` path shipped for Sessions started from the page's floating toolbar or Alt+Shift+R
+  in Chrome, where no panel click can open the picker. The panel keeps the picker. ADR 0010 has the per-browser rules.
+- 2026-09-24 (#41): when Chrome refuses `tabCapture` on a toolbar Start, a small extension window opens the same picker
+  (ADR 0010).
+
 ## Sources
 
 - <https://developer.chrome.com/docs/extensions/how-to/web-platform/screen-capture>

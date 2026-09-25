@@ -88,3 +88,13 @@ half exists today, so this step only records the place.
 - A user who updates a Homebrew copy with "self" has two copies until they uninstall one; `inkup update` says so.
 - zizmor findings that come from dist's template are ignored for `inkup-v-release.yml` only, each with its reason in
   `.github/zizmor.yml`. Upgrading dist means re-reading those findings.
+
+## History
+
+- 2026-09-24 (#36): the three trains shipped. dist's `tag-namespace` is `inkup-v`, not `inkup`: dist turns it into the
+  trigger glob, and `inkup` would also catch the extension tags. `pr-run-mode = "skip"`, so dist does not run on every
+  pull request; `host-dist-check.yml` runs only when the release config changes and is not part of `ci-ok`. The Firefox
+  AMO upload sits behind a `firefox-amo` environment and skips when its secrets are unset.
+- 2026-09-24 (#39): `inkup update` and the daily check shipped on axoupdater 0.10. The version check ignores the
+  receipt, so Homebrew and dev copies get the notice too; only installing needs it. The `[update]` table is written
+  from the `inkup` crate with `toml_edit`, so the store crate is unchanged.

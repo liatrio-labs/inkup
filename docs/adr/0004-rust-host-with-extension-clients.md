@@ -54,8 +54,9 @@ the extension's code), or needs its own entrypoints or UI, that browser moves to
   `crates/protocol/src/generated.rs` (typify). Both are guarded by tests, and CI runs cargo on macOS, Windows and Linux.
 - Trust (loopback only, Host header check, pairing tokens, unauthenticated MCP) is in ADR 0005.
 - A Session started from the page's floating toolbar or the shortcut (E1) is owned by the service worker alone: closing
-  the panel stops only a Session the panel started, and the panel is optional in every browser (`docs/decisions-log.md`
-  E1).
+  the panel stops only a Session the panel started, and the panel is optional in every browser (ADR 0010).
+- How a Session reaches the Host (the outbox, discards, Forget and backfill) is ADR 0020; what agents do with it over
+  MCP is ADR 0021.
 
 ## Sources
 
