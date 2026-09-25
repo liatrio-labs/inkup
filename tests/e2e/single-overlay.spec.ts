@@ -56,7 +56,14 @@ test('a tab loading at install shows one overlay host and one toolbar; after an 
     const cdp = await browser.browserSession();
     await cdp.send('Target.createTarget', { url });
     const page = await browser.waitForTarget((t) => t.type === 'page' && t.url === url);
-    expect(await page.evaluate<string>('document.readyState')).toBe('loading');
+    // The target lists its URL before the navigation commits, while the tab still holds its initial about:blank, whose
+    // readyState is already "complete". Wait for the slow page's own document.
+    const state = await poll(
+      () => page.evaluate<string | null>(`location.href === '${url}' ? document.readyState : null`),
+      (s) => s !== null,
+      'the slow page to commit',
+    );
+    expect(state).toBe('loading');
 
     // Install while the page is loading: onInstalled injects into it, and the manifest's script runs there too.
     const loaded = await cdp.send<{ id: string }>('Extensions.loadUnpacked', { path: EXTENSION_PATH });

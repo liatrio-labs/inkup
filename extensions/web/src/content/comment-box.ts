@@ -164,7 +164,8 @@ export class CommentBox {
     this.mic.hidden = mode === null;
     this.lastActivity = Date.now();
     this.box.hidden = false;
-    this.reposition();
+    // Placed now, before the next frame: the box is never painted where it last was (or at the top left).
+    this.place();
     this.input.focus();
     if (mode === 'auto') this.startDictation();
   }
@@ -241,25 +242,30 @@ export class CommentBox {
     this.box.remove();
   }
 
-  /** Below the anchor (above it when there is no room), kept on screen. */
+  /** On the next frame (a scroll, a resize, the text growing): below the anchor, or above it. */
   reposition = () => {
     if (this.raf || this.box.hidden) return;
     this.raf = requestAnimationFrame(() => {
       this.raf = 0;
-      const at = this.anchor?.();
-      if (!at || this.box.hidden) return;
-      const { rect, align } = at;
-      const { width, height } = this.box.getBoundingClientRect();
-      const x = Math.max(8, Math.min(align === 'end' ? rect.right - width : rect.left, window.innerWidth - width - 8));
-      const below = rect.bottom + GAP;
-      const y = below + height + 8 <= window.innerHeight ? below : Math.max(8, rect.top - height - GAP);
-      this.box.style.left = `${Math.round(x)}px`;
-      this.box.style.top = `${Math.round(y)}px`;
-      // Light over a dark page, dark over a light one (E8).
-      const host = (this.box.getRootNode() as ShadowRoot).host;
-      if (host) this.box.dataset.theme = themeFor(new DOMRect(x, y, width, height), host);
+      this.place();
     });
   };
+
+  /** Below the anchor (above it when there is no room), kept on screen. */
+  private place(): void {
+    const at = this.anchor?.();
+    if (!at || this.box.hidden) return;
+    const { rect, align } = at;
+    const { width, height } = this.box.getBoundingClientRect();
+    const x = Math.max(8, Math.min(align === 'end' ? rect.right - width : rect.left, window.innerWidth - width - 8));
+    const below = rect.bottom + GAP;
+    const y = below + height + 8 <= window.innerHeight ? below : Math.max(8, rect.top - height - GAP);
+    this.box.style.left = `${Math.round(x)}px`;
+    this.box.style.top = `${Math.round(y)}px`;
+    // Light over a dark page, dark over a light one (E8).
+    const host = (this.box.getRootNode() as ShadowRoot).host;
+    if (host) this.box.dataset.theme = themeFor(new DOMRect(x, y, width, height), host);
+  }
 
   private onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {

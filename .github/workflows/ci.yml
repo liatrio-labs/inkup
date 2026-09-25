@@ -194,9 +194,12 @@ jobs:
       # Builds the extension (and the host), then runs every spec headless
       # against bundled Chromium with fake media. Live-API evals and the
       # Whisper download spec are opt-in and never run here.
+      # One Chromium log per test (tests/e2e/fixtures.ts), kept with the report on failure: a renderer crash
+      # otherwise leaves only a timeout.
       - env:
           SHARD: ${{ matrix.shard }}
-        run: pnpm test:e2e --shard="$SHARD/3"
+          E2E_CHROME_LOG_DIR: ${{ github.workspace }}/chrome-logs
+        run: mkdir -p chrome-logs && pnpm test:e2e --shard="$SHARD/3"
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -204,6 +207,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            chrome-logs/
           retention-days: 7
 
   # The Firefox build of extensions/web: the add-on zip, and the Firefox e2e (the add-on is installed over

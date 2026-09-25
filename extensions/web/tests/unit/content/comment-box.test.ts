@@ -101,3 +101,25 @@ describe('CommentBox dictation', () => {
     ]);
   });
 });
+
+// A box is placed as it opens, not on the next animation frame: until then it would show where it last was, or at the
+// top left of the page.
+describe('CommentBox placement', () => {
+  it('sits under its anchor as soon as it opens', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const b = new CommentBox(container, {
+      testid: 'b',
+      inputTestid: 'b-input',
+      label: 'x',
+      placeholder: 'x',
+      hint: 'x',
+      onSave: vi.fn(),
+      onCancel: vi.fn(),
+    });
+    b.open(() => ({ rect: new DOMRect(40, 100, 120, 30), align: 'start' }));
+    expect(b.box.style.left).toBe('40px');
+    expect(b.box.style.top).toBe('136px');
+    container.remove();
+  });
+});

@@ -143,6 +143,12 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
       ignoreDefaultArgs,
       args: chromiumArgs({ fakeAudio, captureSourceTitle, extraArgs: [...extraArgs, ...logArgs], extraExtensions }),
     });
+    // A crashed renderer otherwise shows up only as a wait that times out (e.g. Stop's review tab never opening, as
+    // the extension's pages and worker share one process): name it in the report.
+    const onCrash = (page: Page) =>
+      page.on('crash', () => info.annotations.push({ type: 'renderer crashed', description: page.url() }));
+    context.pages().forEach(onCrash);
+    context.on('page', onCrash);
     await use(context);
     await context.close();
   },
