@@ -279,10 +279,6 @@ test('capture the site media: toolbar, Stroke, Draft Items, Change Items and the
     await circle(pen, (await demo.locator('button.cta').boundingBox())!, 1.25, { jitter: 1, wobble: 3, seed: 7 });
     const circledAt = Date.now();
     const shots = [await shoot(demo, 'stroke')];
-    // Its caption reaches the toolbar's toast once the ink has faded: the toolbar mid-Session.
-    await expect(demo.getByTestId('toolbar-toast')).toHaveText(NOTES[0].transcript, { timeout: 15_000 });
-    await demo.waitForTimeout(400);
-    shots.push(await shoot(demo, 'toolbar-recording'));
 
     // Note 2: an arrow at the end of the headline's first line.
     await sleepUntil(startedAt + 7600);
@@ -292,7 +288,11 @@ test('capture the site media: toolbar, Stroke, Draft Items, Change Items and the
       wobble: 3,
       seed: 3,
     });
-    const arrowedAt = Date.now();
+    // Its caption reaches the toolbar's toast: the toolbar mid-Session.
+    await expect(demo.getByTestId('toolbar-toast')).toHaveText(NOTES[1].transcript, { timeout: 15_000 });
+    const captionedAt = Date.now();
+    await demo.waitForTimeout(300);
+    shots.push(await shoot(demo, 'toolbar-recording'));
 
     // Note 3: circle the Pro price.
     await sleepUntil(startedAt + 12_800);
@@ -312,7 +312,6 @@ test('capture the site media: toolbar, Stroke, Draft Items, Change Items and the
     const review = await reviewPromise;
     await expect(toolbar).toHaveAttribute('data-state', 'idle', { timeout: 30_000 });
     await demo.waitForTimeout(1500);
-    const doneAt = Date.now();
     await demo.close();
     const raw = join(VIDEO_DIR, 'review-flow-raw.webm');
     await demo.video()!.saveAs(raw);
@@ -321,14 +320,19 @@ test('capture the site media: toolbar, Stroke, Draft Items, Change Items and the
     await review.getByTestId('process-button').click();
     await review.getByTestId('process-confirm').click();
     await expect(review.getByTestId('change-item')).toHaveCount(3, { timeout: 30_000 });
-    await review.evaluate(() => document.getElementById('change-items')?.scrollIntoView({ block: 'start' }));
+    // The Change Items heading, with some room above it.
+    await review.evaluate(() => {
+      const heading = document.getElementById('change-items')!;
+      window.scrollTo(0, heading.getBoundingClientRect().top + window.scrollY - 64);
+    });
     await review.waitForTimeout(500);
     shots.push(await shoot(review, 'review'));
 
-    // Start, the first two notes, then Stop: about 11 s.
+    // Start, the first two notes and their captions, then Stop: at most 12 s.
+    const from = at(startedAt) - 0.5;
     const cuts: [number, number][] = [
-      [at(startedAt) - 0.8, at(arrowedAt) + 1.0],
-      [at(stoppedAt) - 0.5, at(doneAt) - 0.2],
+      [from, Math.min(at(captionedAt) + 0.6, from + 10.2)],
+      [at(stoppedAt) - 0.3, at(stoppedAt) + 1.5],
     ];
     const clip = encodeClip(raw, cuts, at(circledAt) - cuts[0]![0] + 0.1);
     record([...shots, ...clip]);
