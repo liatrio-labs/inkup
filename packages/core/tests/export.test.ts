@@ -226,7 +226,7 @@ describe('planExport', () => {
   });
 
   it('names the zip after the date and start page', () => {
-    expect(exportFileName(sample())).toMatch(/^review-\d{4}-\d\d-\d\d-[a-z0-9-]+\.zip$/);
+    expect(exportFileName(sample())).toMatch(/^review-\d{4}-\d\d-\d\d-\d{4}-[a-z0-9-]+\.zip$/);
   });
 });
 

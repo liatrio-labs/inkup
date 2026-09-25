@@ -3,7 +3,9 @@
 //
 //   review.md · session.json · screenshots/<id>.png (and <id>.crop.png, element crops) · audio.webm · recording.webm
 //   (only with video)
+import { localStamp } from '../clock.ts';
 import { screenshotCitation } from '../process/change-item.ts';
+import { sessionName } from '../review-edits.ts';
 import { type SessionDocument, screenshotPath } from '../session-document.ts';
 import { renderReviewMarkdown } from './review-md.ts';
 
@@ -70,13 +72,13 @@ export function planExport(doc: SessionDocument): ExportPlan {
   return { files, issues };
 }
 
-/** review-2026-09-22-pricing-fixture.zip */
+/** review-2026-09-22-1405-pricing-fixture.zip: the Session's local start time and its name. */
 export function exportFileName(doc: SessionDocument): string {
-  const slug = (doc.session.start_title || doc.session.start_url)
+  const slug = sessionName(doc.session, doc.events)
     .toLowerCase()
     .replace(/https?:\/\//, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 40);
-  return `review-${doc.session.started_at.slice(0, 10)}-${slug || doc.session.id.slice(0, 8)}.zip`;
+  return `review-${localStamp(doc.session.started_at)}-${slug || doc.session.id.slice(0, 8)}.zip`;
 }
