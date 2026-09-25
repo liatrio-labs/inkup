@@ -1,5 +1,7 @@
 // Process and the Change Item list on the review page (PRD P0-11, P0-12).
-// - Process: estimate → confirm → run, with the failure kept off the Session. While it runs, read-only cards show
+// - Process: estimate → confirm → run, with the failure kept off the Session. Under the reviewer's auto-run threshold
+//   (options) the confirm step is skipped, except when the price is unknown, a call is near a model limit (the
+//   amber warning), or the run would replace existing items (Process again). While it runs, read-only cards show
 //   each chunk's items as they stream in (the processProgress table); the final merged list replaces them.
 // - Items: low-confidence first with a "check me" badge; inline edit of title, intent and category; delete;
 //   split (a copy to edit); merge two selected items; drag to reorder (@dnd-kit/react). Every change is an
@@ -16,7 +18,7 @@
 import { DragDropProvider } from '@dnd-kit/react';
 import { isSortable, useSortable } from '@dnd-kit/react/sortable';
 import { type ChangeItem, isLowConfidence, type Location } from '@inkup/core/process/change-item';
-import { type CostEstimate, formatUsd } from '@inkup/core/process/cost';
+import { type CostEstimate, formatUsd, type LimitWarning, shouldAutoRun } from '@inkup/core/process/cost';
 import { mergeSources, nextItemId, undoState } from '@inkup/core/review-edits';
 import { Category, type ItemEditOp } from '@inkup/core/timeline';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -34,15 +36,28 @@ import { latestResolutions } from '@/db/resolutions';
 import { appendReviewEvent } from '@/db/review';
 import { timeAgo, useNow } from '@/lib/time-ago';
 import { useRoleHasKey } from '@/lib/use-role-key';
+import { useStorageItem } from '@/lib/use-storage-item';
 import { cn } from '@/lib/utils';
 import { sendMessage } from '@/messaging';
+import { normalizeProcessingSettings, processingSettings } from '@/settings';
 
 type Phase =
   | { kind: 'idle' }
   | { kind: 'estimating' }
-  | { kind: 'confirm'; estimate: CostEstimate }
+  | { kind: 'confirm'; estimate: CostEstimate; warnings: LimitWarning[] }
   | { kind: 'running' }
   | { kind: 'error'; message: string };
+
+const tokens = (n: number) => n.toLocaleString('en-US');
+
+/** "Part 2 of 4 is about 190,000 input tokens, 95% of …'s 200,000-token context window." */
+function limitText(w: LimitWarning, model: string): string {
+  const which = w.chunks > 1 ? `Part ${w.chunk} of ${w.chunks}` : 'This run';
+  const share = `${Math.round((w.tokens / w.max) * 100)}%`;
+  return w.limit === 'context_window'
+    ? `${which} is about ${tokens(w.tokens)} input tokens, ${share} of ${model}'s ${tokens(w.max)}-token context window. It may be refused or cut short.`
+    : `${which} may need about ${tokens(w.tokens)} output tokens, ${share} of ${model}'s ${tokens(w.max)}-token output limit. Its answer may be cut short.`;
+}
 
 const ROLE_LABEL = { subject: 'Subject', reference: 'Reference', destination: 'Destination' } as const;
 
@@ -60,15 +75,25 @@ export function ProcessSection({
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const running = phase.kind === 'running' || latest?.status === 'running';
   const hasKey = !!useRoleHasKey('process');
+  const threshold = normalizeProcessingSettings(useStorageItem(processingSettings)).autoRunBelowUsd;
+  /** The estimate of the last run that started without asking; cleared by the next estimate. */
+  const [autoRan, setAutoRan] = useState<{ usd: number; threshold: number } | null>(null);
 
   async function estimate() {
+    setAutoRan(null);
     setPhase({ kind: 'estimating' });
     const r = await sendMessage('estimateProcess', sessionId).catch((e: unknown) => ({
       ok: false as const,
       code: 'api',
       error: String(e),
     }));
-    setPhase(r.ok ? { kind: 'confirm', estimate: r.estimate } : { kind: 'error', message: r.error });
+    if (!r.ok) return setPhase({ kind: 'error', message: r.error });
+    const { estimate: est, warnings } = r;
+    if (shouldAutoRun({ usd: est.usd, threshold, done: !!done, warnings }) && threshold !== undefined) {
+      setAutoRan({ usd: est.usd!, threshold });
+      return run(est);
+    }
+    setPhase({ kind: 'confirm', estimate: est, warnings });
   }
 
   async function run(est: CostEstimate | null) {
@@ -145,6 +170,11 @@ export function ProcessSection({
               (prices as of {phase.estimate.prices_as_of}; unsure items cost a little more)
             </span>
           </p>
+          {phase.warnings.map((w) => (
+            <p key={w.limit} className="w-full text-amber-700" data-testid="process-limit-warning">
+              {limitText(w, phase.estimate.model)}
+            </p>
+          ))}
           {done && (
             <p className="w-full text-muted-foreground">
               Processing again replaces the items below, and your edits to them, with a fresh list. Transcript edits are
@@ -162,6 +192,12 @@ export function ProcessSection({
         </div>
       )}
 
+      {autoRan && (
+        <p className="text-muted-foreground" data-testid="process-auto-ran">
+          Estimated {formatUsd(autoRan.usd)}, under your ${autoRan.threshold.toFixed(2)} limit:{' '}
+          {running ? 'processing…' : 'processed without asking.'}
+        </p>
+      )}
       {running && (
         <p role="status" data-testid="process-running">
           {hasKey

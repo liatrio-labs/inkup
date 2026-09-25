@@ -4,16 +4,20 @@
 import { readFileSync } from 'node:fs';
 import type { Page, Worker } from '@playwright/test';
 import { SessionDocumentSchema } from '../../packages/core/src/session-document.ts';
+import { buildLongSession } from '../../scripts/gen-long-session.ts';
 import {
   type AnthropicStub,
+  DEFAULT_STUB_MODELS,
   errorReply,
   messageReply,
   type StubRequest,
   scriptOf,
   startAnthropicStub,
 } from '../support/anthropic-stub';
+import { scriptModel } from '../support/script-model';
 import { expect, grantMic, test, useScriptedTranscript } from './fixtures';
 import { circle } from './helpers/draw';
+import { seedSession } from './helpers/seed';
 
 test.use({ fakeAudio: 'review-two-notes.wav' });
 
@@ -291,6 +295,147 @@ test('Process: estimate, confirm, Change Items with badges, overlay and agent pr
     expect(doc.change_items?.map((i) => i.id)).toEqual(['item_0002', 'item_0001']);
     expect(doc.change_items![1]!.evidence.screenshots).toEqual([shotId]);
     expect(JSON.stringify(doc)).not.toContain('sk-ant-');
+  } finally {
+    await stub.close();
+  }
+});
+
+/** A short seeded Session (one Process call) on the review page, with a key and the stub; nothing recorded. */
+async function openShortSession(
+  serviceWorker: Worker,
+  openExtensionPage: (path: string) => Promise<Page>,
+  stub: AnthropicStub,
+  autoRunBelowUsd?: number,
+) {
+  await serviceWorker.evaluate(
+    async ({ base, autoRunBelowUsd }) => {
+      const { devOverrides } = await chrome.storage.local.get('devOverrides');
+      await chrome.storage.local.set({
+        anthropicKey: 'sk-ant-e2e-stub-key',
+        anthropicNoticeShown: true,
+        devOverrides: { ...(devOverrides ?? {}), anthropicBaseUrl: base },
+        processingSettings: autoRunBelowUsd === undefined ? {} : { autoRunBelowUsd },
+      });
+    },
+    { base: stub.baseURL, autoRunBelowUsd },
+  );
+  const { doc } = buildLongSession({ minutes: 3 });
+  const blank = await openExtensionPage('sessions.html');
+  await expect
+    .poll(() => blank.evaluate(async () => (await indexedDB.databases()).some((d) => d.name === 'inkup')))
+    .toBe(true);
+  await seedSession(blank, doc);
+  await blank.close();
+  const review = await openExtensionPage(`review.html?session=${doc.session.id}`);
+  await expect(review.getByTestId('annotation').first()).toBeVisible();
+  return review;
+}
+
+const scriptedStub = (more: Omit<Parameters<typeof startAnthropicStub>[0], 'onMessage'> = {}) =>
+  startAnthropicStub({ ...more, onMessage: (req) => messageReply(MODEL, JSON.stringify(scriptModel(scriptOf(req)))) });
+
+test('Process runs without asking under the options threshold, and still asks to Process again', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(90_000);
+  const stub = await scriptedStub();
+  try {
+    const review = await openShortSession(serviceWorker, openExtensionPage, stub);
+
+    // The threshold is set on the options page and saved with the rest of Processing.
+    const options = await openExtensionPage('options.html');
+    await expect(options.getByTestId('auto-run-below')).toHaveValue('');
+    await options.getByTestId('auto-run-below').fill('0.50');
+    await options.getByTestId('save-processing').click();
+    await expect(options.getByRole('status')).toHaveText('Saved.');
+    expect(
+      await serviceWorker.evaluate(
+        async () =>
+          ((await chrome.storage.local.get('processingSettings')).processingSettings as { autoRunBelowUsd?: number })
+            .autoRunBelowUsd,
+      ),
+    ).toBe(0.5);
+    await options.reload();
+    await expect(options.getByTestId('auto-run-below')).toHaveValue('0.5');
+    await options.close();
+
+    // ~$0.04 is under $0.50: one click runs it, with no confirm step.
+    await review.bringToFront();
+    await review.getByTestId('process-button').click();
+    await expect(review.getByTestId('process-auto-ran')).toContainText('under your $0.50 limit: process');
+    await expect(review.getByTestId('process-estimate')).toHaveCount(0);
+    await expect(review.getByTestId('change-item').first()).toBeVisible({ timeout: 30_000 });
+    await expect(review.getByTestId('process-auto-ran')).toHaveText(
+      /^Estimated \$0\.0\d{3}, under your \$0\.50 limit: processed without asking\.$/,
+    );
+    expect(stub.messages().length).toBeGreaterThan(0);
+
+    // Process again replaces the items and their edits: it asks, even under the threshold.
+    await expect(review.getByTestId('process-button')).toHaveText('Process again');
+    const sent = stub.messages().length;
+    await review.getByTestId('process-button').click();
+    await expect(review.getByTestId('process-estimate')).toContainText('replaces the items below');
+    await expect(review.getByTestId('process-confirm')).toBeVisible();
+    expect(stub.messages().length).toBe(sent);
+  } finally {
+    await stub.close();
+  }
+});
+
+test('Process asks when the estimate is over the threshold', async ({ serviceWorker, openExtensionPage }) => {
+  const stub = await scriptedStub();
+  try {
+    const review = await openShortSession(serviceWorker, openExtensionPage, stub, 0.01);
+    await review.getByTestId('process-button').click();
+    await expect(review.getByTestId('process-confirm')).toBeVisible();
+    await expect(review.getByTestId('process-auto-ran')).toHaveCount(0);
+    await expect(review.getByTestId('process-limit-warning')).toHaveCount(0);
+    expect(stub.messages()).toHaveLength(0);
+  } finally {
+    await stub.close();
+  }
+});
+
+test("a call near the model's context window warns, and the warning stops the auto-run", async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  // The listed context window is 200,000 and the call counts 190,000 (95%); ~$0.40 is under the $5 threshold.
+  const stub = await scriptedStub({
+    inputTokens: () => 190_000,
+    models: {
+      ...DEFAULT_STUB_MODELS,
+      anthropic: DEFAULT_STUB_MODELS.anthropic.map((m) => (m.id === MODEL ? { ...m, max_input_tokens: 200_000 } : m)),
+    },
+  });
+  try {
+    const review = await openShortSession(serviceWorker, openExtensionPage, stub, 5);
+    // The options page fetches and caches the model list, which gives the window.
+    const options = await openExtensionPage('options.html');
+    await expect
+      .poll(() =>
+        serviceWorker.evaluate(
+          async (id) =>
+            (
+              (await chrome.storage.local.get('modelLists')).modelLists as
+                | { anthropic?: { models: { id: string; context_window: number | null }[] } }
+                | undefined
+            )?.anthropic?.models.find((m) => m.id === id)?.context_window ?? null,
+          MODEL,
+        ),
+      )
+      .toBe(200_000);
+    await options.close();
+
+    await review.bringToFront();
+    await review.getByTestId('process-button').click();
+    await expect(review.getByTestId('process-limit-warning')).toHaveText(
+      `This run is about 190,000 input tokens, 95% of ${MODEL}'s 200,000-token context window. It may be refused or cut short.`,
+    );
+    await expect(review.getByTestId('process-confirm')).toBeVisible();
+    await expect(review.getByTestId('process-auto-ran')).toHaveCount(0);
+    expect(stub.messages()).toHaveLength(0);
   } finally {
     await stub.close();
   }
