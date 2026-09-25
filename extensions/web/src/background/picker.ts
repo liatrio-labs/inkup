@@ -1,4 +1,4 @@
-// The picker window (docs/decisions-log.md #40): Chrome's fallback when a Session started from the page's toolbar or
+// The picker window (docs/decisions-log.md #41): Chrome's fallback when a Session started from the page's toolbar or
 // the shortcut cannot have tabCapture (the extension was not invoked on the tab, or it navigated since). The Session
 // starts as it did without video; this small extension window offers "Choose what to record", whose click opens the
 // same screen picker as the side panel. The window then records the video itself (media/video-owner.ts): a stream
