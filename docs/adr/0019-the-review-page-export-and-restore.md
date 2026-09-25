@@ -66,3 +66,7 @@ so a long recording is never copied into memory.
   screenshots moved into each Location's row, and the pane keeps only the recording.
 - 2026-09-23 (E12): there was no merge undo; Delete and Split remained. 2026-09-23 (F5): Undo and Redo.
 - 2026-09-24 (#40): every "Open review" opened another tab; now one tab per Session.
+- 2026-09-24 (#13): the transcript and the Annotations were separate lists. Now there is one chronological timeline:
+  speech as chat bubbles on the right, Annotations and Text Comments as crops on the left, stacked on narrow screens.
+  The Session name is the page heading and can be renamed there (a `session_rename` event; see 0007), and the page
+  and download filenames use the local start time.
