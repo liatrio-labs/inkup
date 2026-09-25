@@ -5,6 +5,7 @@ import { toOffset } from '@inkup/core/clock';
 import { expectedMediaDuration, pauseGaps } from '@inkup/core/media-time';
 import { VIDEO_PATH } from '@inkup/core/session-document';
 import { db, type VideoMedia } from '@/db';
+import { joinChunks } from '@/media/join-chunks';
 import { makeSeekable } from '@/media/seekable-webm';
 import type { LiveVideo } from '@/settings';
 
@@ -25,7 +26,10 @@ async function readChunks(sessionId: string, mime: string, tries = 5): Promise<B
   for (let i = 1; ; i++) {
     const chunks = await videoChunks(sessionId);
     try {
-      return new Blob([await new Blob(chunks.map((c) => c.blob)).arrayBuffer()], { type: mime });
+      return await joinChunks(
+        chunks.map((c) => c.blob),
+        mime,
+      );
     } catch (e) {
       if (i >= tries) throw e;
       console.warn(`video: chunks not readable yet (try ${i} of ${tries})`, e);
