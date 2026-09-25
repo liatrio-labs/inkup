@@ -14,7 +14,7 @@ down. The H1 of each file states the decision; the body says where it lives in t
 | [0005](0005-loopback-trust-and-pairing.md) | Loopback trust and pairing | accepted; superseded in part by 0006 | 2026-09-23 |
 | [0006](0006-network-mode.md) | Network mode | accepted | 2026-09-23 |
 | [0007](0007-central-contract.md) | One versioned contract in `contract/` | accepted | 2026-09-24 |
-| [0008](0008-independent-releases-and-host-updates.md) | Independent releases and Host self-update | accepted | 2026-09-24 |
+| [0008](0008-independent-releases-and-host-updates.md) | Independent releases cut by release-please, and Host self-update | accepted | 2026-09-24 |
 | [0009](0009-video-grounded-process-and-vetting.md) | Video-grounded Process and a vetting pass | accepted | 2026-09-24 |
 | [0010](0010-starting-owning-and-stopping-a-session.md) | Starting, owning and stopping a Session | accepted | 2026-09-22 |
 | [0011](0011-the-page-overlay.md) | The page overlay | accepted | 2026-09-23 |

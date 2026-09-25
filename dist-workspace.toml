@@ -16,7 +16,8 @@ targets = [
   "x86_64-pc-windows-msvc",
 ]
 checksum = "sha256"
-# The workflow triggers only on tags starting `inkup-v`, so `inkup-chrome-v*` and `inkup-firefox-v*` never start it.
+# The workflow triggers only on tags starting `inkup-v`, so the extension tags (`inkup-extension-v*`, `inkup-chrome-v*`,
+# `inkup-firefox-v*`) never start it.
 # dist names the workflow after this: inkup-v-release.yml.
 tag-namespace = "inkup-v"
 # The installers write the install receipt that `inkup update` reads only when this is on. It also ships the standalone
