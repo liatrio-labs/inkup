@@ -19,16 +19,37 @@ CI runners, which are slower.
 - **Poll state; don't sleep.** Use `expect.poll` or `expect(locator)` on the state that proves the step happened:
   a storage value, a host endpoint, an attribute. A fixed `waitForTimeout` only moves the race.
 
+## Running in Docker
+
+`pnpm test:e2e:docker` and `pnpm test:e2e:firefox:docker` (scripts/e2e-docker.sh) run the suites in Linux, as CI
+does. Use them on macOS: there, Chromium's tab and screen capture asks macOS for screen recording on every run, and
+`network-host.spec.ts` needs local-network access. The container runs `pnpm install`, the build, `pnpm host:build`
+and then `pnpm test:e2e` (or the Firefox job's sound server, display and `pnpm test:e2e:firefox`), with two workers
+unless you pass `--workers`. Extra arguments go to Playwright:
+
+```sh
+pnpm test:e2e:docker tests/e2e/<spec>.ts:<line> --repeat-each=20 --workers=4
+```
+
+The image (`docker/e2e.Dockerfile`) is the Playwright image at the lockfile's version, with CI's Node, pnpm and Rust
+added. The first run builds it and fills the caches; later runs reuse them. The worktree is mounted read-write, so
+`test-results/` and `playwright-report/` land in it as usual, and `.git` read-only. Linux builds go to named
+volumes, never into the Mac's `node_modules`, `extensions/web/.output` or `host/target`:
+
+- `inkup-e2e-<worktree>-<hash>-*`: this worktree's `node_modules` (one per package), `.output`, `.wxt` and host build.
+- `inkup-e2e-cargo-home` and `inkup-e2e-pnpm-store`: the cargo registry and pnpm store, shared by all worktrees.
+
+To start over, remove them: `docker volume ls -q --filter name=inkup-e2e- | xargs docker volume rm`.
+
 ## Reproducing
 
 ```sh
-npx playwright test --project=chrome tests/e2e/<spec>.ts:<line> --repeat-each=20 --workers=2   # also try --workers=4
-E2E_CHROME_LOG_DIR=/tmp/chrome-logs npx playwright test ...                                     # one Chromium log per test
+pnpm test:e2e:docker tests/e2e/<spec>.ts:<line> --repeat-each=20 --workers=2   # also try --workers=4
 ```
 
-Linux differs from macOS here. `mcr.microsoft.com/playwright:v1.63.0-noble` (with `unzip` added) runs the specs
-that don't need the host binary. CI turns on `E2E_CHROME_LOG_DIR` and uploads `chrome-logs/` with the report when a
-shard fails. The fixture also adds a `renderer crashed` annotation to a test when one of its pages crashes.
+On Linux, or in CI, run Playwright itself, and `E2E_CHROME_LOG_DIR=<dir>` writes one Chromium log per test. CI turns
+it on and uploads `chrome-logs/` with the report when a shard fails. The fixture also adds a `renderer crashed`
+annotation to a test when one of its pages crashes.
 
 ## Known: the extension's renderer crashes during Stop (unresolved)
 
