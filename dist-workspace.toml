@@ -25,6 +25,10 @@ install-updater = true
 tap = "liatrio-labs/homebrew-tap"
 formula = "inkup"
 publish-jobs = ["homebrew"]
+# The desktop app's signed, notarized DMG (.github/workflows/desktop-macos.yml, ADR 0025), attached to the release once
+# it is published. After announce, not in publish-jobs: those skip pre-releases, and the host release never waits on
+# the `release` environment's approval or on Apple's notary.
+post-announce-jobs = ["./desktop-macos"]
 # No release CI on pull requests; host-dist-check.yml checks this config on host changes instead.
 pr-run-mode = "skip"
 
