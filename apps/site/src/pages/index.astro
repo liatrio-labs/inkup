@@ -1,0 +1,80 @@
+---
+import logo from '../assets/logo.svg?url';
+import Base from '../layouts/Base.astro';
+import { links, versions } from '../releases.ts';
+
+const title = 'InkUp: review a web page out loud';
+const description =
+  'Talk and draw on a web page. InkUp turns your review into located Change Items that a person or a coding agent can act on.';
+---
+
+<Base title={title} description={description}>
+  <main>
+    <img src={logo} alt="" width="96" height="96" />
+    <h1>InkUp</h1>
+    <p class="pitch">
+      A browser extension for reviewing a web page out loud. You talk and draw on the page. It turns the Session into a
+      list of located Change Items that a person or a coding agent can act on.
+    </p>
+    <div class="actions">
+      <a class="button primary" href={links.chrome} data-umami-event="install-chrome" data-umami-event-location="hero"
+        >Add to Chrome</a
+      >
+      <a class="button" href={links.repo} data-umami-event="github" data-umami-event-location="hero">GitHub</a>
+    </div>
+    <p class="versions">
+      Extension {versions.extension} · <a href={links.host}>Host {versions.host}</a> for macOS, Linux and Windows
+    </p>
+  </main>
+  <footer>
+    An open-source tool from <a href="https://www.liatrio.com">Liatrio</a> ·
+    <a href={links.repo} data-umami-event="github" data-umami-event-location="footer">GitHub</a>
+  </footer>
+</Base>
+
+<style>
+  main {
+    flex: 1;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  h1 {
+    margin: 1rem 0 0.5rem;
+    font-size: 2.5rem;
+  }
+  .pitch {
+    font-size: 1.125rem;
+  }
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 2rem 0 1rem;
+  }
+  .button {
+    padding: 0.625rem 1.25rem;
+    border: 1px solid currentColor;
+    border-radius: 0.5rem;
+    color: inherit;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .button.primary {
+    background: CanvasText;
+    color: Canvas;
+    border-color: CanvasText;
+  }
+  .versions {
+    font-size: 0.875rem;
+    opacity: 0.7;
+  }
+  footer {
+    padding: 2rem 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    opacity: 0.7;
+  }
+</style>

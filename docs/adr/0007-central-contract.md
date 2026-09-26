@@ -64,8 +64,10 @@ on it, and a newer one acts on it.
 | `contract/**` | both sides, the desktop app, and `contract-compat` |
 | `host/**` | the host: `cargo` on three platforms, and the Chrome e2e; and the desktop app, which builds the host's crates |
 | `apps/desktop/**` | the desktop app: `desktop` on three platforms (ADR 0025) |
-| `extensions/`, `packages/`, `scripts/`, `tests/`, `fixtures/`, root files | the extension side: `core`, `extension-chrome`, `extension-firefox`, and the Chrome e2e. `packages/`, `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` also run the desktop app, whose UI imports `@inkup/protocol` |
-| `*.md`, `docs/**`, `LICENSE` | lint only |
+| `apps/site/**`, `.github/workflows/site.yml` | the marketing site: `site` alone (ADR 0026) |
+| `extensions/`, `packages/`, `scripts/`, `tests/`, `fixtures/`, root files | the extension side: `core`, `extension-chrome`, `extension-firefox`, and the Chrome e2e. `packages/`, `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` also run the desktop app, whose UI imports `@inkup/protocol`; the last three run the site too |
+| `.release-please-manifest.json` | the site, which shows the released versions |
+| `*.md`, `docs/**`, `LICENSE`, `release-please-config.json` | lint only |
 | `.github/workflows/ci.yml`, any other path | everything |
 
 The Chrome e2e builds the real Host and drives the extension against it (`tests/e2e/host.spec.ts`). It is the one test
@@ -102,3 +104,5 @@ well as every other job; a skipped job passes it.
 - 2026-09-25 (#21, #25, ADR 0025): `contract/` gained a third schema, the control API's, versioned by its own
   `CONTROL_API` (a bump to 2 came with its new required fields). CI gained a fourth route, the desktop app, run by
   `apps/desktop/` and by what it is built from.
+- 2026-09-25 (ADR 0026): a fifth route, the marketing site, run by `apps/site/`, its deploy workflow, the workspace's
+  install files and release-please's manifest. Nothing else runs for a site-only change.

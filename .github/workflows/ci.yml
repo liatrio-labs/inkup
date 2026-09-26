@@ -22,7 +22,8 @@ env:
 jobs:
   # Which side of the contract the change touches (scripts/ci-changes.ts, ADR 0007): contract/ runs both sides and
   # the breaking-change guard, host/ the host, the rest of the workspace the extension, docs lint alone. The desktop
-  # app runs for apps/desktop and for what it is built from (host/, packages/, the lockfile). A push with no usable
+  # app runs for apps/desktop and for what it is built from (host/, packages/, the lockfile); the site (apps/site, ADR
+  # 0026) for apps/site, the lockfile and release-please's manifest, and nothing else for it. A push with no usable
   # base runs everything. A release pull request (release-please--*) runs nothing: it only bumps versions and
   # changelogs of code that was tested on its own pull request (ADR 0008), so every job skips and ci-ok passes.
   changes:
@@ -35,6 +36,7 @@ jobs:
       host: ${{ steps.diff.outputs.host }}
       contract: ${{ steps.diff.outputs.contract }}
       desktop: ${{ steps.diff.outputs.desktop }}
+      site: ${{ steps.diff.outputs.site }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,7 +53,7 @@ jobs:
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! files=$(git diff --name-only "$BASE...$HEAD"); then
             echo "No base to diff against; running everything."
-            printf 'extension=true\nhost=true\ncontract=false\ndesktop=true\n' | tee -a "$GITHUB_OUTPUT"
+            printf 'extension=true\nhost=true\ncontract=false\ndesktop=true\nsite=true\n' | tee -a "$GITHUB_OUTPUT"
             exit 0
           fi
           printf '%s\n' "$files"
@@ -365,11 +367,35 @@ jobs:
         run: |
           ls -l apps/desktop/dist/index.html apps/desktop/src-tauri/target/debug/inkup-desktop${{ runner.os == 'Windows' && '.exe' || '' }}
 
+  # The marketing site (apps/site, ADR 0026): Astro's type check and the static build that site.yml deploys from main.
+  site:
+    name: site
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @inkup/site...
+      - run: pnpm --filter @inkup/site check
+      - run: pnpm --filter @inkup/site build
+      - name: The site was built
+        run: ls -l apps/site/dist/index.html apps/site/dist/sitemap-index.xml apps/site/dist/robots.txt
+
   # The one required check. Skipped jobs pass; a failed or cancelled one fails it.
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop]
+    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop, site]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

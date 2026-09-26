@@ -32,6 +32,7 @@ down. The H1 of each file states the decision; the body says where it lives in t
 | [0023](0023-viewport-sizes-through-a-frame-host.md) | Viewport sizes through a frame host | accepted | 2026-09-23 |
 | [0024](0024-repository-tooling-dependencies-and-ci.md) | Repository tooling, dependencies and CI | accepted | 2026-09-22 |
 | [0025](0025-desktop-app-host-lock-and-control-api.md) | The desktop app, one host per data dir, and the control API | accepted | 2026-09-25 |
+| [0026](0026-marketing-site-astro-on-github-pages.md) | The marketing site: Astro on GitHub Pages | accepted | 2026-09-25 |
 
 The date is when the decision was first made. ADRs 0010 to 0024 were distilled on 2026-09-24 from the decisions log
 that the repo kept until then; their History sections carry its dates.

@@ -24,5 +24,13 @@
       "a11y": { "noLabelWithoutControl": { "level": "error", "options": { "inputComponents": ["Input", "Textarea"] } } }
     }
   },
+  "overrides": [
+    {
+      "includes": ["**/*.astro"],
+      "linter": {
+        "rules": { "correctness": { "noUnusedVariables": "off", "noUnusedImports": "off" } }
+      }
+    }
+  ],
   "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } }
 }

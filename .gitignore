@@ -23,3 +23,6 @@ fixtures/sessions/long-*.json
 /apps/desktop/fastlane/report.xml
 /apps/desktop/fastlane/README.md
 /apps/desktop/.bundle/
+# Astro build output and generated types (apps/site)
+/apps/site/dist/
+/apps/site/.astro/
