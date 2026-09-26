@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.4.0...inkup-v0.5.0) (2026-09-26)
+
+
+### Features
+
+* **site:** brand the landing page as "The Inspected Page" ([#50](https://github.com/liatrio-labs/inkup/issues/50)) ([dcaa7e0](https://github.com/liatrio-labs/inkup/commit/dcaa7e0d8fc8484996e5d39b6e834a9483f57384))
+
 ## [0.4.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.3.0...inkup-v0.4.0) (2026-09-26)
 
 
