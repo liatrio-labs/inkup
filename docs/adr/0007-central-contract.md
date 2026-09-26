@@ -68,6 +68,7 @@ on it, and a newer one acts on it.
 | `extensions/`, `packages/`, `scripts/`, `tests/`, `fixtures/`, root files | the extension side: `core`, `extension-chrome`, `extension-firefox`, and the Chrome e2e. `packages/`, `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` also run the desktop app, whose UI imports `@inkup/protocol`; the last three run the site too |
 | `.release-please-manifest.json` | the site, which shows the released versions |
 | `*.md`, `docs/**`, `LICENSE`, `release-please-config.json` | lint only |
+| The site's capture inputs: `fixtures/site/demo-store.html`, its font, `site-demo` speech, `site-captures.yml` | lint only; `site-captures.yml` records them on the pull request (ADR 0026) |
 | `.github/workflows/ci.yml`, any other path | everything |
 
 The Chrome e2e builds the real Host and drives the extension against it (`tests/e2e/host.spec.ts`). It is the one test
@@ -106,3 +107,5 @@ well as every other job; a skipped job passes it.
   `apps/desktop/` and by what it is built from.
 - 2026-09-25 (ADR 0026): a fifth route, the marketing site, run by `apps/site/`, its deploy workflow, the workspace's
   install files and release-please's manifest. Nothing else runs for a site-only change.
+- 2026-09-25 (ADR 0026): what only the site's captures read runs lint alone. We had it on the extension side, as
+  `fixtures/`; but no e2e test reads it, and `site-captures.yml` records it on the pull request instead.

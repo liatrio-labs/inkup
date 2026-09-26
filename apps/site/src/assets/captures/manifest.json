@@ -1,0 +1,77 @@
+{
+  "source": "site-captures.spec.ts",
+  "assets": [
+    {
+      "name": "drafts",
+      "file": "drafts.png",
+      "width": 420,
+      "height": 900,
+      "kind": "screenshot",
+      "capturedAt": "2026-09-25T23:42:08.799Z",
+      "extensionVersion": "0.1.0"
+    },
+    {
+      "name": "review-flow",
+      "file": "review-flow.jpg",
+      "width": 1440,
+      "height": 900,
+      "kind": "poster",
+      "capturedAt": "2026-09-25T23:42:08.799Z",
+      "extensionVersion": "0.1.0"
+    },
+    {
+      "name": "review-flow",
+      "file": "review-flow.mp4",
+      "width": 1440,
+      "height": 900,
+      "kind": "video",
+      "capturedAt": "2026-09-25T23:42:08.799Z",
+      "extensionVersion": "0.1.0"
+    },
+    {
+      "name": "review-flow",
+      "file": "review-flow.webm",
+      "width": 1440,
+      "height": 900,
+      "kind": "video",
+      "capturedAt": "2026-09-25T23:42:08.799Z",
+      "extensionVersion": "0.1.0"
+    },
+    {
+      "name": "review",
+      "file": "review.png",
+      "width": 1440,
+      "height": 900,
+      "kind": "screenshot",
+      "capturedAt": "2026-09-25T23:42:08.799Z",
+      "extensionVersion": "0.1.0"
+    },
+    {
+      "name": "stroke-mobile",
+      "file": "stroke-mobile.png",
+      "width": 390,
+      "height": 844,
+      "kind": "screenshot",
+      "capturedAt": "2026-09-25T23:42:22.180Z",
+      "extensionVersion": "0.1.0"
+    },
+    {
+      "name": "stroke",
+      "file": "stroke.png",
+      "width": 1440,
+      "height": 900,
+      "kind": "screenshot",
+      "capturedAt": "2026-09-25T23:42:08.799Z",
+      "extensionVersion": "0.1.0"
+    },
+    {
+      "name": "toolbar-recording",
+      "file": "toolbar-recording.png",
+      "width": 1440,
+      "height": 900,
+      "kind": "screenshot",
+      "capturedAt": "2026-09-25T23:42:08.799Z",
+      "extensionVersion": "0.1.0"
+    }
+  ]
+}

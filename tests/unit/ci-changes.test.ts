@@ -24,6 +24,22 @@ describe('ci-changes', () => {
       { ...none, site: true },
     ],
     ['site docs', ['apps/site/README.md'], none],
+    // What only the site's captures read: site-captures.yml records them on the pull request itself.
+    [
+      'site capture inputs',
+      [
+        'fixtures/site/demo-store.html',
+        'fixtures/site/vendor/fonts/manrope-latin.woff2',
+        'fixtures/transcripts/site-demo.json',
+        'fixtures/audio/site-demo.wav',
+        '.github/workflows/site-captures.yml',
+      ],
+      none,
+    ],
+    ['refreshed captures', ['apps/site/src/assets/captures/stroke.png'], { ...none, site: true }],
+    // The capture spec is e2e code, and the other fixtures are the e2e suite's.
+    ['the capture spec', ['tests/e2e/site-captures.spec.ts'], { ...none, extension: true }],
+    ['another site fixture', ['fixtures/site/pricing.html'], { ...none, extension: true }],
     // A core change that moves the wire regenerates contract/ too, or the drift check fails. The desktop UI imports
     // @inkup/protocol, which builds on core.
     ['core, no wire change', ['packages/core/src/timeline.ts'], { ...none, extension: true, desktop: true }],

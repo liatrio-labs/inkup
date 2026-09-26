@@ -1,0 +1,105 @@
+name: Site captures
+
+# Records the marketing site's product media (apps/site/src/assets/captures) from the real extension:
+# tests/e2e/site-captures.spec.ts on fixtures/site/demo-store.html, with the scripted mic and transcript and the local
+# Anthropic stub, so no paid API is called. It runs on Linux only (on a Mac desktop the fake media raise
+# screen-recording prompts). A pull request that changes the capture's inputs records them and uploads the set as an
+# artifact to look at. By hand, and when an extension release (inkup-extension-v*) is published, it also opens or
+# updates the pull request "chore(site): refresh product captures" against main.
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - tests/e2e/site-captures.spec.ts
+      - fixtures/site/demo-store.html
+      - fixtures/transcripts/site-demo.json
+      - fixtures/audio/site-demo.*
+      - .github/workflows/site-captures.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-captures-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "26"
+  PNPM_VERSION: "12"
+
+jobs:
+  capture:
+    name: capture
+    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'inkup-extension-v') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          # The captures are committed to main: build them from a clean install, never from a pull request's cache.
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+      # The same setup as ci.yml's extension-chrome-e2e: bundled Chromium, headless, with fake media.
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install ffmpeg
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg)
+      # Builds the extension, then records into apps/site/src/assets/captures.
+      - run: pnpm site:captures
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-captures
+          path: apps/site/src/assets/captures/
+          if-no-files-found: error
+          retention-days: 30
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-captures-report
+          path: test-results/
+          retention-days: 7
+
+  pull-request:
+    name: pull-request
+    needs: capture
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only used by the github.token fallback. RELEASE_PLEASE_TOKEN carries its own permissions.
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # The captures go onto main whatever ran them (a release's tag, or a branch by hand): they are assets only.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: site-captures
+          path: apps/site/src/assets/captures/
+      # A pull request made with GITHUB_TOKEN starts no workflows, so CI (and ci-ok) would not run on it:
+      # RELEASE_PLEASE_TOKEN, the repository's bot token, opens it when it is set, as release-please.yml does.
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          base: main
+          branch: chore/site-captures
+          delete-branch: true
+          add-paths: apps/site/src/assets/captures
+          commit-message: "chore(site): refresh product captures"
+          title: "chore(site): refresh product captures"
+          body: |
+            Product media for the marketing site, recorded by `tests/e2e/site-captures.spec.ts` in [this run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            Look at the images and the clip before merging. `manifest.json` lists each file with its size, the extension version and when it was captured.

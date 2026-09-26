@@ -48,3 +48,45 @@ Add `data-umami-event-location` with `hero`, `install` or `footer` to say where 
 ```html
 <a href="…" data-umami-event="install-chrome" data-umami-event-location="hero">Add to Chrome</a>
 ```
+
+## Product captures
+
+The screenshots and the clip in `src/assets/captures/` are recorded from the real extension, never drawn by hand.
+`tests/e2e/site-captures.spec.ts` loads the built extension in Playwright's Chromium, opens a fictional product page
+(`fixtures/site/demo-store.html`, "Tallybook"), and records one review Session from the page's floating toolbar. The
+mic plays `fixtures/audio/site-demo.wav`, `fixtures/transcripts/site-demo.json` stands in for speech recognition,
+and a local stub (`tests/support/anthropic-stub.ts`) answers the Draft Item and Process calls, so no paid API is used.
+
+| File | What it shows | Size |
+| --- | --- | --- |
+| `toolbar-recording.png` | the page with the toolbar recording and a caption | 1440×900 |
+| `stroke.png` | a red-pen circle on the page's trial button | 1440×900 |
+| `stroke-mobile.png` | the same on a phone-sized page | 390×844 |
+| `drafts.png` | the side panel's Draft Items, one per spoken note | 420×900 |
+| `review.png` | the review page's Change Items after Process | 1440×900 |
+| `review-flow.mp4`, `.webm`, `.jpg` | Start, two Strokes with speech, Stop (about 11 s, muted), and its poster | 1440×900 |
+
+`manifest.json` lists every file with its `name`, `file`, `width`, `height`, `kind` (`screenshot`, `video` or
+`poster`), `capturedAt` and `extensionVersion` (from `.release-please-manifest.json`); its `source` is
+`site-captures.spec.ts`.
+
+### Refreshing
+
+Run **Site captures** (`.github/workflows/site-captures.yml`) from the Actions tab. It records on Linux, uploads the
+set as the `site-captures` artifact and opens or updates the pull request "chore(site): refresh product captures". It
+also runs by itself when an `inkup-extension-v*` release is published, and, without the pull request, on a pull
+request that changes the spec, the demo page or its speech.
+
+To fetch a run's set by hand:
+
+```sh
+gh run download <run-id> -n site-captures -D apps/site/src/assets/captures
+```
+
+`pnpm site:captures` builds the extension and runs the spec into `src/assets/captures/` on Linux. Don't run it on a
+Mac desktop: the fake microphone and tab capture raise macOS screen-recording prompts. Running it in Docker, with the
+e2e-in-Docker setup, is a follow-up.
+
+To change what is recorded, edit the spec, the demo page or the scripted notes. The notes' audio is regenerated on a
+Mac with `ONLY=site-demo pnpm fixtures:audio`; keep `fixtures/transcripts/site-demo.json` in step with
+`fixtures/audio/site-demo.timing.json`.

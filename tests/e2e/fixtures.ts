@@ -20,6 +20,8 @@ import { fileURLToPath } from 'node:url';
 import { type BrowserContext, test as base, chromium, type Page, type Worker } from '@playwright/test';
 import { type FixtureServers, startFixtureServers } from '../../scripts/fixture-server.ts';
 
+type LaunchOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>;
+
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 export const EXTENSION_PATH = join(ROOT, 'extensions/web/.output/chrome-mv3');
 /** Another extension (fixtures/extension): its page is a review target no overlay can run on. */
@@ -50,6 +52,8 @@ export interface ExtensionFixtures {
   extraExtensions: string[];
   /** Playwright default switches to drop, e.g. its anti-backgrounding flags when testing hidden-page behaviour. */
   ignoreDefaultArgs: string[];
+  /** More launch options, e.g. `recordVideo` for the site captures (site-captures.spec.ts). */
+  persistentOptions: Pick<LaunchOptions, 'recordVideo' | 'viewport'>;
   /** The persistent profile directory (Chromium writes DevToolsActivePort here). */
   userDataDir: string;
   context: BrowserContext;
@@ -90,6 +94,7 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
   extraArgs: [[], { option: true }],
   extraExtensions: [[], { option: true }],
   ignoreDefaultArgs: [[], { option: true }],
+  persistentOptions: [{}, { option: true }],
 
   fixtureServers: [
     // biome-ignore lint/correctness/noEmptyPattern: Playwright reads a fixture's dependencies from its first parameter and requires an object pattern, even an empty one
@@ -116,7 +121,7 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
   },
 
   context: async (
-    { fakeAudio, captureSourceTitle, extraArgs, extraExtensions, ignoreDefaultArgs, userDataDir },
+    { fakeAudio, captureSourceTitle, extraArgs, extraExtensions, ignoreDefaultArgs, persistentOptions, userDataDir },
     use,
     info,
   ) => {
@@ -138,6 +143,7 @@ export const test = base.extend<ExtensionFixtures, WorkerFixtures>({
         ]
       : [];
     const context = await chromium.launchPersistentContext(userDataDir, {
+      ...persistentOptions,
       channel: 'chromium',
       headless: !process.env.HEADED,
       ignoreDefaultArgs,
