@@ -2045,7 +2045,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-protocol"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "regress",
  "serde",
@@ -2054,7 +2054,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-server"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -2076,7 +2076,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-store"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "directories",
  "getrandom 0.4.3",
@@ -2091,7 +2091,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-update-check"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "axoupdater",

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.3.0...inkup-v0.4.0) (2026-09-26)
+
+
+### Features
+
+* **site:** record the product captures from the real extension ([#49](https://github.com/liatrio-labs/inkup/issues/49)) ([eb31414](https://github.com/liatrio-labs/inkup/commit/eb31414d8bfff194b6718c61c520cac67e8aacde))
+
 ## [0.3.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.2.1...inkup-v0.3.0) (2026-09-26)
 
 
