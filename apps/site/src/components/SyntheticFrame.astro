@@ -1,0 +1,291 @@
+---
+import PenLoop from './PenLoop.astro';
+
+// An illustration of a review in progress, drawn in HTML: a made-up page, InkUp's toolbar recording, and a red-pen
+// Stroke. It stands in until the capture pipeline records the real thing, and it says so on its face.
+---
+
+<div class="frame" role="img" aria-label="Illustration: InkUp recording a review of a pricing page, with a red circle drawn around its sign-up button.">
+  <div class="chrome" aria-hidden="true">
+    <span class="lights"><i></i><i></i><i></i></span>
+    <span class="url">acme-demo.test/pricing</span>
+  </div>
+  <div class="page" aria-hidden="true">
+    <div class="demo-nav"><b>Acme</b><span>Product</span><span>Pricing</span><span>Docs</span></div>
+    <p class="demo-h">Simple pricing for growing teams, billed however you like, whenever you want</p>
+    <div class="tiers">
+      <div class="tier"><span>Starter</span><strong>$12</strong><i>Choose</i></div>
+      <div class="tier main" data-ink>
+        <span>Team</span><strong>$29</strong>
+        <i class="target">Start free trial<PenLoop /></i>
+      </div>
+      <div class="tier"><span>Scale</span><strong>$79</strong><i>Talk to us</i></div>
+    </div>
+    <div class="toolbar">
+      <span class="grip">⋮⋮</span>
+      <span class="rec"></span>
+      <span class="timer">00:12</span>
+      <span class="sep"></span>
+      <span class="btn">Pause</span>
+      <span class="btn on">Draw</span>
+      <span class="btn">Snap</span>
+      <span class="btn stop">Stop</span>
+    </div>
+    <div class="caption">“Make the trial button bigger, it gets lost here.”</div>
+  </div>
+  <span class="label">Illustration. A real recording is on the way.</span>
+</div>
+
+<style>
+  .frame {
+    position: relative;
+    background: #fff;
+    color: #18181b;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    aspect-ratio: 16 / 10;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    container-type: inline-size;
+  }
+
+  .chrome {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.6rem 0.9rem;
+    background: #eef0f4;
+    border-bottom: 1px solid #dde1e8;
+  }
+
+  .lights {
+    display: flex;
+    gap: 6px;
+  }
+
+  .lights i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #cfd4dd;
+  }
+
+  .url {
+    flex: 1;
+    max-width: 22rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    background: #fff;
+    color: #6b7280;
+    font-size: 0.72rem;
+  }
+
+  .page {
+    position: relative;
+    padding: 4cqi 6cqi;
+    overflow: hidden;
+  }
+
+  .demo-nav {
+    display: flex;
+    gap: 3cqi;
+    font-size: 1.6cqi;
+    color: #52525b;
+  }
+
+  .demo-nav b {
+    color: #18181b;
+    margin-right: auto;
+  }
+
+  .demo-h {
+    margin: 5cqi 0 4cqi;
+    max-width: 30ch;
+    font-size: 3.4cqi;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .tiers {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2.4cqi;
+  }
+
+  .tier {
+    display: grid;
+    gap: 1cqi;
+    padding: 2.4cqi;
+    border: 1px solid #e4e4e7;
+    border-radius: 1.2cqi;
+    font-size: 1.6cqi;
+  }
+
+  .tier strong {
+    font-size: 3.4cqi;
+  }
+
+  .tier i {
+    position: relative;
+    justify-self: start;
+    font-style: normal;
+    font-size: 1.4cqi;
+    padding: 0.8cqi 1.4cqi;
+    border-radius: 0.8cqi;
+    border: 1px solid #d4d4d8;
+  }
+
+  .tier.main {
+    border-color: #a1a1aa;
+  }
+
+  .tier .target {
+    background: #18181b;
+    color: #fff;
+    border-color: #18181b;
+  }
+
+  .toolbar {
+    position: absolute;
+    right: 4cqi;
+    bottom: 4cqi;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 10px;
+    background: #18181b;
+    color: #f4f4f5;
+    font: 500 12px / 1.2 ui-sans-serif, system-ui, sans-serif;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  }
+
+  .grip {
+    color: #a1a1aa;
+    letter-spacing: -2px;
+    padding: 0 2px;
+  }
+
+  .rec {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+  }
+
+  .timer {
+    font-variant-numeric: tabular-nums;
+    padding: 0 2px;
+  }
+
+  .sep {
+    width: 1px;
+    align-self: stretch;
+    background: #3f3f46;
+    margin: 2px;
+  }
+
+  .btn {
+    padding: 5px 8px;
+    border-radius: 6px;
+  }
+
+  .btn.on {
+    background: #dc2626;
+  }
+
+  .btn.stop {
+    color: #fca5a5;
+  }
+
+  .caption {
+    position: absolute;
+    left: 6cqi;
+    bottom: 4cqi;
+    max-width: 44cqi;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgb(24 24 27 / 0.92);
+    color: #f4f4f5;
+    font-size: 12px;
+  }
+
+  .label {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.8rem;
+    font: 500 0.72rem / 1.2 var(--font-sans);
+    color: #6b7280;
+  }
+
+  /* On a phone: one pricing card, bigger text, the toolbar and the spoken line stacked below it, and the label out of
+     the URL bar. */
+  @media (max-width: 40rem) {
+    .frame {
+      aspect-ratio: auto;
+    }
+  }
+
+  @container (max-width: 34rem) {
+    .url {
+      max-width: none;
+    }
+
+    .page {
+      display: grid;
+      gap: 3.5cqi;
+      padding: 5cqi;
+    }
+
+    .demo-nav {
+      font-size: 3.4cqi;
+    }
+
+    .demo-h {
+      margin: 0;
+      font-size: 6cqi;
+    }
+
+    .tiers {
+      grid-template-columns: 1fr;
+    }
+
+    .tier:not(.main) {
+      display: none;
+    }
+
+    .tier {
+      font-size: 3.6cqi;
+      padding: 4cqi;
+      gap: 2cqi;
+      border-radius: 2.4cqi;
+    }
+
+    .tier strong {
+      font-size: 7cqi;
+    }
+
+    .tier i {
+      font-size: 3.6cqi;
+      padding: 1.6cqi 3cqi;
+      border-radius: 1.6cqi;
+    }
+
+    .toolbar,
+    .caption {
+      position: static;
+      justify-self: start;
+      max-width: none;
+    }
+
+    .toolbar .btn:not(.on, .stop),
+    .toolbar .grip {
+      display: none;
+    }
+
+    .label {
+      position: static;
+      padding: 0 5cqi 4cqi;
+    }
+  }
+</style>

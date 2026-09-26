@@ -1,0 +1,866 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-25T23:51:13+00:00",
+  "title": "Design System: InkUp",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Ink Navy",
+        "tonalRamp": [
+          "oklch(15% 0.050 265.9)",
+          "oklch(26% 0.050 265.9)",
+          "oklch(38% 0.050 265.9)",
+          "oklch(49% 0.050 265.9)",
+          "oklch(61% 0.050 265.9)",
+          "oklch(72% 0.050 265.9)",
+          "oklch(84% 0.050 265.9)",
+          "oklch(95% 0.050 265.9)"
+        ]
+      },
+      "ink-2": {
+        "role": "primary",
+        "displayName": "Ink Navy, secondary",
+        "tonalRamp": [
+          "oklch(15% 0.052 266.8)",
+          "oklch(26% 0.052 266.8)",
+          "oklch(38% 0.052 266.8)",
+          "oklch(49% 0.052 266.8)",
+          "oklch(61% 0.052 266.8)",
+          "oklch(72% 0.052 266.8)",
+          "oklch(84% 0.052 266.8)",
+          "oklch(95% 0.052 266.8)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.039 266.5)",
+          "oklch(26% 0.039 266.5)",
+          "oklch(38% 0.039 266.5)",
+          "oklch(49% 0.039 266.5)",
+          "oklch(61% 0.039 266.5)",
+          "oklch(72% 0.039 266.5)",
+          "oklch(84% 0.039 266.5)",
+          "oklch(95% 0.039 266.5)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(38% 0.000 89.9)",
+          "oklch(49% 0.000 89.9)",
+          "oklch(61% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "paper-2": {
+        "role": "neutral",
+        "displayName": "Paper 2",
+        "tonalRamp": [
+          "oklch(15% 0.006 264.5)",
+          "oklch(26% 0.006 264.5)",
+          "oklch(38% 0.006 264.5)",
+          "oklch(49% 0.006 264.5)",
+          "oklch(61% 0.006 264.5)",
+          "oklch(72% 0.006 264.5)",
+          "oklch(84% 0.006 264.5)",
+          "oklch(95% 0.006 264.5)"
+        ]
+      },
+      "paper-3": {
+        "role": "neutral",
+        "displayName": "Paper 3",
+        "tonalRamp": [
+          "oklch(15% 0.010 261.8)",
+          "oklch(26% 0.010 261.8)",
+          "oklch(38% 0.010 261.8)",
+          "oklch(49% 0.010 261.8)",
+          "oklch(61% 0.010 261.8)",
+          "oklch(72% 0.010 261.8)",
+          "oklch(84% 0.010 261.8)",
+          "oklch(95% 0.010 261.8)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "tonalRamp": [
+          "oklch(15% 0.050 265.9)",
+          "oklch(26% 0.050 265.9)",
+          "oklch(38% 0.050 265.9)",
+          "oklch(49% 0.050 265.9)",
+          "oklch(61% 0.050 265.9)",
+          "oklch(72% 0.050 265.9)",
+          "oklch(84% 0.050 265.9)",
+          "oklch(95% 0.050 265.9)"
+        ],
+        "canonical": "rgb(31 42 68 / 0.16)"
+      },
+      "guide": {
+        "role": "neutral",
+        "displayName": "Guide",
+        "tonalRamp": [
+          "oklch(15% 0.050 265.9)",
+          "oklch(26% 0.050 265.9)",
+          "oklch(38% 0.050 265.9)",
+          "oklch(49% 0.050 265.9)",
+          "oklch(61% 0.050 265.9)",
+          "oklch(72% 0.050 265.9)",
+          "oklch(84% 0.050 265.9)",
+          "oklch(95% 0.050 265.9)"
+        ],
+        "canonical": "rgb(31 42 68 / 0.24)"
+      },
+      "pen": {
+        "role": "secondary",
+        "displayName": "Red Pen",
+        "tonalRamp": [
+          "oklch(15% 0.193 23.0)",
+          "oklch(26% 0.193 23.0)",
+          "oklch(38% 0.193 23.0)",
+          "oklch(49% 0.193 23.0)",
+          "oklch(61% 0.193 23.0)",
+          "oklch(72% 0.193 23.0)",
+          "oklch(84% 0.193 23.0)",
+          "oklch(95% 0.193 23.0)"
+        ]
+      },
+      "pen-ink": {
+        "role": "secondary",
+        "displayName": "Red Pen, as text",
+        "tonalRamp": [
+          "oklch(15% 0.186 23.2)",
+          "oklch(26% 0.186 23.2)",
+          "oklch(38% 0.186 23.2)",
+          "oklch(49% 0.186 23.2)",
+          "oklch(61% 0.186 23.2)",
+          "oklch(72% 0.186 23.2)",
+          "oklch(84% 0.186 23.2)",
+          "oklch(95% 0.186 23.2)"
+        ]
+      },
+      "on-ink": {
+        "role": "neutral",
+        "displayName": "On Ink",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(38% 0.000 89.9)",
+          "oklch(49% 0.000 89.9)",
+          "oklch(61% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "box-margin": {
+        "role": "tertiary",
+        "displayName": "Box-model Margin",
+        "tonalRamp": [
+          "oklch(15% 0.080 67.7)",
+          "oklch(26% 0.080 67.7)",
+          "oklch(38% 0.080 67.7)",
+          "oklch(49% 0.080 67.7)",
+          "oklch(61% 0.080 67.7)",
+          "oklch(72% 0.080 67.7)",
+          "oklch(84% 0.080 67.7)",
+          "oklch(95% 0.080 67.7)"
+        ],
+        "canonical": "rgb(249 204 157 / 0.45)"
+      },
+      "box-padding": {
+        "role": "tertiary",
+        "displayName": "Box-model Padding",
+        "tonalRamp": [
+          "oklch(15% 0.092 117.1)",
+          "oklch(26% 0.092 117.1)",
+          "oklch(38% 0.092 117.1)",
+          "oklch(49% 0.092 117.1)",
+          "oklch(61% 0.092 117.1)",
+          "oklch(72% 0.092 117.1)",
+          "oklch(84% 0.092 117.1)",
+          "oklch(95% 0.092 117.1)"
+        ],
+        "canonical": "rgb(195 208 139 / 0.4)"
+      },
+      "box-content": {
+        "role": "tertiary",
+        "displayName": "Box-model Content",
+        "tonalRamp": [
+          "oklch(15% 0.047 213.9)",
+          "oklch(26% 0.047 213.9)",
+          "oklch(38% 0.047 213.9)",
+          "oklch(49% 0.047 213.9)",
+          "oklch(61% 0.047 213.9)",
+          "oklch(72% 0.047 213.9)",
+          "oklch(84% 0.047 213.9)",
+          "oklch(95% 0.047 213.9)"
+        ],
+        "canonical": "rgb(140 182 192 / 0.2)"
+      },
+      "tag-bg": {
+        "role": "neutral",
+        "displayName": "Tag Fill",
+        "tonalRamp": [
+          "oklch(15% 0.050 265.9)",
+          "oklch(26% 0.050 265.9)",
+          "oklch(38% 0.050 265.9)",
+          "oklch(49% 0.050 265.9)",
+          "oklch(61% 0.050 265.9)",
+          "oklch(72% 0.050 265.9)",
+          "oklch(84% 0.050 265.9)",
+          "oklch(95% 0.050 265.9)"
+        ]
+      },
+      "tag-fg": {
+        "role": "neutral",
+        "displayName": "Tag Text",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(38% 0.000 89.9)",
+          "oklch(49% 0.000 89.9)",
+          "oklch(61% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "tag-dim": {
+        "role": "neutral",
+        "displayName": "Tag Dim",
+        "tonalRamp": [
+          "oklch(15% 0.031 264.4)",
+          "oklch(26% 0.031 264.4)",
+          "oklch(38% 0.031 264.4)",
+          "oklch(49% 0.031 264.4)",
+          "oklch(61% 0.031 264.4)",
+          "oklch(72% 0.031 264.4)",
+          "oklch(84% 0.031 264.4)",
+          "oklch(95% 0.031 264.4)"
+        ]
+      },
+      "done": {
+        "role": "status",
+        "displayName": "Done",
+        "tonalRamp": [
+          "oklch(15% 0.110 156.8)",
+          "oklch(26% 0.110 156.8)",
+          "oklch(38% 0.110 156.8)",
+          "oklch(49% 0.110 156.8)",
+          "oklch(61% 0.110 156.8)",
+          "oklch(72% 0.110 156.8)",
+          "oklch(84% 0.110 156.8)",
+          "oklch(95% 0.110 156.8)"
+        ]
+      },
+      "working": {
+        "role": "status",
+        "displayName": "In work",
+        "tonalRamp": [
+          "oklch(15% 0.119 65.1)",
+          "oklch(26% 0.119 65.1)",
+          "oklch(38% 0.119 65.1)",
+          "oklch(49% 0.119 65.1)",
+          "oklch(61% 0.119 65.1)",
+          "oklch(72% 0.119 65.1)",
+          "oklch(84% 0.119 65.1)",
+          "oklch(95% 0.119 65.1)"
+        ]
+      },
+      "mark-tile": {
+        "role": "brand",
+        "displayName": "Mark Tile",
+        "tonalRamp": [
+          "oklch(15% 0.050 265.9)",
+          "oklch(26% 0.050 265.9)",
+          "oklch(38% 0.050 265.9)",
+          "oklch(49% 0.050 265.9)",
+          "oklch(61% 0.050 265.9)",
+          "oklch(72% 0.050 265.9)",
+          "oklch(84% 0.050 265.9)",
+          "oklch(95% 0.050 265.9)"
+        ]
+      },
+      "mark-pen": {
+        "role": "brand",
+        "displayName": "Mark Pen",
+        "tonalRamp": [
+          "oklch(15% 0.193 23.0)",
+          "oklch(26% 0.193 23.0)",
+          "oklch(38% 0.193 23.0)",
+          "oklch(49% 0.193 23.0)",
+          "oklch(61% 0.193 23.0)",
+          "oklch(72% 0.193 23.0)",
+          "oklch(84% 0.193 23.0)",
+          "oklch(95% 0.193 23.0)"
+        ]
+      },
+      "mark-chevron": {
+        "role": "brand",
+        "displayName": "Mark Chevron",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(38% 0.000 89.9)",
+          "oklch(49% 0.000 89.9)",
+          "oklch(61% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "ink-dark": {
+        "role": "primary",
+        "displayName": "Ink Navy (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.012 264.5)",
+          "oklch(26% 0.012 264.5)",
+          "oklch(38% 0.012 264.5)",
+          "oklch(49% 0.012 264.5)",
+          "oklch(61% 0.012 264.5)",
+          "oklch(72% 0.012 264.5)",
+          "oklch(84% 0.012 264.5)",
+          "oklch(95% 0.012 264.5)"
+        ]
+      },
+      "ink-2-dark": {
+        "role": "primary",
+        "displayName": "Ink Navy, secondary (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.025 267.9)",
+          "oklch(26% 0.025 267.9)",
+          "oklch(38% 0.025 267.9)",
+          "oklch(49% 0.025 267.9)",
+          "oklch(61% 0.025 267.9)",
+          "oklch(72% 0.025 267.9)",
+          "oklch(84% 0.025 267.9)",
+          "oklch(95% 0.025 267.9)"
+        ]
+      },
+      "muted-dark": {
+        "role": "neutral",
+        "displayName": "Muted (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.034 266.1)",
+          "oklch(26% 0.034 266.1)",
+          "oklch(38% 0.034 266.1)",
+          "oklch(49% 0.034 266.1)",
+          "oklch(61% 0.034 266.1)",
+          "oklch(72% 0.034 266.1)",
+          "oklch(84% 0.034 266.1)",
+          "oklch(95% 0.034 266.1)"
+        ]
+      },
+      "paper-dark": {
+        "role": "neutral",
+        "displayName": "Paper (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.037 267.2)",
+          "oklch(26% 0.037 267.2)",
+          "oklch(38% 0.037 267.2)",
+          "oklch(49% 0.037 267.2)",
+          "oklch(61% 0.037 267.2)",
+          "oklch(72% 0.037 267.2)",
+          "oklch(84% 0.037 267.2)",
+          "oklch(95% 0.037 267.2)"
+        ]
+      },
+      "paper-2-dark": {
+        "role": "neutral",
+        "displayName": "Paper 2 (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.043 268.1)",
+          "oklch(26% 0.043 268.1)",
+          "oklch(38% 0.043 268.1)",
+          "oklch(49% 0.043 268.1)",
+          "oklch(61% 0.043 268.1)",
+          "oklch(72% 0.043 268.1)",
+          "oklch(84% 0.043 268.1)",
+          "oklch(95% 0.043 268.1)"
+        ]
+      },
+      "paper-3-dark": {
+        "role": "neutral",
+        "displayName": "Paper 3 (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.049 267.4)",
+          "oklch(26% 0.049 267.4)",
+          "oklch(38% 0.049 267.4)",
+          "oklch(49% 0.049 267.4)",
+          "oklch(61% 0.049 267.4)",
+          "oklch(72% 0.049 267.4)",
+          "oklch(84% 0.049 267.4)",
+          "oklch(95% 0.049 267.4)"
+        ]
+      },
+      "hairline-dark": {
+        "role": "neutral",
+        "displayName": "Hairline (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.012 264.5)",
+          "oklch(26% 0.012 264.5)",
+          "oklch(38% 0.012 264.5)",
+          "oklch(49% 0.012 264.5)",
+          "oklch(61% 0.012 264.5)",
+          "oklch(72% 0.012 264.5)",
+          "oklch(84% 0.012 264.5)",
+          "oklch(95% 0.012 264.5)"
+        ],
+        "canonical": "rgb(231 235 243 / 0.14)"
+      },
+      "guide-dark": {
+        "role": "neutral",
+        "displayName": "Guide (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.012 264.5)",
+          "oklch(26% 0.012 264.5)",
+          "oklch(38% 0.012 264.5)",
+          "oklch(49% 0.012 264.5)",
+          "oklch(61% 0.012 264.5)",
+          "oklch(72% 0.012 264.5)",
+          "oklch(84% 0.012 264.5)",
+          "oklch(95% 0.012 264.5)"
+        ],
+        "canonical": "rgb(231 235 243 / 0.24)"
+      },
+      "pen-dark": {
+        "role": "secondary",
+        "displayName": "Red Pen (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.181 20.9)",
+          "oklch(26% 0.181 20.9)",
+          "oklch(38% 0.181 20.9)",
+          "oklch(49% 0.181 20.9)",
+          "oklch(61% 0.181 20.9)",
+          "oklch(72% 0.181 20.9)",
+          "oklch(84% 0.181 20.9)",
+          "oklch(95% 0.181 20.9)"
+        ]
+      },
+      "pen-ink-dark": {
+        "role": "secondary",
+        "displayName": "Red Pen, as text (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.142 18.8)",
+          "oklch(26% 0.142 18.8)",
+          "oklch(38% 0.142 18.8)",
+          "oklch(49% 0.142 18.8)",
+          "oklch(61% 0.142 18.8)",
+          "oklch(72% 0.142 18.8)",
+          "oklch(84% 0.142 18.8)",
+          "oklch(95% 0.142 18.8)"
+        ]
+      },
+      "on-ink-dark": {
+        "role": "neutral",
+        "displayName": "On Ink (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.037 267.2)",
+          "oklch(26% 0.037 267.2)",
+          "oklch(38% 0.037 267.2)",
+          "oklch(49% 0.037 267.2)",
+          "oklch(61% 0.037 267.2)",
+          "oklch(72% 0.037 267.2)",
+          "oklch(84% 0.037 267.2)",
+          "oklch(95% 0.037 267.2)"
+        ]
+      },
+      "box-margin-dark": {
+        "role": "tertiary",
+        "displayName": "Box-model Margin (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.080 67.7)",
+          "oklch(26% 0.080 67.7)",
+          "oklch(38% 0.080 67.7)",
+          "oklch(49% 0.080 67.7)",
+          "oklch(61% 0.080 67.7)",
+          "oklch(72% 0.080 67.7)",
+          "oklch(84% 0.080 67.7)",
+          "oklch(95% 0.080 67.7)"
+        ],
+        "canonical": "rgb(249 204 157 / 0.2)"
+      },
+      "box-padding-dark": {
+        "role": "tertiary",
+        "displayName": "Box-model Padding (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.092 117.1)",
+          "oklch(26% 0.092 117.1)",
+          "oklch(38% 0.092 117.1)",
+          "oklch(49% 0.092 117.1)",
+          "oklch(61% 0.092 117.1)",
+          "oklch(72% 0.092 117.1)",
+          "oklch(84% 0.092 117.1)",
+          "oklch(95% 0.092 117.1)"
+        ],
+        "canonical": "rgb(195 208 139 / 0.2)"
+      },
+      "box-content-dark": {
+        "role": "tertiary",
+        "displayName": "Box-model Content (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.047 213.9)",
+          "oklch(26% 0.047 213.9)",
+          "oklch(38% 0.047 213.9)",
+          "oklch(49% 0.047 213.9)",
+          "oklch(61% 0.047 213.9)",
+          "oklch(72% 0.047 213.9)",
+          "oklch(84% 0.047 213.9)",
+          "oklch(95% 0.047 213.9)"
+        ],
+        "canonical": "rgb(140 182 192 / 0.14)"
+      },
+      "tag-bg-dark": {
+        "role": "neutral",
+        "displayName": "Tag Fill (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.012 264.5)",
+          "oklch(26% 0.012 264.5)",
+          "oklch(38% 0.012 264.5)",
+          "oklch(49% 0.012 264.5)",
+          "oklch(61% 0.012 264.5)",
+          "oklch(72% 0.012 264.5)",
+          "oklch(84% 0.012 264.5)",
+          "oklch(95% 0.012 264.5)"
+        ]
+      },
+      "tag-fg-dark": {
+        "role": "neutral",
+        "displayName": "Tag Text (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.037 267.2)",
+          "oklch(26% 0.037 267.2)",
+          "oklch(38% 0.037 267.2)",
+          "oklch(49% 0.037 267.2)",
+          "oklch(61% 0.037 267.2)",
+          "oklch(72% 0.037 267.2)",
+          "oklch(84% 0.037 267.2)",
+          "oklch(95% 0.037 267.2)"
+        ]
+      },
+      "tag-dim-dark": {
+        "role": "neutral",
+        "displayName": "Tag Dim (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.044 268.4)",
+          "oklch(26% 0.044 268.4)",
+          "oklch(38% 0.044 268.4)",
+          "oklch(49% 0.044 268.4)",
+          "oklch(61% 0.044 268.4)",
+          "oklch(72% 0.044 268.4)",
+          "oklch(84% 0.044 268.4)",
+          "oklch(95% 0.044 268.4)"
+        ]
+      },
+      "done-dark": {
+        "role": "status",
+        "displayName": "Done (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.132 157.7)",
+          "oklch(26% 0.132 157.7)",
+          "oklch(38% 0.132 157.7)",
+          "oklch(49% 0.132 157.7)",
+          "oklch(61% 0.132 157.7)",
+          "oklch(72% 0.132 157.7)",
+          "oklch(84% 0.132 157.7)",
+          "oklch(95% 0.132 157.7)"
+        ]
+      },
+      "working-dark": {
+        "role": "status",
+        "displayName": "In work (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.127 74.5)",
+          "oklch(26% 0.127 74.5)",
+          "oklch(38% 0.127 74.5)",
+          "oklch(49% 0.127 74.5)",
+          "oklch(61% 0.127 74.5)",
+          "oklch(72% 0.127 74.5)",
+          "oklch(84% 0.127 74.5)",
+          "oklch(95% 0.127 74.5)"
+        ]
+      },
+      "mark-ring-dark": {
+        "role": "brand",
+        "displayName": "Mark Ring (dark)",
+        "tonalRamp": [
+          "oklch(15% 0.012 264.5)",
+          "oklch(26% 0.012 264.5)",
+          "oklch(38% 0.012 264.5)",
+          "oklch(49% 0.012 264.5)",
+          "oklch(61% 0.012 264.5)",
+          "oklch(72% 0.012 264.5)",
+          "oklch(84% 0.012 264.5)",
+          "oklch(95% 0.012 264.5)"
+        ],
+        "canonical": "rgb(231 235 243 / 0.28)"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The hero H1 only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section H2s."
+      },
+      "lede-large": {
+        "displayName": "Lede large",
+        "purpose": "The hero lede; at 600 the privacy promise."
+      },
+      "subhead": {
+        "displayName": "Subhead",
+        "purpose": "Step and install-row H3s."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "The paragraph under a section H2."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Metadata, notes, nav links, Change Item bodies, footer."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Status pills, the Optional pill, the count badge."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "\"InkUp\" beside the mark."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Inline code, kbd, shell commands, selectors, timestamps."
+      },
+      "tag": {
+        "displayName": "Tag",
+        "purpose": "The selector tag chip."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-card",
+        "value": "0 1px 2px rgb(31 42 68 / 0.08), 0 8px 24px -8px rgb(31 42 68 / 0.18)",
+        "purpose": "Change Item cards and the capture frame at rest."
+      },
+      {
+        "name": "shadow-lift",
+        "value": "0 2px 4px rgb(31 42 68 / 0.1), 0 18px 40px -12px rgb(31 42 68 / 0.28)",
+        "purpose": "The moment a Change Item lands in the dock."
+      },
+      {
+        "name": "shadow-card-dark",
+        "value": "0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -8px rgb(0 0 0 / 0.5)",
+        "purpose": "Card, dark scheme."
+      },
+      {
+        "name": "shadow-lift-dark",
+        "value": "0 2px 4px rgb(0 0 0 / 0.3), 0 18px 40px -12px rgb(0 0 0 / 0.6)",
+        "purpose": "Lift, dark scheme."
+      },
+      {
+        "name": "focus-ring",
+        "value": "outline: 2px solid var(--pen); outline-offset: 3px",
+        "purpose": "Keyboard focus on every interactive element."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The only easing curve."
+      },
+      {
+        "name": "inspect",
+        "value": "opacity 280ms; tag +80ms delay, translate 4px over 380ms",
+        "purpose": "The box-model overlay and tag chip appear."
+      },
+      {
+        "name": "stroke",
+        "value": "stroke-dashoffset 900ms, 150ms delay",
+        "purpose": "The pen loop draws on."
+      },
+      {
+        "name": "transcript",
+        "value": "opacity 400ms, translate 6px over 500ms, 900ms delay",
+        "purpose": "The hero's quote appears after its loop."
+      },
+      {
+        "name": "arrive",
+        "value": "snap-in 520ms (18px, scale 0.98); lift 900ms",
+        "purpose": "A Change Item lands in the dock."
+      },
+      {
+        "name": "resolve",
+        "value": "In work at 350ms + 520ms × i; Done 750ms later",
+        "purpose": "Agents resolve the items in turn."
+      },
+      {
+        "name": "interface",
+        "value": "160ms buttons, 180ms tree caret, 200ms nav hairline",
+        "purpose": "State transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone",
+        "value": "40rem"
+      },
+      {
+        "name": "tablet",
+        "value": "48rem"
+      },
+      {
+        "name": "dock",
+        "value": "72rem"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action per view: Add to Chrome, the repo link.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Add to Chrome</a>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2.9rem; padding: 0 1.25rem; border-radius: 10px; border: 1px solid #1f2a44; background: #1f2a44; color: #fff; font: 600 1rem/1 'Schibsted Grotesk Variable', 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; text-decoration: none; transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: #3a4663; } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 2px solid #e5484d; outline-offset: 3px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Paper button with a hairline edge, beside a primary.",
+      "html": "<a class=\"ds-btn-secondary\" href=\"#\">See how it works</a>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; min-height: 2.9rem; padding: 0 1.25rem; border-radius: 10px; border: 1px solid rgb(31 42 68 / 0.16); background: #fff; color: #1f2a44; font: 600 1rem/1 'Schibsted Grotesk Variable', 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; text-decoration: none; transition: border-color 160ms cubic-bezier(0.16, 1, 0.3, 1), transform 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-secondary:hover { border-color: #3a4663; } .ds-btn-secondary:active { transform: translateY(1px); } .ds-btn-secondary:focus-visible { outline: 2px solid #e5484d; outline-offset: 3px; }"
+    },
+    {
+      "name": "Selector Tag Chip",
+      "kind": "chip",
+      "refersTo": "tag-chip",
+      "description": "The inspector tag pinned to an element: selector, live size, and a notch.",
+      "html": "<span class=\"ds-tag\">a.cta<span class=\"ds-tag-dim\"> 212 × 54</span></span>",
+      "css": ".ds-tag { position: relative; display: inline-flex; align-items: baseline; padding: 0.28em 0.55em; border-radius: 4px; background: #1f2a44; color: #fff; font: 400 0.78rem/1.2 'Fragment Mono', ui-monospace, 'SF Mono', Menlo, monospace; white-space: nowrap; } .ds-tag-dim { color: #aab4c8; } .ds-tag::after { content: ''; position: absolute; left: 12px; top: 100%; border: 5px solid transparent; border-top-color: #1f2a44; }"
+    },
+    {
+      "name": "Change Item",
+      "kind": "card",
+      "refersTo": "change-item",
+      "description": "A located change request: title, status, selector, timestamp and quote.",
+      "html": "<article class=\"ds-item\"><header class=\"ds-item-head\"><h3 class=\"ds-item-title\">Make the install button the primary action</h3><span class=\"ds-status ds-status-done\">Done</span></header><div class=\"ds-item-meta\"><span class=\"ds-item-sel\">a.cta</span><span>00:04</span></div><blockquote class=\"ds-item-quote\">“Make this the first thing people see.”</blockquote></article>",
+      "css": ".ds-item { display: grid; gap: 0.5rem; max-width: 22rem; padding: 1rem; border-radius: 10px; background: #fff; color: #1f2a44; border: 1px solid rgb(31 42 68 / 0.16); box-shadow: 0 1px 2px rgb(31 42 68 / 0.08), 0 8px 24px -8px rgb(31 42 68 / 0.18); font: 400 0.875rem/1.55 'Schibsted Grotesk Variable', 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; } .ds-item-head { display: flex; justify-content: space-between; align-items: start; gap: 0.75rem; } .ds-item-title { margin: 0; font-size: 1rem; line-height: 1.25; letter-spacing: -0.01em; font-weight: 650; } .ds-status { flex: none; padding: 0.15em 0.55em; border-radius: 999px; border: 1px solid rgb(31 42 68 / 0.16); color: #566077; font-size: 0.75rem; line-height: 1.4; font-weight: 600; } .ds-status-done { color: #1f7a4d; border-color: currentColor; } .ds-item-meta { display: flex; gap: 0.75rem; color: #566077; font-family: 'Fragment Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.9em; } .ds-item-sel { color: #c8323a; } .ds-item-quote { margin: 0; padding-left: 0.75rem; border-left: 1px solid #e5484d; color: #3a4663; }"
+    },
+    {
+      "name": "Status Pill: In work",
+      "kind": "chip",
+      "refersTo": "status-pill-working",
+      "description": "A Change Item that an agent has claimed.",
+      "html": "<span class=\"ds-pill-working\">In work</span>",
+      "css": ".ds-pill-working { display: inline-block; padding: 0.15em 0.55em; border-radius: 999px; border: 1px solid currentColor; color: #9a5b00; font: 600 0.75rem/1.4 'Schibsted Grotesk Variable', 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; }"
+    },
+    {
+      "name": "Copy Command",
+      "kind": "input",
+      "refersTo": "copy-command",
+      "description": "A shell command in a recessed well with a copy button.",
+      "html": "<div class=\"ds-copy\"><code class=\"ds-copy-cmd\"><span class=\"ds-copy-prompt\">$ </span>brew install liatrio-labs/tap/inkup</code><button type=\"button\" class=\"ds-copy-btn\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"8\" y=\"8\" width=\"12\" height=\"12\" rx=\"2\"></rect><path d=\"M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2\"></path></svg>Copy</button></div>",
+      "css": ".ds-copy { display: flex; align-items: center; gap: 0.5rem; max-width: 30rem; padding: 0.5rem 0.5rem 0.5rem 1rem; border-radius: 10px; background: #f4f6fa; border: 1px solid rgb(31 42 68 / 0.16); color: #1f2a44; } .ds-copy-cmd { flex: 1; min-width: 0; font: 400 0.875rem/1.5 'Fragment Mono', ui-monospace, 'SF Mono', Menlo, monospace; } .ds-copy-prompt { color: #566077; user-select: none; } .ds-copy-btn { flex: none; display: inline-flex; align-items: center; gap: 0.25rem; min-height: 2.25rem; padding: 0 0.75rem; border: 1px solid rgb(31 42 68 / 0.16); border-radius: 6px; background: #fff; color: #1f2a44; font: 600 0.875rem/1 'Schibsted Grotesk Variable', 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .ds-copy-btn:hover { border-color: #3a4663; } .ds-copy-btn:focus-visible { outline: 2px solid #e5484d; outline-offset: 3px; } .ds-copy-btn svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }"
+    },
+    {
+      "name": "Pen Loop",
+      "kind": "custom",
+      "refersTo": "pen",
+      "description": "The reviewer's red-pen Stroke around the element a Change Item names.",
+      "html": "<span class=\"ds-loop-wrap\"><span class=\"ds-loop-target\">We never see your data.</span><svg class=\"ds-loop\" viewBox=\"0 0 200 100\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><path d=\"M150 12 C104 2 26 10 10 44 C-2 72 48 96 104 96 C164 96 198 76 192 46 C186 18 146 6 98 6 C80 6 66 3 54 -6\"></path></svg></span>",
+      "css": ".ds-loop-wrap { position: relative; display: inline-block; padding: 0 0.35em; font: 600 1.5rem/1.25 'Schibsted Grotesk Variable', 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; color: #1f2a44; } .ds-loop { position: absolute; inset: -22% -9% -26% -8%; width: 117%; height: 148%; overflow: visible; pointer-events: none; } .ds-loop path { fill: none; stroke: #e5484d; stroke-width: 3.5px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }"
+    },
+    {
+      "name": "Mark",
+      "kind": "custom",
+      "refersTo": "mark",
+      "description": "The InkUp mark: ink tile, red-pen open loop, white chevron.",
+      "html": "<svg class=\"ds-mark\" viewBox=\"0 0 128 128\" aria-hidden=\"true\"><rect width=\"128\" height=\"128\" rx=\"28\" fill=\"#1F2A44\"></rect><path d=\"M76 30 C54 27 30 38 26 60 C22 84 44 100 66 100 C90 100 106 84 104 62 C102 42 86 30 64 28 C56 27 48 25 42 19\" fill=\"none\" stroke=\"#E5484D\" stroke-width=\"9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path><path d=\"M47 76 L64 58 L81 76\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"10\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></path></svg>",
+      "css": ".ds-mark { width: 64px; height: 64px; display: block; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Inspected Page",
+    "overview": "InkUp's world is a live page under the browser's element inspector, being reviewed by someone with a red pen. The ground is white paper and the text and chrome are ink-navy. The only other colour fields are the devtools box-model tints, laid as translucent overlays on real elements, and the only warm accent is the reviewer's red pen. Structure is drawn the way the inspector draws it: hairlines, dashed measurement guides, selector tag chips and DOM-tree indentation. Nothing is decorative that the inspector or the reviewer would not have put there.\n\nThe system is quiet and precise so the pen can be loud. One precise grotesk carries everything, and a code face appears only where the inspector would show code. Surfaces are flat with hairline edges; the two shadows belong to things that float over the page, like a Change Item or a capture.\n\nThe world refuses the dark developer-tool landing page: the glowing terminal, gradient washes and a bento card grid. It also refuses invented proof. Everything the page shows is either the real product or labelled as an illustration.",
+    "keyCharacteristics": [
+      "White paper, ink-navy text, one red pen, three inspector tints.",
+      "Reviewer marks (loops, quote rules, timestamps, selectors) are the only red on the page.",
+      "Schibsted Grotesk for everything; Fragment Mono only for code, selectors and timestamps.",
+      "Flat surfaces, hairline borders, dashed guides; shadows only on floating cards.",
+      "One orchestrated motion: the page reviews itself. No scattered entrance effects.",
+      "Light and dark follow `prefers-color-scheme`; both are first-class."
+    ],
+    "rules": [
+      {
+        "name": "The Red Pen Rule",
+        "body": "Red pen is the reviewer's hand. Use it only for reviewer marks: pen loops, selectors in `pen-ink`, quote rules, timestamps, and the flash when an item lands. The keyboard focus ring is `ink`, and a hovered link's underline takes the text colour. Never use red pen for a fill, a heading, a button, an icon, an error, focus or decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Inspector Tint Rule",
+        "body": "The box-model tints appear only as translucent overlays on real elements (or as the inspector's own hover and selection tint). They are never section backgrounds, card fills or chart colours.",
+        "section": "colors"
+      },
+      {
+        "name": "The Status Colour Rule",
+        "body": "Amber and green mean In work and Done. Don't reuse them for emphasis, badges or success decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Schibsted Grotesk sets every word of interface and prose. Fragment Mono appears only for code, selectors, shell commands, keys and timestamps. Never set a heading, a label or a button in mono.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sentence Case Rule",
+        "body": "Headings, buttons, pills and labels are sentence case. No all-caps labels, no letterspaced kickers or eyebrows above headings.",
+        "section": "typography"
+      },
+      {
+        "name": "The Floating Card Rule",
+        "body": "Only a Change Item and a capture cast a shadow. Rows, lists, sections, the dock and the copy command are flat with hairlines.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the ground white paper (dark: navy `paper-dark`) and the text ink-navy.",
+      "Do use red pen only for reviewer marks: pen loops, selectors in `pen-ink`, quote rules and timestamps, plus the focus ring and link-hover underline.",
+      "Do set selector and timestamp text in `pen-ink`, never in `pen`.",
+      "Do tie every pen loop to the element its Change Item names.",
+      "Do lay the box-model tints only as translucent overlays on real elements.",
+      "Do mark Change Item status with `working` and `done` and nothing else.",
+      "Do use Schibsted Grotesk for all prose and interface text, and Fragment Mono only for code, selectors, keys and timestamps.",
+      "Do draw structure with hairlines, dashed guides and DOM-tree indentation.",
+      "Do keep motion inside the one review sequence, and give reduced motion the finished state.",
+      "Do show the Liatrio logo only in the \"InkUp by Liatrio\" lockup, unaltered, main or reverse by the ground."
+    ],
+    "donts": [
+      "Don't build the dark developer-tool landing page: no glowing terminal, gradient washes or bento card grid.",
+      "Don't use red pen as a fill, a button colour, an error colour, a heading colour or decoration.",
+      "Don't give sections, cards or charts a box-model tint as a background.",
+      "Don't add shadows to rows, sections, the dock or the copy command.",
+      "Don't add scroll-triggered fades, parallax or staggered reveals outside the review sequence.",
+      "Don't set headings, labels or buttons in mono, or in all caps with letterspacing.",
+      "Don't put kickers or eyebrows above headings.",
+      "Don't use glyph characters as icons in the interface; draw icons as inline SVG strokes.",
+      "Don't recolour, outline or re-proportion the mark, or remove its dark-mode ring.",
+      "Don't use Liatrio's greens, greys or fonts outside the Liatrio logo."
+    ]
+  }
+}

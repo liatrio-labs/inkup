@@ -21,13 +21,34 @@ act on. Each item names its element, carries a screenshot and a transcript excer
   With an Anthropic key, Draft Items also appear in the panel while you talk.
 - **Review and export.** Edit, reorder and delete items, then export a zip with `session.json`, the screenshots and
   an agent prompt.
-- **Local first.** Sessions stay in the browser's IndexedDB until you delete them. The free tier sends nothing
-  anywhere. Paid transcription (Deepgram, ElevenLabs) and Process (Anthropic) use keys you enter in Settings.
+- **Local first.** Sessions stay in the browser's IndexedDB until you delete them. InkUp is free, and you bring your
+  own AI keys, entered in Settings. Process needs an Anthropic key. Transcription runs on your device unless you add a
+  Deepgram or ElevenLabs key.
 
 The product requirements are in `docs/PRD.md`. The vocabulary (Session, Stroke, Annotation, Candidate, Change Item,
 Draft Item, Voice Command, …) is defined in `CONTEXT.md`, and the code uses those terms.
 
-## Install (unpacked)
+## Install from a release
+
+The Chrome Web Store listing is in review. Until it is live, install the build from the latest
+[extension release](https://github.com/liatrio-labs/inkup/releases?q=inkup-extension&expanded=true).
+
+**Chrome** (153 or later):
+
+1. Download `inkup-<version>-chrome.zip` from the release.
+2. Unzip it. Keep the folder where it is: Chrome loads the extension from it.
+3. Open `chrome://extensions` and turn on Developer mode (top right).
+4. Click "Load unpacked" and pick the unzipped folder.
+5. The onboarding tab opens and asks for the microphone. Allow it, then open a page, click the extension's icon to
+   show the toolbar, and click Start.
+
+A build loaded this way does not update itself. To update, unzip the next release over the same folder and click the
+reload icon on the extension's card in `chrome://extensions`.
+
+**Firefox** (140 or later): download `inkup-<version>-firefox.zip`, open `about:debugging`, choose This Firefox, then
+Load Temporary Add-on and pick the zip. Firefox removes temporary add-ons when it restarts.
+
+## Build from source (unpacked)
 
 You need Node 22.18 or later (the scripts run TypeScript directly), pnpm 10 or later and Chrome 153 or later.
 

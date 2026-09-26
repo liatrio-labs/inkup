@@ -1,0 +1,58 @@
+---
+// A reviewer's red-pen Stroke: the mark's open loop, stretched around whatever it sits in (the parent needs
+// position: relative). It draws itself when an ancestor gains .is-inked; without JS or with reduced motion it is
+// simply there. The stroke doesn't scale with the loop, so its dash is measured in screen pixels by the review script
+// (--len); until then, the loop shows whole.
+interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+---
+
+<svg class:list={['pen-loop', className]} viewBox="0 0 200 100" preserveAspectRatio="none" aria-hidden="true">
+  <path
+    pathLength="1"
+    d="M150 12 C104 2 26 10 10 44 C-2 72 48 96 104 96 C164 96 198 76 192 46 C186 18 146 6 98 6 C80 6 66 3 54 -6"
+  ></path>
+</svg>
+
+<style>
+  .pen-loop {
+    position: absolute;
+    inset: -22% -9% -26% -8%;
+    width: 117%;
+    height: 148%;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .pen-loop path {
+    fill: none;
+    stroke: var(--pen);
+    stroke-width: 3.5px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* On a phone the loop stays inside the gutter. */
+  @media (max-width: 40rem) {
+    .pen-loop {
+      left: -4%;
+      width: 108%;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.js [data-ink]) .pen-loop path {
+      stroke-dasharray: var(--len) var(--len);
+      stroke-dashoffset: var(--len);
+      transition: stroke-dashoffset 900ms var(--ease-out) 150ms;
+    }
+
+    :global(.js [data-ink].is-inked) .pen-loop path {
+      stroke-dashoffset: 0;
+    }
+  }
+</style>

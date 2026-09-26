@@ -1,0 +1,152 @@
+---
+// Wraps an element in the inspector's box-model overlay: margin, padding and content tints, and a selector tag with
+// the element's live size. The overlay shows when an ancestor gains .is-inked (or always without JS).
+interface Props {
+  selector: string;
+  class?: string;
+  /** Where the tag sits: above the box (default) or below it. */
+  tagAt?: 'top' | 'bottom';
+}
+const { selector, class: className, tagAt = 'top' } = Astro.props;
+---
+
+<div class:list={['inspect', className]} data-inspect>
+  <span class="box" aria-hidden="true">
+    <span class="m"></span>
+    <span class="p"></span>
+    <span class="c"></span>
+  </span>
+  <span class:list={['tag', 'inspect-tag', `at-${tagAt}`]} aria-hidden="true">
+    {selector}<span class="dim" data-size></span>
+  </span>
+  <slot />
+</div>
+
+<style>
+  .inspect {
+    position: relative;
+    --m: 14px;
+    --p: 10px;
+    padding: var(--p);
+    /* The padding is the overlay's, not the element's: pull it back out so wrapping never moves the layout. */
+    margin-inline: calc(var(--p) * -1);
+  }
+
+  /* On a phone the gutter is narrow: shrink the boxes so the margin ring stays on screen. */
+  @media (max-width: 40rem) {
+    .inspect {
+      --m: 6px;
+      --p: 6px;
+    }
+  }
+
+  .box,
+  .box > span {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  .box {
+    inset: 0;
+    z-index: 0;
+  }
+
+  /* Measurement guides, like the inspector's: dashed hairlines along the box's edges, across the page and a little
+     past the box vertically. The page layout clips them at its gutter. */
+  .box::before,
+  .box::after {
+    content: '';
+    position: absolute;
+  }
+
+  .box::before {
+    inset: 0 -100vw;
+    border-block: 1px dashed var(--guide);
+  }
+
+  .box::after {
+    inset: -3rem 0;
+    border-inline: 1px dashed var(--guide);
+  }
+
+  .m {
+    inset: calc(var(--m) * -1);
+    background: var(--box-margin);
+    /* Only the margin ring: the padding box sits on top of the middle. */
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    padding: var(--m);
+  }
+
+  .p {
+    inset: 0;
+    background: var(--box-padding);
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    padding: var(--p);
+  }
+
+  .c {
+    inset: var(--p);
+    background: var(--box-content);
+  }
+
+  .inspect-tag {
+    position: absolute;
+    left: calc(var(--m) * -1);
+    z-index: 3;
+  }
+
+  .inspect-tag.at-top {
+    bottom: calc(100% + var(--m) + 6px);
+  }
+
+  .inspect-tag.at-bottom {
+    top: calc(100% + var(--m) + 6px);
+  }
+
+  .inspect-tag::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    border: 5px solid transparent;
+  }
+
+  .at-top::after {
+    top: 100%;
+    border-top-color: var(--tag-bg);
+  }
+
+  .at-bottom::after {
+    bottom: 100%;
+    border-bottom-color: var(--tag-bg);
+  }
+
+  .inspect > :global(:not(.box, .inspect-tag, .pen-loop)) {
+    position: relative;
+    z-index: 1;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.js [data-ink]) .box,
+    :global(.js [data-ink]) .inspect-tag {
+      opacity: 0;
+      transition: opacity 280ms var(--ease-out);
+    }
+
+    :global(.js [data-ink]) .inspect-tag {
+      translate: 0 4px;
+      transition:
+        opacity 280ms var(--ease-out) 80ms,
+        translate 380ms var(--ease-out) 80ms;
+    }
+
+    :global(.js [data-ink].is-inked) .box,
+    :global(.js [data-ink].is-inked) .inspect-tag {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+</style>

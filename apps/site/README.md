@@ -36,14 +36,19 @@ attributes on links and buttons. The names are a contract: dashboards and goals 
 
 | Event | When |
 | --- | --- |
-| `install-chrome` | Add to Chrome |
-| `install-firefox` | Add to Firefox |
+| `install-chrome` | The primary install button: Add to Chrome, or Install for Chrome while the store listing is in review (it then jumps to the manual steps) |
+| `download-chrome-zip` | The Chrome release zip, for the manual install |
+| `download-firefox-zip` | The Firefox release zip, for a temporary add-on |
+| `install-firefox` | Add to Firefox, once the add-on is listed |
 | `download-dmg` | The macOS app download |
 | `copy-brew-cli` | Copy the Homebrew command for the `inkup` CLI |
 | `copy-brew-cask` | Copy the Homebrew command for the desktop app |
+| `copy-mcp-install` | Copy `inkup mcp install` |
 | `github` | A link to the GitHub repository |
+| `liatrio` | The Liatrio logo in the footer |
 
-Add `data-umami-event-location` with `hero`, `install` or `footer` to say where the click came from:
+Add `data-umami-event-location` to say where the click came from: `hero`, `nav`, `install`, `install-extension`,
+`install-host`, `oss` or `closing`.
 
 ```html
 <a href="…" data-umami-event="install-chrome" data-umami-event-location="hero">Add to Chrome</a>

@@ -8,5 +8,5 @@ export default defineConfig({
   site: process.env.SITE_URL || 'https://inkup.liatr.io',
   base: (process.env.SITE_BASE || '/').replace(/\/?$/, '/'),
   output: 'static',
-  integrations: [sitemap()],
+  integrations: [sitemap({ filter: (page) => !page.endsWith('/og/') })],
 });
