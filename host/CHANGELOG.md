@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.2.1...inkup-v0.3.0) (2026-09-26)
+
+
+### Features
+
+* **site:** add the marketing site skeleton, its CI route and Pages deploy ([#48](https://github.com/liatrio-labs/inkup/issues/48)) ([8d13fdb](https://github.com/liatrio-labs/inkup/commit/8d13fdb23b39a1dd38f92e74cee3d8ebdc3f9a8f))
+
 ## [0.2.1](https://github.com/liatrio-labs/inkup/compare/inkup-v0.2.0...inkup-v0.2.1) (2026-09-25)
 
 
