@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.5.1...inkup-v0.6.0) (2026-09-28)
+
+
+### Features
+
+* **desktop:** bundle the inkup CLI in the macOS app and add Install CLI ([#62](https://github.com/liatrio-labs/inkup/issues/62)) ([8e0ef99](https://github.com/liatrio-labs/inkup/commit/8e0ef99a9f1c0a0236e486e89b106602108782e1))
+
 ## [0.5.1](https://github.com/liatrio-labs/inkup/compare/inkup-v0.5.0...inkup-v0.5.1) (2026-09-28)
 
 
