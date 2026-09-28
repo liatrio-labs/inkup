@@ -181,7 +181,7 @@ jobs:
           brew install inkup-local/verify/inkup 2>&1 | tee "$RUNNER_TEMP/install.log"
       - name: Homebrew poured the bottle
         run: |
-          if ! grep -qF "Pouring inkup--$VERSION." "$RUNNER_TEMP/install.log"; then
+          if ! grep -qF "Pouring inkup-$VERSION." "$RUNNER_TEMP/install.log"; then
             echo "::error::brew install did not pour a bottle"
             exit 1
           fi

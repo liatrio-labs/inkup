@@ -52,7 +52,7 @@ against the release's `sha256.sum` and repacks it as a bottle holding the keg `i
 (`inkup/<version>/bin/inkup` and the docs). The formula's `root_url` is the release's download URL, its `url`s are the
 archives (so `--build-from-source` still works), and each bottle is `cellar: :any_skip_relocation`, since the binary
 holds no Homebrew path. The release asset is named `inkup-<version>.<tag>.bottle.tar.gz`, with one `-`: that is the
-name Homebrew fetches from any `root_url` but GitHub Packages (it caches it as `inkup--…`). There are four tags:
+name Homebrew fetches from any `root_url` except GitHub Packages, which uses `inkup--…`. There are four tags:
 `arm64_linux` and `x86_64_linux`, and on macOS `arm64_big_sur` and `big_sur`, because Homebrew pours a bottle tagged
 for an older macOS on any newer one, and Big Sur (11) is the oldest macOS it still recognises (the arm64 binary needs
 11.0, the Intel one 10.12). Before anything is uploaded, a verify job installs the formula from a local tap on macOS

@@ -45,7 +45,7 @@ export const archiveName = (target: Target) => `inkup-${target}.tar.xz`;
 
 /**
  * The bottle's file name at root_url. Homebrew fetches `<root_url>/<name>-<version>.<tag>.bottle.tar.gz` from any
- * root_url but GitHub Packages (Bottle::Filename#url_encode, one `-`), and caches it locally as `<name>--<version>…`.
+ * root_url but GitHub Packages (Bottle::Filename#url_encode, one `-`), not the `<name>--<version>…` of its to_s.
  */
 export const bottleName = (version: string, target: Target) => `inkup-${version}.${BOTTLES[target]}.bottle.tar.gz`;
 
