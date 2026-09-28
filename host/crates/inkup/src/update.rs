@@ -3,6 +3,8 @@
 //! How inkup was installed decides how it updates:
 //! - by the shell or PowerShell installer (it wrote an install receipt): axoupdater runs the new release's installer
 //!   over this copy;
+//! - by the desktop app, which bundles the CLI at `InkUp.app/Contents/MacOS/inkup` and links it onto PATH: never
+//!   overwritten, since that would break the app's signature; the app updates it (the cask or the release's DMG);
 //! - by Homebrew (the binary lives in a Homebrew Cellar): the user chooses once, in config.toml's `[update]`, between
 //!   leaving it to `brew upgrade inkup` and updating anyway, which installs a second copy where the installer puts it;
 //! - any other way (`cargo install`, a dev build): it says a release exists and how to install it.
@@ -20,8 +22,8 @@ use axoupdater::AxoUpdater;
 use clap::{Args, ValueEnum};
 use inkup_store::HostConfig;
 use inkup_update_check::{
-    APP_NAME, Checked, Found, REPO_OWNER, Skew, Version, check_allowed, current_version, latest_release, now,
-    release_protocol, skew, spoken_protocols, updater, write_cache,
+    APP_NAME, Checked, Found, REPO_OWNER, Skew, Version, app_bundle, app_update, cask_installed, check_allowed,
+    current_version, latest_release, now, release_protocol, skew, spoken_protocols, updater, write_cache,
 };
 use tokio::sync::watch;
 use toml_edit::{DocumentMut, Item, Table, value};
@@ -75,6 +77,8 @@ impl HomebrewChoice {
 pub enum Install {
     /// By the shell or PowerShell installer, whose receipt names this executable's directory.
     Installer,
+    /// Inside the desktop app's bundle (this `.app`), which updates it. `cask`: Homebrew's cask installed the app.
+    App { app: PathBuf, cask: bool },
     /// By Homebrew, under this prefix (`/opt/homebrew`, `/usr/local`, `/home/linuxbrew/.linuxbrew`).
     Homebrew { prefix: PathBuf },
     /// Some other way: `cargo install`, a dev build, a copied binary.
@@ -98,6 +102,9 @@ pub fn homebrew_prefix(exe: &Path, cellar: Option<&Path>) -> Option<PathBuf> {
 /// How this process's executable was installed.
 pub fn detect() -> Install {
     let exe = std::env::current_exe().and_then(|p| p.canonicalize());
+    if let Some(app) = exe.as_deref().ok().and_then(app_bundle) {
+        return Install::App { app, cask: cask_installed() };
+    }
     let cellar = std::env::var_os("HOMEBREW_CELLAR").map(PathBuf::from);
     if let Some(prefix) = exe.as_deref().ok().and_then(|exe| homebrew_prefix(exe, cellar.as_deref())) {
         return Install::Homebrew { prefix };
@@ -183,8 +190,9 @@ fn confirm(input: &mut impl BufRead) -> Result<bool> {
 /// One line for the TUI: the newer release and what to run.
 fn notice(latest: &Version, install: &Install, choice: Option<HomebrewChoice>, skew: Option<&Skew>) -> String {
     let run = match (install, choice) {
-        (Install::Homebrew { .. }, None | Some(HomebrewChoice::Brew)) => "brew upgrade inkup",
-        _ => "inkup update",
+        (Install::App { cask, .. }, _) => app_update(latest, *cask),
+        (Install::Homebrew { .. }, None | Some(HomebrewChoice::Brew)) => "brew upgrade inkup".into(),
+        _ => "inkup update".into(),
     };
     match skew {
         None => format!("inkup {latest} is out: {run}"),
@@ -254,6 +262,11 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
     match &install {
         Install::Installer if args.check => println!("Run `inkup update` to install it."),
         Install::Installer => update_in_place().await?,
+        Install::App { app, cask } => {
+            for line in app_instructions(&latest, app, *cask) {
+                println!("{line}");
+            }
+        }
         Install::Homebrew { prefix } => {
             let choice = match load_choice(&dir)? {
                 Some(choice) => Some(choice),
@@ -285,6 +298,14 @@ pub async fn run(args: UpdateArgs) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// What a copy inside the desktop app says: the app updates it, never `inkup update`.
+fn app_instructions(latest: &Version, app: &Path, cask: bool) -> [String; 2] {
+    [
+        format!("This inkup is the one inside {}, so it updates with the app.", app.display()),
+        format!("Update the app: {}", app_update(latest, cask)),
+    ]
 }
 
 fn describe_choice(choice: Option<HomebrewChoice>) -> &'static str {
@@ -456,6 +477,28 @@ mod tests {
              then brew upgrade inkup"
         );
     }
+    #[test]
+    fn a_copy_inside_the_app_names_the_apps_update() {
+        let v: Version = "0.6.0".parse().unwrap();
+        let app = p("/Applications/InkUp.app");
+        let cask = Install::App { app: app.clone(), cask: true };
+        let dmg = Install::App { app: app.clone(), cask: false };
+        assert_eq!(notice(&v, &cask, None, None), "inkup 0.6.0 is out: brew upgrade --cask inkup");
+        // A Homebrew choice saved for the formula does not apply to the app's copy.
+        assert_eq!(
+            notice(&v, &cask, Some(HomebrewChoice::SelfUpdate), None),
+            "inkup 0.6.0 is out: brew upgrade --cask inkup"
+        );
+        assert_eq!(
+            notice(&v, &dmg, None, None),
+            "inkup 0.6.0 is out: install InkUp_0.6.0_universal.dmg from github.com/liatrio-labs/inkup/releases"
+        );
+        let text = app_instructions(&v, &app, false).join("\n");
+        assert!(text.contains("inside /Applications/InkUp.app, so it updates with the app"), "{text}");
+        assert!(text.contains("InkUp_0.6.0_universal.dmg"), "{text}");
+        assert!(!text.contains("inkup update"), "never tells the app's copy to update itself: {text}");
+    }
+
     #[test]
     fn the_warning_names_each_client_and_what_to_do() {
         let v: Version = "0.3.0".parse().unwrap();

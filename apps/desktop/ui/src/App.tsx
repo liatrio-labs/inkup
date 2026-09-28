@@ -1,9 +1,9 @@
 // The window: what the TUI shows and does, from the host through the app's commands. The header (where the host
 // is, host or client mode, network mode, the menu bar and Dock), the banners (network warning, update, host lost),
-// the six views and the pairing prompt. It refetches when the host changes (a long-poll), not on a timer.
+// the six views and the pairing prompt, and Install CLI on macOS. It refetches when the host changes (a long-poll), not on a timer.
 // Off-the-shelf shadcn components only.
 import { listen } from '@tauri-apps/api/event';
-import { Server, TriangleAlert } from 'lucide-react';
+import { Server, SquareTerminal, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -20,6 +20,15 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Toaster } from '@/components/ui/sonner';
 import { Switch } from '@/components/ui/switch';
@@ -28,7 +37,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   answerPairing,
   type ClientView,
+  type CliStatus,
   type ControlState,
+  cliOnPath,
+  cliState,
+  cliStatus,
   createToken,
   desktopToggles,
   type HostView,
@@ -36,6 +49,7 @@ import {
   hostHere,
   hostState,
   hostView,
+  installCli,
   KIND,
   NETWORK_ELSEWHERE,
   NETWORK_WARNING,
@@ -48,6 +62,7 @@ import {
   spacedCode,
   TOGGLES_EVENT,
   type Toggles,
+  uninstallCli,
   VIEW_EVENT,
 } from './host';
 import { AgentsView, ClientsView, type Command, ItemsView, SessionsView, TimelineView, TokensView } from './Views';
@@ -239,6 +254,7 @@ export function App() {
             <CardAction className="flex items-center gap-4">
               <NetworkSwitch view={view} host={host} onAsk={(on) => setAsking(on ? 'on' : 'off')} />
               {toggles && <IconToggles toggles={toggles} onChange={toggle} />}
+              <InstallCli />
             </CardAction>
           </CardHeader>
         </Card>
@@ -439,6 +455,118 @@ function IconToggles({ toggles, onChange }: { toggles: Toggles; onChange: (next:
         <Label htmlFor="dock">Dock</Label>
       </div>
     </>
+  );
+}
+
+/** The header's button for the CLI the app bundles: its state, and a dialog to install, reinstall, replace or remove
+ * the `/usr/local/bin/inkup` link. Nothing outside macOS. Another `inkup` there is replaced only after asking. */
+function InstallCli() {
+  const [status, setStatus] = useState<CliStatus | null>(null);
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    cliStatus().then(setStatus, () => setStatus(null));
+  }, []);
+  useEffect(load, [load]);
+
+  if (!status) return null;
+  const run = async (change: () => Promise<CliStatus | null>, done: string) => {
+    setBusy(true);
+    try {
+      setStatus(await change());
+      toast.success(done);
+    } catch (e) {
+      toast.error(String(e));
+      load();
+    } finally {
+      setBusy(false);
+    }
+  };
+  const install = (replace: boolean) => run(() => installCli(replace), `inkup is on PATH: ${status.link}.`);
+  const remove = () => run(uninstallCli, `Removed ${status.link}.`);
+  const path = cliOnPath(status);
+  const label = {
+    none: 'Install CLI',
+    ours: 'CLI installed',
+    broken: 'Reinstall CLI',
+    other: 'Install CLI',
+    file: 'Install CLI',
+  }[status.state];
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) load();
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm" variant={status.state === 'ours' ? 'ghost' : 'outline'} data-testid="cli-button">
+          <SquareTerminal />
+          {label}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>The inkup CLI</DialogTitle>
+          <DialogDescription>
+            The app carries the inkup CLI (the TUI, serve, mcp) and can put it on PATH for your terminal.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2 text-sm" data-testid="cli-state">
+          <p>{cliState(status)}</p>
+          {path && (
+            <Alert>
+              <TriangleAlert />
+              <AlertDescription>{path}</AlertDescription>
+            </Alert>
+          )}
+          {status.bundled && (
+            <code className="bg-muted rounded-md p-2 font-mono text-xs break-all">{status.bundled}</code>
+          )}
+        </div>
+        {status.bundled && (
+          <DialogFooter>
+            {(status.state === 'ours' || status.state === 'broken') && (
+              <Button variant="outline" disabled={busy} onClick={remove}>
+                {status.state === 'ours' ? 'Uninstall' : 'Remove'}
+              </Button>
+            )}
+            {(status.state === 'none' || status.state === 'broken') && (
+              <Button disabled={busy} onClick={() => install(false)}>
+                {status.state === 'none' ? 'Install' : 'Reinstall'}
+              </Button>
+            )}
+            {(status.state === 'other' || status.state === 'file') && (
+              <Button variant="destructive" disabled={busy} onClick={() => setConfirming(true)}>
+                Replace…
+              </Button>
+            )}
+          </DialogFooter>
+        )}
+      </DialogContent>
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace {status.link}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {status.state === 'other'
+                ? `It points at ${status.target}. It will point at this app's CLI instead; that copy stays where it is.`
+                : "It is a file another install put there. It will be deleted and replaced by a link to this app's CLI."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => install(true)}>
+              Replace
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Dialog>
   );
 }
 

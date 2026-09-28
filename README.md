@@ -87,14 +87,18 @@ To install it on macOS, use Homebrew, or download `InkUp_<version>_universal.dmg
 the [Releases page](https://github.com/liatrio-labs/inkup/releases), open it and drag InkUp to Applications:
 
 ```sh
-brew install --cask liatrio-labs/tap/inkup        # InkUp.app, the desktop app
-brew install liatrio-labs/tap/inkup               # the inkup CLI (the TUI and serve), if you want it too
+brew install --cask liatrio-labs/tap/inkup        # InkUp.app, the desktop app, with the inkup CLI inside it
+brew install liatrio-labs/tap/inkup               # or the inkup CLI (the TUI and serve) on its own
 ```
 
 It is signed and notarized, so it opens without a Gatekeeper warning, and it runs on Apple silicon and Intel Macs. The
-app contains the host, so it needs no separate `inkup` install, but it works next to one. There is no Windows or Linux
-build yet, and the app does not update itself: to update, run `brew upgrade --cask inkup` or install a newer DMG over
-it. `brew uninstall --zap --cask inkup` also removes the app's caches and preferences, but not the data dir it shares
+app contains the host, so it needs no separate `inkup` install, but it works next to one. It also carries the `inkup`
+CLI: **Install CLI**, in the window's header, links `/usr/local/bin/inkup` to the copy inside the app (macOS asks for
+an administrator's password), so the CLI updates with the app. It says when another `inkup` on your PATH (Homebrew's,
+`~/.cargo/bin`'s) runs first, and replaces another `inkup` at `/usr/local/bin` only after asking. If you move the app,
+install the CLI again. There is no Windows or Linux build yet, and the app does not update itself: to update, run
+`brew upgrade --cask inkup` or install a newer DMG over it. `inkup update` leaves the app's CLI to the app and says
+so. `brew uninstall --zap --cask inkup` also removes the app's caches and preferences, but not the data dir it shares
 with the CLI.
 
 To run it from a checkout:
@@ -103,7 +107,12 @@ To run it from a checkout:
 pnpm desktop:dev                                   # the app with hot reload for its UI, on your data dir
 pnpm desktop:app                                   # macOS: a debug InkUp.app in apps/desktop/src-tauri/target/debug/bundle/macos/
 pnpm desktop:build                                 # any OS: a debug build, apps/desktop/src-tauri/target/debug/inkup-desktop
+pnpm desktop:app:cli                               # macOS: the debug InkUp.app with the inkup CLI inside, for Install CLI
 ```
+
+A build without the CLI shows Install CLI with nothing to install. `scripts/desktop-cli.sh` builds the CLI into
+`apps/desktop/src-tauri/binaries/` (`--release --universal` for what a release bundles), and a `tauri build` or
+`tauri dev` given `--config src-tauri/tauri.cli.conf.json` bundles it.
 
 Closing the window hides it, and the app keeps hosting. **Quit InkUp** in the menu bar menu stops it. **Show in Menu
 Bar** and **Show in Dock**, in the menu and in the window's header, choose where its icons show. One of them always
@@ -138,7 +147,7 @@ its own, use `pnpm -C packages/core test` or `pnpm -C extensions/web test`.
 | `pnpm fixtures:serve` | The fixture site on `http://localhost:4401` and `http://127.0.0.1:4402` |
 | `pnpm schema` | Regenerates the Session, wire protocol and control API JSON Schemas in `contract/` |
 | `pnpm host:build` | The `inkup` host, a debug build in `host/target/debug/inkup` |
-| `pnpm desktop:dev`, `pnpm desktop:build`, `pnpm desktop:app` | The desktop app: dev with hot reload, a debug build, or a debug `InkUp.app` on macOS |
+| `pnpm desktop:dev`, `pnpm desktop:build`, `pnpm desktop:app`, `pnpm desktop:app:cli` | The desktop app: dev with hot reload, a debug build, or a debug `InkUp.app` on macOS, without or with the bundled CLI |
 | `pnpm validate:session <file>` | Validates an exported `session.json` against the schema |
 | `pnpm metrics <dir>` | PRD §8 metrics over a folder of exported `session.json` files |
 | `pnpm fixtures:sessions` | Regenerates the Process fixtures in `fixtures/sessions/` |

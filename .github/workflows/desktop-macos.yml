@@ -129,8 +129,14 @@ jobs:
           (umask 077 && printf '%s' "$APPLE_API_KEY_P8" | base64 --decode > "$path")
           echo "APPLE_API_KEY_PATH=$path" >> "$GITHUB_ENV"
 
-      # Tauri signs with APPLE_SIGNING_IDENTITY (hardened runtime, tauri.conf.json), then notarizes and staples the app
-      # with the API key. The version is the tag's, so the app and the host it embeds say the same.
+      # The inkup CLI the app bundles at Contents/MacOS/inkup, only for Install CLI to link onto PATH (ADR 0025): the
+      # host at this tag, both architectures and the lipo'd universal file that Tauri's externalBin takes.
+      - name: Build the bundled CLI
+        run: scripts/desktop-cli.sh --release --universal
+
+      # Tauri signs with APPLE_SIGNING_IDENTITY (hardened runtime, tauri.conf.json), the bundled CLI included
+      # (tauri.cli.conf.json's externalBin), then notarizes and staples the app with the API key. The version is the
+      # tag's, so the app, the host it embeds and the CLI it bundles say the same.
       - name: Build, sign and notarize the app
         env:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
@@ -140,7 +146,7 @@ jobs:
         run: |
           version="${TAG#inkup-v}"
           pnpm -C apps/desktop tauri build --target universal-apple-darwin --bundles app,dmg \
-            --config "{\"version\":\"$version\"}"
+            --config src-tauri/tauri.cli.conf.json --config "{\"version\":\"$version\"}"
 
       # Tauri notarizes the app inside the DMG, not the DMG. Gatekeeper checks the DMG a user downloads, so it is
       # notarized and stapled too.
@@ -165,6 +171,15 @@ jobs:
           spctl -a -vvv -t exec "$app"
           spctl -a -vvv -t install "$DMG"
           xcrun stapler validate "$DMG"
+          # The bundled CLI: both architectures, signed like the app with the hardened runtime, and the tag's version.
+          cli="$app/Contents/MacOS/inkup"
+          lipo "$cli" -verify_arch arm64
+          lipo "$cli" -verify_arch x86_64
+          codesign --verify --strict --verbose=2 "$cli"
+          signature="$(codesign --display --verbose=2 "$cli" 2>&1)"
+          grep -q 'Authority=Developer ID Application' <<< "$signature"
+          grep -q 'flags=.*runtime' <<< "$signature"
+          [ "$("$cli" --version)" = "inkup ${TAG#inkup-v}" ]
 
       # release-please creates the tag's release as a draft before it pushes the tag, and dist's host job publishes it
       # once the host's artifacts are on it. The DMG goes on whether it is still a draft or already published; this job

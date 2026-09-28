@@ -286,11 +286,14 @@ points at. Its `desktop-macos` job then:
 2. runs `bundle exec fastlane mac signing` in `apps/desktop`: `setup_ci` makes a temporary default keychain, and
    `match` (read-only, `apps/desktop/fastlane/Matchfile`) installs the Developer ID Application certificate from
    `git@github.com:dbhagen/fastlane-match.git` (branch `master`, team `3K3TD4KSB2`) into it;
-3. builds `tauri build --target universal-apple-darwin --bundles app,dmg` with the tag's version. Tauri signs with
-   that identity and the hardened runtime, then notarizes and staples the app;
+3. builds the `inkup` CLI for both architectures and lipos them (`scripts/desktop-cli.sh --release --universal`), then
+   `tauri build --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.cli.conf.json` with the
+   tag's version, which bundles that CLI at `InkUp.app/Contents/MacOS/inkup` (Tauri's `externalBin`). Tauri signs the
+   app and the CLI with that identity and the hardened runtime, then notarizes and staples the app;
 4. notarizes and staples the DMG with `xcrun notarytool`;
-5. checks `codesign --verify --deep --strict` and the Developer ID authority and runtime flag on the app, and
-   `spctl` on the app (`-t exec`) and the DMG (`-t install`);
+5. checks `codesign --verify --deep --strict` and the Developer ID authority and runtime flag on the app and on its
+   bundled CLI, `spctl` on the app (`-t exec`) and the DMG (`-t install`), that the CLI has both architectures, and
+   that its `--version` is the tag's;
 6. uploads the DMG to the tag's release (`gh release upload --clobber`). release-please creates that release as a
    draft and dist's `host` job publishes it; the upload works on the draft, and this job never publishes it. If the
    release does not exist yet, it checks every 30 seconds for up to 30 minutes, then fails;
@@ -356,7 +359,8 @@ Then open the DMG, drag InkUp to Applications and open it: it should open with n
 "downloaded from the Internet" confirmation.
 
 To check the build and signing steps without the secrets, build locally with an ad-hoc identity:
-`APPLE_SIGNING_IDENTITY=- pnpm -C apps/desktop tauri build --target universal-apple-darwin --bundles app,dmg`
+`scripts/desktop-cli.sh --release --universal`, then
+`APPLE_SIGNING_IDENTITY=- pnpm -C apps/desktop tauri build --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.cli.conf.json`
 (needs `rustup target add x86_64-apple-darwin aarch64-apple-darwin`). `codesign --verify --deep --strict` passes and
 `codesign --display` shows `flags=…(adhoc,runtime)`. `spctl` rejects it, since only an Apple-issued Developer ID
 certificate passes.

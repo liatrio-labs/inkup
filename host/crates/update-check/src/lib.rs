@@ -6,7 +6,7 @@
 //! What the notice tells the user to run depends on the host: `inkup update` or `brew upgrade inkup` for the CLI
 //! (`inkup`'s update.rs), the cask or the DMG for the desktop app. So the caller words it (`spawn_check`'s `notice`).
 
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
@@ -74,6 +74,38 @@ pub fn write_cache(dir: &Path, checked: &Checked) -> Result<()> {
 /// This copy's version: the host's, which the desktop app embeds and is versioned by.
 pub fn current_version() -> Version {
     env!("CARGO_PKG_VERSION").parse().expect("the crate version is semver")
+}
+
+/// The `.app` bundle `exe` (a canonical path) runs from, if any: the desktop app bundles the CLI at
+/// `InkUp.app/Contents/MacOS/inkup` (ADR 0025). A copy there is the app's: it updates with the app, and overwriting it
+/// would break the app's signature.
+pub fn app_bundle(exe: &Path) -> Option<PathBuf> {
+    let parts: Vec<Component> = exe.components().collect();
+    let at = parts.windows(3).rposition(|w| {
+        Path::new(w[0].as_os_str()).extension().is_some_and(|e| e == "app")
+            && w[1].as_os_str() == "Contents"
+            && w[2].as_os_str() == "MacOS"
+    })?;
+    Some(parts[..=at].iter().collect())
+}
+
+/// Whether Homebrew's cask installed the desktop app: its Caskroom entry, under `$HOMEBREW_PREFIX` or either default
+/// Homebrew prefix.
+pub fn cask_installed() -> bool {
+    let prefixes = std::env::var_os("HOMEBREW_PREFIX").map(PathBuf::from).into_iter();
+    prefixes
+        .chain(["/opt/homebrew", "/usr/local"].map(PathBuf::from))
+        .any(|prefix| prefix.join("Caskroom").join(APP_NAME).is_dir())
+}
+
+/// How the desktop app, and the CLI it bundles, update to `latest`: the app does not update itself, so Homebrew's
+/// cask upgrades it (`cask`), or the release's DMG is installed over it.
+pub fn app_update(latest: &Version, cask: bool) -> String {
+    if cask {
+        "brew upgrade --cask inkup".to_owned()
+    } else {
+        format!("install InkUp_{latest}_universal.dmg from github.com/{REPO_OWNER}/{REPO_NAME}/releases")
+    }
 }
 
 /// Unix seconds.
@@ -312,6 +344,35 @@ mod tests {
         }
         std::fs::write(dir.path().join(CACHE_FILE), "not json").unwrap();
         assert_eq!(read_cache(dir.path()), None, "a broken cache means check again");
+    }
+
+    #[test]
+    fn a_copy_inside_an_app_bundle_is_the_apps() {
+        let p = PathBuf::from;
+        assert_eq!(app_bundle(&p("/Applications/InkUp.app/Contents/MacOS/inkup")), Some(p("/Applications/InkUp.app")));
+        assert_eq!(
+            app_bundle(&p("/Users/me/Downloads/My Apps/InkUp 2.app/Contents/MacOS/inkup")),
+            Some(p("/Users/me/Downloads/My Apps/InkUp 2.app"))
+        );
+        for exe in [
+            "/opt/homebrew/Cellar/inkup/0.5.0/bin/inkup",
+            "/Users/me/.cargo/bin/inkup",
+            "/usr/local/bin/inkup", // the link itself: the caller canonicalizes first
+            "/Applications/InkUp.app/Contents/Resources/inkup",
+            "/Users/me/src/app/Contents/MacOS/inkup",
+        ] {
+            assert_eq!(app_bundle(&p(exe)), None, "{exe}");
+        }
+    }
+
+    #[test]
+    fn the_app_updates_with_the_cask_or_the_dmg() {
+        let v: Version = "0.6.0".parse().unwrap();
+        assert_eq!(app_update(&v, true), "brew upgrade --cask inkup");
+        assert_eq!(
+            app_update(&v, false),
+            "install InkUp_0.6.0_universal.dmg from github.com/liatrio-labs/inkup/releases"
+        );
     }
 
     #[test]

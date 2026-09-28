@@ -47,6 +47,58 @@ export const hostHere = () => invoke<HostView>('host_here');
 export const desktopToggles = () => invoke<Toggles>('desktop_toggles');
 export const setDesktopToggles = (toggles: Toggles) => invoke<Toggles>('set_desktop_toggles', { toggles });
 
+/** Install CLI (src-tauri/src/cli.rs `CliStatus`): what is at the link and which `inkup` a terminal runs. */
+export type CliStatus = {
+  /** The CLI inside this app; null for a build without it (a development build). */
+  bundled: string | null;
+  /** Where the link goes: /usr/local/bin/inkup. */
+  link: string;
+  /** Every `inkup` on the login shell's PATH, in order: the first is the one a terminal runs. */
+  on_path: string[];
+} & ({ state: 'none' | 'ours' | 'file' } | { state: 'broken' | 'other'; target: string });
+
+/** null outside macOS, where the app bundles no CLI. */
+export const cliStatus = () => invoke<CliStatus | null>('cli_status');
+/** `replace`: the person confirmed replacing another `inkup` at the link. */
+export const installCli = (replace: boolean) => invoke<CliStatus | null>('install_cli', { replace });
+export const uninstallCli = () => invoke<CliStatus | null>('uninstall_cli');
+
+/** What the Install CLI dialog says about the link. */
+export function cliState(s: CliStatus): string {
+  if (!s.bundled) {
+    return 'This build of the app has no inkup CLI inside it. Build one with scripts/desktop-cli.sh, then the app with --config src-tauri/tauri.cli.conf.json.';
+  }
+  switch (s.state) {
+    case 'none':
+      return `Not installed. Install links ${s.link} to the CLI inside this app, so it updates with the app. macOS asks for an administrator's password if ${dirOf(s.link)} is not yours to change.`;
+    case 'ours':
+      return `Installed: ${s.link} points at the CLI inside this app, and updates with it.`;
+    case 'broken':
+      return `${s.link} points at ${s.target}, which is gone: the app was moved or deleted. Reinstall to point it at this app.`;
+    case 'other':
+      return `${s.link} points at another inkup: ${s.target}. Replacing it points it at this app's CLI; the other copy stays where it is.`;
+    case 'file':
+      return `${s.link} is a file, not a link: another install put it there. Replacing it deletes that file and links this app's CLI.`;
+  }
+}
+
+/** Which `inkup` a terminal runs, when that is not what the link says; null when it is. */
+export function cliOnPath(s: CliStatus): string | null {
+  const [first, ...rest] = s.on_path;
+  if (first === undefined) {
+    return s.state === 'ours'
+      ? `${dirOf(s.link)} is not on your shell's PATH, so a terminal does not find inkup.`
+      : null;
+  }
+  if (first !== s.link) {
+    const also = s.on_path.includes(s.link) ? `, before ${s.link}` : '';
+    return `A terminal runs ${first}: it comes first on PATH${also}.`;
+  }
+  return rest.length > 0 ? `A terminal runs ${s.link}. Later on PATH, not run: ${rest.join(', ')}.` : null;
+}
+
+const dirOf = (path: string) => path.slice(0, path.lastIndexOf('/')) || '/';
+
 /** The app's events (src-tauri/src/lib.rs): the tray changed a toggle; the host was taken over or restarted. */
 export const TOGGLES_EVENT = 'desktop-toggles';
 export const VIEW_EVENT = 'host-view';

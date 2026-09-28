@@ -1,7 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { ControlState } from '@inkup/protocol/host-control';
 import { describe, expect, it } from 'vitest';
-import { ago, type ClientView, clientState, type SessionOverview, sessionPage, sessionState } from './host';
+import {
+  ago,
+  type ClientView,
+  type CliStatus,
+  clientState,
+  cliOnPath,
+  cliState,
+  type SessionOverview,
+  sessionPage,
+  sessionState,
+} from './host';
 
 const session = (patch: Partial<SessionOverview>): SessionOverview => ({
   id: 's-1',
@@ -61,5 +71,44 @@ describe('the contract fixture (contract/fixtures/host-control/control-state.jso
     expect(state.sessions.map(sessionState)).toEqual(['live']);
     expect(state.sessions.map(sessionPage)).toEqual(['Pricing Fixture']);
     expect(state.clients.map((c) => clientState(c, state.sessions))).toEqual(['connected, recording', 'paired']);
+  });
+});
+
+describe('Install CLI', () => {
+  const LINK = '/usr/local/bin/inkup';
+  const status = (patch: Partial<CliStatus>): CliStatus =>
+    ({
+      bundled: '/Applications/InkUp.app/Contents/MacOS/inkup',
+      link: LINK,
+      on_path: [],
+      state: 'none',
+      ...patch,
+    }) as CliStatus;
+
+  it('says what is at the link', () => {
+    expect(cliState(status({}))).toMatch(/^Not installed\. .*if \/usr\/local\/bin is not yours to change\.$/);
+    expect(cliState(status({ state: 'ours' }))).toMatch(/^Installed: /);
+    expect(cliState(status({ state: 'broken', target: '/x/InkUp.app/Contents/MacOS/inkup' }))).toContain(
+      'points at /x/InkUp.app/Contents/MacOS/inkup, which is gone',
+    );
+    expect(cliState(status({ state: 'file' }))).toContain('is a file, not a link');
+    expect(cliState(status({ bundled: null }))).toContain('scripts/desktop-cli.sh');
+  });
+
+  it('says which inkup a terminal runs', () => {
+    expect(cliOnPath(status({ state: 'ours', on_path: [LINK] }))).toBeNull();
+    expect(cliOnPath(status({ state: 'none' }))).toBeNull();
+    expect(cliOnPath(status({ state: 'ours' }))).toBe(
+      "/usr/local/bin is not on your shell's PATH, so a terminal does not find inkup.",
+    );
+    expect(cliOnPath(status({ state: 'ours', on_path: ['/opt/homebrew/bin/inkup', LINK] }))).toBe(
+      'A terminal runs /opt/homebrew/bin/inkup: it comes first on PATH, before /usr/local/bin/inkup.',
+    );
+    expect(cliOnPath(status({ state: 'none', on_path: ['/Users/me/.cargo/bin/inkup'] }))).toBe(
+      'A terminal runs /Users/me/.cargo/bin/inkup: it comes first on PATH.',
+    );
+    expect(cliOnPath(status({ state: 'ours', on_path: [LINK, '/Users/me/.cargo/bin/inkup'] }))).toBe(
+      'A terminal runs /usr/local/bin/inkup. Later on PATH, not run: /Users/me/.cargo/bin/inkup.',
+    );
   });
 });

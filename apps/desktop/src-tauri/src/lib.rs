@@ -7,7 +7,11 @@
 //! Closing the window hides it; the app keeps running from the menubar until Quit, which stops the server when
 //! the app hosts. Where its icons show (menu bar, Dock) is `[desktop]` in config.toml (`inkup_store::DesktopConfig`).
 //! What they show (the Clients dot, the development stripes) is icon.rs.
+//!
+//! On macOS the app bundles the `inkup` CLI, and Install CLI links it onto PATH (cli.rs). It never runs it.
 
+#[cfg(unix)]
+pub mod cli;
 #[cfg(target_os = "macos")]
 mod dock;
 pub mod icon;
@@ -274,6 +278,80 @@ async fn host_here(app: AppHandle, desktop: State<'_, Desktop>) -> Result<HostVi
     Ok(view)
 }
 
+/// Install CLI: where `/usr/local/bin/inkup` points and which `inkup` a terminal runs. `None` outside macOS, where the
+/// app bundles no CLI.
+#[tauri::command]
+async fn cli_status() -> Option<install_cli::Status> {
+    install_cli::status().await
+}
+
+/// Links `/usr/local/bin/inkup` to this app's CLI, through macOS's administrator prompt when needed. `replace`: the
+/// person confirmed replacing another `inkup` there.
+#[tauri::command]
+async fn install_cli(replace: bool) -> Result<Option<install_cli::Status>, String> {
+    install_cli::install(replace).await
+}
+
+/// Removes the link when it is this app's (or points at nothing).
+#[tauri::command]
+async fn uninstall_cli() -> Result<Option<install_cli::Status>, String> {
+    install_cli::uninstall().await
+}
+
+/// The CLI commands on macOS, and their "not here" answers elsewhere.
+#[cfg(target_os = "macos")]
+mod install_cli {
+    use std::path::Path;
+
+    use crate::cli::{self, CliError, LinkState};
+
+    pub type Status = cli::CliStatus;
+
+    pub async fn status() -> Option<Status> {
+        Some(cli::status(Path::new(cli::LINK)).await)
+    }
+
+    pub async fn install(replace: bool) -> Result<Option<Status>, String> {
+        change(move |link, bundled| cli::install(link, bundled, replace, cli::admin)).await
+    }
+
+    pub async fn uninstall() -> Result<Option<Status>, String> {
+        change(|link, bundled| cli::uninstall(link, bundled, cli::admin)).await
+    }
+
+    /// Runs `change` off the async runtime (the administrator prompt blocks), then reads the status again.
+    async fn change(
+        change: impl FnOnce(&Path, &Path) -> Result<LinkState, CliError> + Send + 'static,
+    ) -> Result<Option<Status>, String> {
+        let bundled = cli::bundled().ok_or_else(|| CliError::NotBundled.to_string())?;
+        let done = tauri::async_runtime::spawn_blocking(move || change(Path::new(cli::LINK), &bundled)).await;
+        let state = done.map_err(super::text)?.map_err(super::text)?;
+        // Scripts wait for this line.
+        eprintln!("InkUp desktop: CLI link {state:?}");
+        Ok(status().await)
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+mod install_cli {
+    #[derive(serde::Serialize)]
+    pub struct Status;
+
+    const MACOS_ONLY: &str = "the app bundles the inkup CLI on macOS only";
+
+    pub async fn status() -> Option<Status> {
+        None
+    }
+
+    pub async fn install(_replace: bool) -> Result<Option<Status>, String> {
+        Err(MACOS_ONLY.into())
+    }
+
+    pub async fn uninstall() -> Result<Option<Status>, String> {
+        Err(MACOS_ONLY.into())
+    }
+}
+
 #[tauri::command]
 fn desktop_toggles(desktop: State<'_, Desktop>) -> Toggles {
     desktop.toggles()
@@ -436,6 +514,9 @@ pub fn run(launch: Launch) -> Result<()> {
             host_here,
             desktop_toggles,
             set_desktop_toggles,
+            cli_status,
+            install_cli,
+            uninstall_cli,
         ])
         .setup(move |app| {
             let _ = handle.set(app.handle().clone());
