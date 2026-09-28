@@ -36,6 +36,25 @@ sidecar. It has its own cargo workspace in `apps/desktop/src-tauri`, so Tauri, W
 host's `cargo test` and release builds. CI runs it as a separate `desktop` job on the same three platforms. The job
 runs when `apps/desktop/`, `host/`, `packages/` or the workspace's install files change (ADR 0007).
 
+**It bundles the CLI only to put it on PATH.** On macOS the app also carries the `inkup` binary from the same tag, at
+`InkUp.app/Contents/MacOS/inkup` (Tauri's `bundle.externalBin`, from `tauri.cli.conf.json`), so app users get the CLI
+without Homebrew or a Rust toolchain. The app never starts it: the server still runs in-process, and the sidecar
+option below stays rejected. **Install CLI**, in the window's header (`apps/desktop/src-tauri/src/cli.rs`), links
+`/usr/local/bin/inkup` to the copy inside the running app, so the CLI updates whenever the app does:
+
+- It creates the link as the user when `/usr/local/bin` is writable, else through macOS's administrator prompt
+  (`osascript … with administrator privileges`, paths single-quoted), making the directory if it is missing.
+- It shows the link's state: not installed, installed (a link to this app), broken (a link to a file that is gone,
+  after the app moved; reinstall or remove), or another `inkup`. A file, or a link to anything else (Homebrew's,
+  another copy of the app), is replaced only after the person confirms, and uninstall removes only this app's link
+  or a broken one.
+- It says which `inkup` a terminal runs: every `inkup` on the login shell's PATH, in order, since an app started from
+  Finder has only launchd's PATH.
+- Since the app's copy is inside its signed bundle, `inkup update` never overwrites it and points at the app's update
+  instead (ADR 0008).
+- The Homebrew cask stays app-only (no `binary` stanza): the formula already links `inkup` into Homebrew's `bin`, and
+  Install CLI is the app's own, explicit step.
+
 **The control API.** A window, or any other local front end, runs a host through `/api/host/*` on the host's own
 port (`host/crates/server/src/control.rs`). It exposes what the TUI's keys do: the state with the timeline, a
 long-poll for changes, Session commands, agent tokens, network mode, pairing answers, and "come forward".
@@ -94,10 +113,13 @@ required reviewer, so the DMG builds as soon as the tag is out. A maintainer can
 
 - fastlane match puts the Developer ID Application certificate in a temporary keychain. It reads the shared match
   repo read-only, so CI never creates or renews a certificate (`apps/desktop/fastlane`).
-- Tauri signs the app with the hardened runtime (`bundle.macOS.hardenedRuntime`), then notarizes and staples it,
-  using an App Store Connect API key.
+- The bundled CLI is the host at the tag, built for both architectures and lipo'd (`scripts/desktop-cli.sh --release
+  --universal`), since Tauri's externalBin takes `inkup-universal-apple-darwin` for a universal app.
+- Tauri signs the app, the bundled CLI included, with the hardened runtime (`bundle.macOS.hardenedRuntime`), then
+  notarizes and staples it, using an App Store Connect API key.
 - The job notarizes and staples the DMG as well, because Gatekeeper checks the file that was downloaded.
-- It attaches the DMG only after `codesign --verify --deep --strict` and `spctl` accept both the app and the DMG.
+- It attaches the DMG only after `codesign --verify --deep --strict` and `spctl` accept both the app and the DMG, and
+  the bundled CLI is signed with the hardened runtime, has both architectures and reports the tag's version.
   release-please creates the tag's release as a draft, and dist's `host` job publishes it once the host's files are
   on it. The job uploads to that release whether it is still a draft or not, waiting up to 30 minutes for it to
   exist, and never publishes it itself.
@@ -130,7 +152,14 @@ recognisably the same product.
   one copy, which the team's other apps already use.
 
 - Ship the `inkup` binary as a sidecar and have the app start it: two binaries to build, sign and keep in step. The
-  window would still need an API to talk to it, and the app couldn't restart or hook into the server directly.
+  window would still need an API to talk to it, and the app couldn't restart or hook into the server directly. The app
+  does bundle the binary now, but only for the person's terminal; it never runs it.
+- Install CLI by copying the binary to `/usr/local/bin`: the copy would not update with the app. A link does, and
+  `inkup update` can tell from the link's canonical path that the app owns it.
+- Link into `~/.local/bin` or another user-writable directory, with no password: none is on macOS's default PATH, so
+  the link would often not be found. `/usr/local/bin` is, in every shell.
+- A `binary` stanza in the cask: `brew install --cask` would put `inkup` on PATH without asking, next to (or over) the
+  formula's link to the same name.
 - Let the app read the SQLite store directly while a CLI host runs: two writers on one database, and a window coupled
   to the storage schema. With the control API, the host stays the only writer.
 - Take over from a running TUI (ask it to quit, or kill it): that surprises the person in the terminal and drops their
@@ -155,7 +184,10 @@ recognisably the same product.
   which the window shows as "Update available": `brew upgrade --cask inkup` when the cask installed the app, else the
   release's DMG. When the app is a CLI host's window, that host checks and words the notice.
 - The app has no Windows or Linux release and does not update itself: a newer DMG is installed over it. The host's
-  self-update (ADR 0008) covers only the `inkup` binary.
+  self-update (ADR 0008) covers only an `inkup` binary installed on its own, never the one inside the app.
+- Moving or renaming the app breaks the `/usr/local/bin/inkup` link until Install CLI runs again from the new place;
+  the window says the link is broken. Deleting the app leaves the broken link behind.
+- A release build takes two more host builds (the CLI for each architecture) before the app's.
 - A release depends on the match repo (`dbhagen/fastlane-match`) and its read-only deploy key, and on an App Store
   Connect API key. When the Developer ID certificate expires, it is renewed in the match repo, outside CI.
 
@@ -178,6 +210,9 @@ recognisably the same product.
 - 2026-09-25: we hooked the DMG to dist's post-announce; an rc (inkup-v0.2.0-rc.2) skipped it because implicit
   `success()` skips on any skipped ancestor; now it runs on the tag itself, in its own workflow that waits for
   release-please's draft release, and can be dispatched for an existing tag.
+- 2026-09-28: app users without Homebrew had no way to get the CLI. Now the macOS app bundles the `inkup` binary
+  from the same tag and Install CLI links `/usr/local/bin/inkup` to it, as "It bundles the CLI only to put it on
+  PATH" says. It still never runs it: the sidecar option stays rejected.
 
 ## Sources
 

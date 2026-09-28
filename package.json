@@ -24,6 +24,7 @@
     "desktop:dev": "pnpm -C apps/desktop tauri dev --",
     "desktop:build": "pnpm -C apps/desktop tauri build --debug --no-bundle",
     "desktop:app": "pnpm -C apps/desktop tauri build --debug --bundles app",
+    "desktop:app:cli": "scripts/desktop-cli.sh && pnpm -C apps/desktop tauri build --debug --bundles app --config src-tauri/tauri.cli.conf.json",
     "test:e2e:firefox": "pnpm build:firefox && playwright test --project=firefox",
     "icons": "bash scripts/gen-icons.sh",
     "fixtures:serve": "node scripts/serve-fixtures.ts",

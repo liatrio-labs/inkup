@@ -8,7 +8,7 @@ import { clearMocks, mockIPC } from '@tauri-apps/api/mocks';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, TABS } from './App';
-import type { HostView, Toggles } from './host';
+import type { CliStatus, HostView, Toggles } from './host';
 
 const fixture = (name: string) =>
   JSON.parse(readFileSync(join(__dirname, '../../../../contract/fixtures/host-control', name), 'utf8'));
@@ -279,5 +279,76 @@ describe('the host going away', () => {
     await waitFor(() => expect(calls.some((c) => c.cmd === 'host_here')).toBe(true));
     expect(await screen.findByText('Hosting on 127.0.0.1:47823 · inkup 0.1.0')).toBeTruthy();
     expect(screen.queryByText('The InkUp host stopped')).toBeNull();
+  });
+});
+
+describe('Install CLI', () => {
+  const BUNDLED = '/Applications/InkUp.app/Contents/MacOS/inkup';
+  const status = (patch: Partial<CliStatus>): CliStatus =>
+    ({ bundled: BUNDLED, link: '/usr/local/bin/inkup', on_path: [], state: 'none', ...patch }) as CliStatus;
+
+  it('is not there outside macOS', async () => {
+    app(HOST, state({ pending_pairing: [] }), { cli_status: null });
+    await screen.findByText('Pricing Fixture');
+    expect(screen.queryByTestId('cli-button')).toBeNull();
+  });
+
+  it('installs the link, then offers to uninstall it', async () => {
+    const installed = status({ state: 'ours', on_path: ['/usr/local/bin/inkup'] });
+    const calls = app(HOST, state({ pending_pairing: [] }), { cli_status: status({}), install_cli: installed });
+    fireEvent.click(await screen.findByRole('button', { name: 'Install CLI' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText(/Not installed\. Install links \/usr\/local\/bin\/inkup to the CLI inside this app/),
+    ).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Install' }));
+    await waitFor(() => expect(calls).toContainEqual({ cmd: 'install_cli', args: { replace: false } }));
+    expect(await within(dialog).findByRole('button', { name: 'Uninstall' })).toBeTruthy();
+    expect(screen.getByTestId('cli-button').textContent).toBe('CLI installed');
+  });
+
+  it('offers to reinstall a link into an app that moved', async () => {
+    const broken = status({ state: 'broken', target: '/Users/me/Downloads/InkUp.app/Contents/MacOS/inkup' });
+    const calls = app(HOST, state({ pending_pairing: [] }), {
+      cli_status: broken,
+      install_cli: status({ state: 'ours' }),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Reinstall CLI' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/which is gone: the app was moved or deleted/)).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Remove' })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reinstall' }));
+    await waitFor(() => expect(calls).toContainEqual({ cmd: 'install_cli', args: { replace: false } }));
+  });
+
+  it('replaces another inkup only after asking, and says which one PATH runs', async () => {
+    const other = status({
+      state: 'other',
+      target: '/usr/local/Cellar/inkup/0.5.0/bin/inkup',
+      on_path: ['/opt/homebrew/bin/inkup', '/usr/local/bin/inkup'],
+    });
+    const calls = app(HOST, state({ pending_pairing: [] }), {
+      cli_status: other,
+      install_cli: status({ state: 'ours' }),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Install CLI' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText(/points at another inkup: \/usr\/local\/Cellar\/inkup\/0\.5\.0\/bin\/inkup/),
+    ).toBeTruthy();
+    expect(
+      within(dialog).getByText(
+        'A terminal runs /opt/homebrew/bin/inkup: it comes first on PATH, before /usr/local/bin/inkup.',
+      ),
+    ).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Install' })).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Replace…' }));
+    const confirm = await screen.findByRole('alertdialog');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Keep it' }));
+    expect(calls.some((c) => c.cmd === 'install_cli')).toBe(false);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Replace…' }));
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Replace' }));
+    await waitFor(() => expect(calls).toContainEqual({ cmd: 'install_cli', args: { replace: true } }));
   });
 });

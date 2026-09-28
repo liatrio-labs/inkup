@@ -153,3 +153,48 @@ fn no_guard_without_the_asset_without_clients_or_on_the_same_protocol() {
         assert!(out.contains(WENT_ON), "{out}");
     }
 }
+
+/// The copy the desktop app bundles, run through the `/usr/local/bin/inkup` link Install CLI makes: it never updates
+/// itself (that would break the app's signature), and says to update the app instead, past the skew guard too.
+#[cfg(unix)]
+#[test]
+fn the_copy_inside_the_app_is_left_to_the_app() {
+    let base = stub_github(None);
+    let dir = tempfile::tempdir().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let macos = root.path().join("InkUp.app/Contents/MacOS");
+    std::fs::create_dir_all(&macos).unwrap();
+    let bundled = macos.join("inkup");
+    std::fs::copy(BIN, &bundled).unwrap();
+    let before = std::fs::read(&bundled).unwrap();
+    let bin = root.path().join("bin");
+    std::fs::create_dir(&bin).unwrap();
+    std::os::unix::fs::symlink(&bundled, bin.join("inkup")).unwrap();
+
+    let out = Command::new(bin.join("inkup"))
+        .args(["update", "--yes", "--data-dir"])
+        .arg(dir.path())
+        .env("INKUP_INSTALLER_GHE_BASE_URL", &base)
+        .env_remove("INKUP_INSTALLER_GITHUB_BASE_URL")
+        .env("AXOUPDATER_CONFIG_PATH", dir.path())
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    let out = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(out.contains("inkup 99.0.0 is out"), "{out}");
+    let app = root.path().canonicalize().unwrap().join("InkUp.app");
+    assert!(
+        out.contains(&format!("This inkup is the one inside {}, so it updates with the app.", app.display())),
+        "{out}"
+    );
+    // The cask when this machine's Homebrew installed the app, else the release's DMG.
+    assert!(
+        out.contains("Update the app: brew upgrade --cask inkup")
+            || out.contains(
+                "Update the app: install InkUp_99.0.0_universal.dmg from github.com/liatrio-labs/inkup/releases"
+            ),
+        "{out}"
+    );
+    assert!(!out.contains(WENT_ON) && !out.contains("Updated to"), "{out}");
+    assert_eq!(std::fs::read(&bundled).unwrap(), before, "the app's copy is untouched");
+}

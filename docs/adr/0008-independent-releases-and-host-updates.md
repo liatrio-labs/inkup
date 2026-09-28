@@ -57,7 +57,11 @@ its installer anyway. It does not touch Homebrew's files: the new copy goes wher
 (`~/.cargo/bin`), with its own receipt, so there are then two copies, `brew upgrade` still updates Homebrew's, and PATH
 order decides which runs. `inkup update` says which one PATH picks, and suggests `brew uninstall inkup`. Any other copy
 (`cargo install`, a dev build) has no receipt and does not update itself: it says a release exists and prints the
-install commands.
+install commands. A copy inside the desktop app's bundle (its canonical path runs through
+`<name>.app/Contents/MacOS/`, which the app's Install CLI link resolves to, ADR 0025) is never overwritten, since that
+would break the app's signature: `inkup update` says the copy updates with the app and prints the app's update, `brew
+upgrade --cask inkup` when the cask installed it, else the release's DMG. The app check comes before the Homebrew one,
+and a saved `[update] homebrew` choice does not apply to it.
 
 **A quiet daily check.** Whichever process hosts (the TUI, `inkup serve`, or the desktop app when it hosts) starts a
 background check that never delays startup or the server: at most once a day, cached in `update-check.json` in the
@@ -66,7 +70,8 @@ data dir, and only for a person (the CLI when stdout is a terminal; the desktop 
 server. Offline, or on any error, it gives up silently and tries again next start. A newer release shows in the TUI's
 key line (while no command outcome is showing), on stderr for `serve`, and in the desktop window's "Update available"
 banner (`ControlState.update`), with what to do: `inkup update`, or `brew upgrade inkup` for a Homebrew copy that has
-not chosen "self"; for the app, `brew upgrade --cask inkup` when the cask installed it, else the release's DMG.
+not chosen "self"; for the app, and for the CLI running from inside it, `brew upgrade --cask inkup` when the cask
+installed the app, else the release's DMG.
 
 **`inkup-update` still ships.** dist's installers write the receipt only when `install-updater` is on, and that setting
 also installs the standalone `inkup-update`. `inkup update` needs the receipt, so the setting stays; `inkup-update` is
@@ -185,3 +190,6 @@ Clients behind.
   `chrome-web-store` environment's secrets, through `wxt submit`. Now it is keyless: Google workload identity
   federation trusts the job's GitHub OIDC token, and `scripts/chrome-web-store.ts` calls the store API v2 directly,
   because Liatrio's org policy blocks service account keys. The environment keeps only the item and publisher IDs.
+- 2026-09-28: `inkup update` knew installer, Homebrew and other copies. Now the desktop app bundles the CLI and links
+  it onto PATH (ADR 0025), so a copy inside an `.app` bundle is its own case: it is never overwritten, and both
+  `inkup update` and the daily notice name the app's update instead.

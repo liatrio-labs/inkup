@@ -16,7 +16,7 @@ use std::time::Duration;
 use inkup_server::{ActivateHook, Config, Control, NetworkConfig, NetworkHook, Server};
 use inkup_store::instance::{CONTROL_API, HostInfo, HostKind, HostLock, LockError};
 use inkup_store::{HostConfig, Store, StoreError};
-use inkup_update_check::{Found, check_allowed, spawn_check};
+use inkup_update_check::{Found, app_update, cask_installed, check_allowed, spawn_check};
 use tokio::sync::watch;
 
 use crate::link::HostLink;
@@ -180,23 +180,11 @@ async fn serve(
 /// 0025): Homebrew's cask upgrades it, or the release's DMG is installed over it.
 pub fn update_notice(found: &Found, cask: bool) -> String {
     let latest = &found.latest;
-    let how = if cask {
-        "brew upgrade --cask inkup".to_owned()
-    } else {
-        format!("install InkUp_{latest}_universal.dmg from github.com/liatrio-labs/inkup/releases")
-    };
+    let how = app_update(latest, cask);
     match &found.skew {
         None => format!("InkUp {latest} is out: {how}"),
         Some(skew) => format!("InkUp {latest} is out{} then {how}", skew.clause()),
     }
-}
-
-/// Whether Homebrew's cask installed the app: its Caskroom entry, under either Homebrew prefix.
-fn cask_installed() -> bool {
-    let prefixes = std::env::var_os("HOMEBREW_PREFIX").map(PathBuf::from).into_iter();
-    prefixes
-        .chain(["/opt/homebrew", "/usr/local"].map(PathBuf::from))
-        .any(|prefix| prefix.join("Caskroom/inkup").is_dir())
 }
 
 /// What the Host is called on the LAN, as the CLI names it: `inkup on <machine>`.
