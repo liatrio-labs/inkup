@@ -15,6 +15,11 @@ Guidance for coding agents (Claude Code, Codex and others) working in this repos
 - **Tests that run git clear every `GIT_*` variable.** Hooks export `GIT_DIR` (and friends), so a test's
   `git init`/`config`/`commit` otherwise lands on the shared repo, which has twice reconfigured it as bare. Run git in
   tests with an env stripped of `GIT_*`, and assert the repo you touch is inside the test's temp dir.
+- **Run `pre-commit install-hooks` before the first commit in a worktree.** When pre-commit installs its hook
+  environments during a commit (a fresh machine, or a changed `.pre-commit-config.yaml`), it has replaced the
+  worktree's index with a foreign one. The commit itself is intact, but then git says `fatal: unable to read <sha>`,
+  and a diff against HEAD deletes most of the repo. Repair it with `git read-tree HEAD`, which rebuilds the index and
+  leaves the working tree as it is.
 
 ## Taking control of the desktop for tests
 
