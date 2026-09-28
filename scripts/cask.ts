@@ -1,7 +1,7 @@
 // `node scripts/cask.ts <version> <sha256>`: prints the Homebrew cask for the desktop app's DMG (ADR 0025), which
 // desktop-macos.yml pushes to liatrio-labs/homebrew-tap as Casks/inkup.rb on stable host releases. The token is `inkup`,
-// the same as cargo-dist's CLI formula: `brew install --cask liatrio-labs/tap/inkup` installs InkUp.app and
-// `brew install liatrio-labs/tap/inkup` the CLI.
+// the same as the CLI's formula (scripts/formula.ts): `brew install --cask liatrio-labs/tap/inkup` installs InkUp.app
+// and `brew install liatrio-labs/tap/inkup` the CLI.
 
 const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const SHA256 = /^[0-9a-f]{64}$/;

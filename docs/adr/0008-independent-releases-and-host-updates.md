@@ -40,10 +40,27 @@ Chrome takes only dotted numbers as a manifest version, so the extension has non
 `inkup-v-release.yml` (dist names it after the tag prefix) from that file. Any change goes into the config, never into
 the workflow, and a path-filtered `host-dist-check.yml` runs `dist generate --check` so the two cannot drift. It builds
 on native runners for `aarch64-apple-darwin`, `x86_64-apple-darwin`, `aarch64-unknown-linux-gnu`,
-`x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc`. It ships a shell installer, a PowerShell installer, a Homebrew
-formula and sha256 checksums. The formula is pushed to the tap `liatrio-labs/homebrew-tap`, so users run `brew install
-liatrio-labs/tap/inkup`. Actions are pinned by commit through dist's `github-action-commits`. Code signing is out of
-scope for now: dist's `macos-sign` and Windows signing settings are where it will plug in.
+`x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc`. It ships a shell installer, a PowerShell installer and sha256
+checksums. Actions are pinned by commit through dist's `github-action-commits`. Code signing is out of scope for now:
+dist's `macos-sign` and Windows signing settings are where it will plug in.
+
+**Homebrew pours bottles.** Users run `brew install liatrio-labs/tap/inkup`. The formula is not dist's: dist writes
+one without a `bottle do` block, and Homebrew treats such a formula as a source build, so it demands a current Xcode or
+Command Line Tools before running an `install` that only copies a binary. `homebrew-formula.yml` runs on the same
+`inkup-v*` tag, waits for dist to publish the release, and runs `scripts/formula.ts`, which checks each dist archive
+against the release's `sha256.sum` and repacks it as a bottle holding the keg `install` would leave
+(`inkup/<version>/bin/inkup` and the docs). The formula's `root_url` is the release's download URL, its `url`s are the
+archives (so `--build-from-source` still works), and each bottle is `cellar: :any_skip_relocation`, since the binary
+holds no Homebrew path. The release asset is named `inkup-<version>.<tag>.bottle.tar.gz`, with one `-`: that is the
+name Homebrew fetches from any `root_url` except GitHub Packages, which uses `inkup--…`. There are four tags:
+`arm64_linux` and `x86_64_linux`, and on macOS `arm64_big_sur` and `big_sur`, because Homebrew pours a bottle tagged
+for an older macOS on any newer one, and Big Sur (11) is the oldest macOS it still recognises (the arm64 binary needs
+11.0, the Intel one 10.12). Before anything is uploaded, a verify job installs the formula from a local tap on macOS
+(Apple silicon and Intel) and Linux (x86_64 and arm64) runners, with `root_url` pointed at the bottles just built, and
+fails unless Homebrew poured the bottle and `inkup --version` is the release's. Only a stable release uploads the
+bottles and pushes `Formula/inkup.rb` to the tap `liatrio-labs/homebrew-tap`; a pre-release builds and verifies them
+and stops there. The formula's push and the desktop cask's (ADR 0025) each rebase onto the other and retry, so
+neither waits for the other.
 
 **The host updates itself, and leaves a Homebrew install to Homebrew.** `inkup` embeds axoupdater. `inkup update` asks
 GitHub for the newest `inkup-v*` release (`--check` only reports) and acts on how this copy was installed. The shell and
@@ -106,6 +123,10 @@ Clients behind.
 - `host-v*` or `InkUp-v*` host tags: dist parses only `v…`, `<package>-v…` (the crate name, exactly) and `<prefix>/v…`.
   Either would need a hand-edited generated workflow, which `dist generate --check` would flag on every change.
 - `host/v*` host tags: these parse, but they break the `inkup-<train>-v` pattern the extension tags follow.
+- dist's own Homebrew formula (`installers = ["homebrew"]`, `publish-jobs = ["homebrew"]`), which we used first: it has
+  no bottles, and dist cannot make them, so every install ran Homebrew's source-build checks.
+- Bottles on GitHub Packages (`ghcr.io`), as homebrew-core does: it needs a package per formula and an OCI upload,
+  where a release asset needs neither, and the bottles stay next to the archives they come from.
 - A hand-written release workflow: we would have to write the cross-compiles, installers, formula and receipt ourselves,
   and axoupdater expects dist's layout.
 - `cargo install` as the only install path: it needs a Rust toolchain and a long build, and it cannot update itself.
@@ -125,7 +146,10 @@ Clients behind.
   release-please upgrade that changes that shape leaves the lockfiles stale, and the release pull request fails CI's
   `--locked` builds rather than shipping.
 - The tap repo and its `HOMEBREW_TAP_TOKEN` secret must exist before a host release can publish the formula. Without
-  them the GitHub Release still goes out, and only the Homebrew job fails.
+  them the GitHub Release still goes out, and only `homebrew-formula.yml`'s publish job fails.
+- Homebrew plans to drop Big Sur (and Intel macOS) around September 2027. A formula whose macOS tags it no longer
+  recognises gets no bottle, and installs fall back to the source build and its Xcode check. When it drops Big Sur,
+  move the macOS tags in `scripts/formula.ts` to its oldest remaining macOS and publish a release.
 - The Firefox sources zip AMO reviewers rebuild from is the part of the pnpm workspace the build reads, from the repo
   root (`zip.includeSources` in `extensions/web/wxt.config.ts`). The release workflow rebuilds the add-on from it and
   fails if the result differs (`scripts/verify-sources-zip.sh`).
@@ -185,3 +209,7 @@ Clients behind.
   `chrome-web-store` environment's secrets, through `wxt submit`. Now it is keyless: Google workload identity
   federation trusts the job's GitHub OIDC token, and `scripts/chrome-web-store.ts` calls the store API v2 directly,
   because Liatrio's org policy blocks service account keys. The environment keeps only the item and publisher IDs.
+- 2026-09-28: we relied on dist's Homebrew formula, pushed by its `publish-homebrew-formula` job. Now dist makes no
+  formula, and `homebrew-formula.yml` publishes one with bottles built from the release's archives, because a formula
+  without bottles is a source build to Homebrew, and `brew install` failed on a Mac whose Xcode was older than the
+  macOS (Xcode 26.5 on macOS 27) even though nothing is compiled.
