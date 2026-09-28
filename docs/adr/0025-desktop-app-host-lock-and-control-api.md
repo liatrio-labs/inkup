@@ -125,10 +125,10 @@ required reviewer, so the DMG builds as soon as the tag is out. A maintainer can
   exist, and never publishes it itself.
 - On a stable release it waits (up to 30 minutes) for dist to publish the release, since the cask's URL is a published
   release's download. It then pushes a Homebrew cask for the DMG, `Casks/inkup.rb`, to `liatrio-labs/homebrew-tap`
-  (rendered by `scripts/cask.ts`), with the `HOMEBREW_TAP_TOKEN` dist's formula job uses. The cask's token is `inkup`,
-  the formula's too: `brew install --cask liatrio-labs/tap/inkup` installs the app and
-  `brew install liatrio-labs/tap/inkup` the CLI. A pre-release never touches the tap, the rule dist follows for the
-  formula. Its `zap` removes only the app's own `dev.inkup.desktop` caches and preferences: the host's data dir is
+  (rendered by `scripts/cask.ts`), with the `HOMEBREW_TAP_TOKEN` that `homebrew-formula.yml` uses. The cask's token
+  is `inkup`, the formula's too: `brew install --cask liatrio-labs/tap/inkup` installs the app and
+  `brew install liatrio-labs/tap/inkup` the CLI. A pre-release never touches the tap, the rule the formula follows
+  too. Its `zap` removes only the app's own `dev.inkup.desktop` caches and preferences: the host's data dir is
   the CLI's too.
 
 Nothing in dist's workflow waits on this one, so a failed or slow desktop build never holds up or undoes

@@ -1,5 +1,5 @@
 // The page's one orchestrated motion: it reviews itself. Each section with [data-ink] gets inspected and circled as it
-// scrolls into view, its Change Item arrives in the dock, and the agents section resolves them in turn. Everything
+// scrolls into view, and the agents section resolves the page's Change Items in turn. Everything
 // starts visible in the HTML; this script only holds back what hasn't happened yet, and does nothing under reduced
 // motion but show the end state.
 
@@ -7,8 +7,7 @@ const root = document.documentElement;
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const sections = [...document.querySelectorAll<HTMLElement>('[data-section]')];
-const dockItems = [...document.querySelectorAll<HTMLElement>('[data-dock-item]')];
-const count = document.querySelector<HTMLElement>('[data-count]');
+const runRows = [...document.querySelectorAll<HTMLElement>('[data-run]')];
 const sectionOrder = sections.map((s) => s.dataset.section);
 
 // Live sizes in the inspector tags, like the real one.
@@ -50,10 +49,6 @@ const loops = new ResizeObserver((entries) => {
 });
 if (!reduced) for (const svg of document.querySelectorAll('.pen-loop')) loops.observe(svg);
 
-const setCount = () => {
-  if (count) count.textContent = String(dockItems.filter((li) => li.classList.contains('arrived')).length);
-};
-
 const setStatus = (id: string, status: 'open' | 'working' | 'done') => {
   const label = { open: 'Open', working: 'In work', done: 'Done' }[status];
   for (const card of document.querySelectorAll<HTMLElement>(`[data-item="${id}"]`)) {
@@ -71,21 +66,17 @@ const setStatus = (id: string, status: 'open' | 'working' | 'done') => {
   }
 };
 
-const endOf = (li: HTMLElement) => (li.dataset.ends === 'working' ? 'working' : 'done');
+const endOf = (row: HTMLElement) => (row.dataset.ends === 'working' ? 'working' : 'done');
 const resolveAll = () => {
-  for (const li of dockItems) setStatus(li.dataset.dockItem!, endOf(li));
+  for (const row of runRows) setStatus(row.dataset.run!, endOf(row));
 };
 
 if (reduced) {
-  // The end state, all at once: every section inspected, every item made and resolved.
+  // The end state, all at once: every section inspected, every item resolved.
   for (const s of document.querySelectorAll('[data-ink]')) s.classList.add('is-inked');
-  for (const li of dockItems) li.classList.add('arrived');
-  setCount();
   resolveAll();
 } else {
-  setCount();
-
-  // Arriving at a section makes its item, and any skipped earlier ones, in page order.
+  // Arriving at a section inspects it, and any skipped earlier ones, in page order.
   const reached = new Set<string>();
   const arrive = (section: string) => {
     const upTo = sectionOrder.indexOf(section);
@@ -94,24 +85,18 @@ if (reduced) {
       if (reached.has(name)) continue;
       reached.add(name);
       if (s.hasAttribute('data-ink')) s.classList.add('is-inked');
-      const li = dockItems.find((d) => d.dataset.section === name);
-      li?.classList.add('arrived');
       if (s.hasAttribute('data-agents')) runAgents();
     }
-    setCount();
   };
 
   let ran = false;
   const runAgents = () => {
     if (ran) return;
     ran = true;
-    // Every item on the page is on the agents' list, even ones made further down.
-    for (const li of dockItems) li.classList.add('arrived');
-    setCount();
-    dockItems.forEach((li, i) => {
-      const id = li.dataset.dockItem!;
+    runRows.forEach((row, i) => {
+      const id = row.dataset.run!;
       setTimeout(() => setStatus(id, 'working'), 350 + i * 520);
-      if (endOf(li) === 'done') setTimeout(() => setStatus(id, 'done'), 1100 + i * 520);
+      if (endOf(row) === 'done') setTimeout(() => setStatus(id, 'done'), 1100 + i * 520);
     });
   };
 

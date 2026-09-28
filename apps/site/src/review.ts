@@ -1,10 +1,10 @@
 // The page reviews itself. Each section carries one Change Item a reviewer "said" about it, located on the element the
-// red pen circles there. The Items dock collects them as you scroll, and the agents section resolves them. The quotes
+// red pen circles there, and the agents section resolves them. The quotes
 // and timestamps are illustrative; the fields match what a real Change Item carries (ADR 0021).
 
 export type ReviewItem = {
   id: string;
-  /** The section the item is made in; the dock marks it when that section is inspected. */
+  /** The section the item is made in, and shown in. */
   section: string;
   /** The element the Stroke landed on, as the inspector names it. */
   selector: string;

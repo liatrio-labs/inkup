@@ -9,6 +9,8 @@ const extension = manifest['extensions/web'];
 // The Chrome Web Store listing, once Google approves it. Until it is set, the site's install buttons lead to the manual
 // install steps (load the release zip unpacked); set it and every button becomes a one-click store link.
 export const chromeStore: string | null = null;
+// The addons.mozilla.org listing, likewise: until it is set, Firefox's install is the manual temporary add-on.
+export const firefoxStore: string | null = null;
 
 const extensionRelease = `${REPO}/releases/tag/inkup-extension-v${extension}`;
 
