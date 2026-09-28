@@ -1,0 +1,70 @@
+---
+// One browser's install, Chrome and Firefox alike: a one-click store button once the listing is live, else the
+// release zip's download button and the manual steps (the slot), then a note.
+interface Props {
+  browser: 'Chrome' | 'Firefox';
+  /** The store listing, or null while it isn't live. */
+  store: string | null;
+  zip: string;
+  /** Umami event names (see the README): the store button's and the zip's. */
+  storeEvent: string;
+  zipEvent: string;
+}
+const { browser, store, zip, storeEvent, zipEvent } = Astro.props;
+const id = `install-${browser.toLowerCase()}`;
+---
+
+<section class="browser" aria-labelledby={id}>
+  <h4 id={id}>{browser}</h4>
+  {
+    store ? (
+      <a class="button primary" href={store} data-umami-event={storeEvent} data-umami-event-location="install">
+        Add to {browser}
+      </a>
+    ) : (
+      <ol class="manual-steps">
+        <li>
+          <a class="button primary small" href={zip} data-umami-event={zipEvent}>
+            Download for {browser}
+          </a>
+        </li>
+        <slot />
+      </ol>
+    )
+  }
+  <p class="manual-note"><slot name="note" /></p>
+</section>
+
+<style>
+  .browser {
+    display: grid;
+    align-content: start;
+    gap: var(--space-4);
+  }
+
+  h4 {
+    font-size: var(--step-1);
+  }
+
+  .button {
+    justify-self: start;
+  }
+
+  .manual-steps {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+    padding-left: 1.6rem;
+  }
+
+  .manual-steps :global(li)::marker {
+    content: counter(list-item) '  ';
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .manual-note {
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+</style>

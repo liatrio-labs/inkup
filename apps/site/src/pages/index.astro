@@ -1,16 +1,16 @@
 ---
+import liatrioLogo from '../assets/liatrio/logo_Liatrio.svg';
+import liatrioReverse from '../assets/liatrio/logo_Liatrio_reverse-preferred.svg';
+import BrowserInstall from '../components/BrowserInstall.astro';
 import Capture from '../components/Capture.astro';
 import ChangeItem from '../components/ChangeItem.astro';
 import CopyCommand from '../components/CopyCommand.astro';
 import Inspect from '../components/Inspect.astro';
-import ItemsDock from '../components/ItemsDock.astro';
 import Mark from '../components/Mark.astro';
 import PenLoop from '../components/PenLoop.astro';
 import SyntheticFrame from '../components/SyntheticFrame.astro';
-import liatrioLogo from '../assets/liatrio/logo_Liatrio.svg';
-import liatrioReverse from '../assets/liatrio/logo_Liatrio_reverse-preferred.svg';
 import Base from '../layouts/Base.astro';
-import { chromeStore, commands, installLabel, links, versions } from '../releases.ts';
+import { chromeStore, commands, firefoxStore, installLabel, links, versions } from '../releases.ts';
 import { itemFor, items } from '../review.ts';
 
 const title = 'InkUp: review your site out loud';
@@ -250,82 +250,74 @@ const year = new Date().getFullYear();
           <div class="install-row lead">
             <div>
               <h3>Browser extension</h3>
-              <p>All you need to review a page. Works on its own, with no host. Version {versions.extension}.</p>
-              {
-                !chromeStore && (
-                  <p class="pending">
-                    The Chrome Web Store listing is in review. Until it's live, install the release build by hand: it
-                    takes a minute.
-                  </p>
-                )
-              }
+              <p>
+                All you need to review a page, in Chrome or Firefox. Works on its own, with no host. Version{' '}
+                {versions.extension}.
+              </p>
             </div>
-            {
-              chromeStore ? (
-                <div class="install-actions">
-                  <a
-                    class="button primary"
-                    href={chromeStore}
-                    data-umami-event="install-chrome"
-                    data-umami-event-location="install"
-                  >
-                    Add to Chrome
-                  </a>
-                  <a
-                    class="text-link"
-                    href={links.extensionRelease}
-                    data-umami-event="github"
-                    data-umami-event-location="install-extension"
-                  >
-                    Firefox and zip builds on GitHub
-                  </a>
-                </div>
-              ) : (
-                <div class="manual">
-                  <ol class="manual-steps">
-                    <li>
-                      <a
-                        class="button primary small"
-                        href={links.chromeZip}
-                        data-umami-event="download-chrome-zip"
-                      >
-                        Download inkup-{versions.extension}-chrome.zip
-                      </a>
-                    </li>
-                    <li>Unzip it. Keep the folder where it is: Chrome loads the extension from it.</li>
-                    <li>
-                      Open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong>, top right.
-                    </li>
-                    <li>
-                      Click <strong>Load unpacked</strong> and pick the unzipped folder.
-                    </li>
-                    <li>InkUp's onboarding tab opens and asks for the microphone. Allow it, and you're set.</li>
-                  </ol>
-                  <p class="manual-note">
-                    Needs Chrome 153 or later. A build loaded this way doesn't update itself: unzip the next zip from{' '}
-                    <a
-                      href={links.extensionRelease}
-                      data-umami-event="github"
-                      data-umami-event-location="install-extension"
-                    >
-                      GitHub Releases
-                    </a>
-                    {' '}over the same folder and reload the extension, or switch to the store listing once it's live.
-                  </p>
-                  <details class="firefox">
-                    <summary>Firefox</summary>
-                    <p>
-                      <a href={links.firefoxZip} data-umami-event="download-firefox-zip">
-                        Download inkup-{versions.extension}-firefox.zip
-                      </a>
-                      , open <code>about:debugging</code>, choose <strong>This Firefox</strong>, then{' '}
-                      <strong>Load Temporary Add-on</strong> and pick the zip. Firefox removes temporary add-ons when it
-                      restarts.
-                    </p>
-                  </details>
-                </div>
-              )
-            }
+            <div class="browsers">
+              <BrowserInstall
+                browser="Chrome"
+                store={chromeStore}
+                zip={links.chromeZip}
+                storeEvent="install-chrome"
+                zipEvent="download-chrome-zip"
+              >
+                <li>Unzip it. Keep the folder where it is: Chrome loads the extension from it.</li>
+                <li>
+                  Open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong>, top right.
+                </li>
+                <li>Click <strong>Load unpacked</strong> and pick the unzipped folder.</li>
+                <li>InkUp's onboarding tab opens and asks for the microphone. Allow it, and you're set.</li>
+                <Fragment slot="note">
+                  {
+                    chromeStore ? (
+                      'Needs Chrome 153 or later.'
+                    ) : (
+                      <>
+                        Needs Chrome 153 or later. The Chrome Web Store listing is in review. Until it's live, a build
+                        loaded this way doesn't update itself: unzip the next zip from{' '}
+                        <a
+                          href={links.extensionRelease}
+                          data-umami-event="github"
+                          data-umami-event-location="install-extension"
+                        >
+                          GitHub Releases
+                        </a>{' '}
+                        over the same folder and reload the extension.
+                      </>
+                    )
+                  }
+                </Fragment>
+              </BrowserInstall>
+              <BrowserInstall
+                browser="Firefox"
+                store={firefoxStore}
+                zip={links.firefoxZip}
+                storeEvent="install-firefox"
+                zipEvent="download-firefox-zip"
+              >
+                <li>
+                  Open <code>about:debugging</code> and choose <strong>This Firefox</strong>.
+                </li>
+                <li>
+                  Click <strong>Load Temporary Add-on</strong> and pick the zip. No need to unzip it.
+                </li>
+                <li>InkUp's onboarding tab opens and asks for the microphone. Allow it, and you're set.</li>
+                <Fragment slot="note">
+                  {
+                    firefoxStore ? (
+                      'Needs Firefox 140 or later.'
+                    ) : (
+                      <>
+                        Needs Firefox 140 or later. Until the Firefox Add-ons listing is live, Firefox removes a
+                        temporary add-on when it restarts: load the zip again after a restart.
+                      </>
+                    )
+                  }
+                </Fragment>
+              </BrowserInstall>
+            </div>
           </div>
           <p class="optional-note">
             Add the host only to hand Change Items straight to Claude Code,
@@ -373,7 +365,7 @@ const year = new Date().getFullYear();
         <ol class="run" aria-label="This page's Change Items, resolved by agents">
           {
             items.map((item) => (
-              <li class="run-row" data-run={item.id} data-status="open">
+              <li class="run-row" data-run={item.id} data-ends={item.ends} data-status="open">
                 <span class="run-title">{item.title}</span>
                 <span class="run-where code">
                   <span class="run-selector">{item.selector}</span> {item.at}
@@ -404,7 +396,6 @@ const year = new Date().getFullYear();
       </section>
     </main>
 
-    <ItemsDock />
   </div>
 
   <footer class="footer">
@@ -501,30 +492,13 @@ const year = new Date().getFullYear();
     }
   }
 
-  /* Page grid: the page, and the Items dock beside it */
+  /* Page grid */
   .layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-8);
     max-width: 80rem;
     margin: 0 auto;
     padding: 0 var(--gutter);
     /* The inspector's measurement guides run to the gutter and stop. */
     overflow-x: clip;
-  }
-
-  @media (min-width: 72rem) {
-    .layout {
-      grid-template-columns: minmax(0, 1fr) var(--dock-w);
-    }
-
-    .layout :global(.inline-item) {
-      display: none;
-    }
-    /* Beside the dock, the guides stop just past the page column instead of running under the dock. */
-    main {
-      clip-path: polygon(-100vw -100vh, calc(100% + 1.5rem) -100vh, calc(100% + 1.5rem) calc(100% + 100vh), -100vw calc(100% + 100vh));
-    }
   }
 
   main {
@@ -825,7 +799,9 @@ const year = new Date().getFullYear();
     color: var(--muted);
   }
 
+  /* The extension's row stacks its intro above the two browsers, side by side. */
   .install-row.lead {
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
   }
 
@@ -859,45 +835,15 @@ const year = new Date().getFullYear();
     position: relative;
   }
 
-  .pending {
-    margin-top: var(--space-3);
-    max-width: 34ch;
-    color: var(--ink-2);
-  }
-
-  .manual {
+  .browsers {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--space-7) var(--space-8);
   }
 
-  .manual-steps {
-    display: grid;
-    gap: var(--space-3);
-    margin: 0;
-    padding-left: 1.6rem;
-  }
-
-  .manual-steps li::marker {
-    content: counter(list-item) '  ';
-    font-weight: 700;
-    color: var(--muted);
-  }
-
-  .manual-note {
-    color: var(--muted);
-    font-size: var(--step--1);
-  }
-
-  .firefox summary {
-    cursor: pointer;
-    font-weight: 600;
-    font-size: var(--step--1);
-  }
-
-  .firefox p {
-    margin-top: var(--space-2);
-    color: var(--ink-2);
-    font-size: var(--step--1);
+  @media (min-width: 56rem) {
+    .browsers {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   .optional-note {
