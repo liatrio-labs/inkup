@@ -1,0 +1,280 @@
+name: Homebrew formula
+
+# The inkup CLI's Homebrew formula, with bottles, for a host release (ADR 0008). scripts/formula.ts builds a bottle
+# per target from the release's dist archives and renders the formula; the verify job installs it with Homebrew on
+# macOS (Apple silicon and Intel) and Linux (x86_64 and arm64) and fails unless Homebrew pours the bottle. Without
+# bottles Homebrew treats the formula as a source build and demands a current Xcode or Command Line Tools first.
+#
+# It runs on the inkup-v* tag push, beside inkup-v-release.yml, and waits for dist to publish the release. Only a
+# stable release (no `-` in the version) uploads the bottles to the release and pushes Formula/inkup.rb to
+# liatrio-labs/homebrew-tap, so a pre-release builds and verifies its bottles but never touches the tap. A pull
+# request that changes this workflow or the script runs it dry against the newest stable host release. A maintainer
+# can run it for any existing tag, dry by default:
+# `gh workflow run homebrew-formula.yml -f tag=inkup-v0.5.0` (add `-f dry_run=false` to publish).
+on:
+  push:
+    tags: ['inkup-v*']
+  pull_request:
+    paths:
+      - .github/workflows/homebrew-formula.yml
+      - scripts/formula.ts
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The host release tag, e.g. inkup-v0.5.0
+        required: true
+        type: string
+      dry_run:
+        description: Build and verify only; upload nothing and leave the tap alone
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One run per tag or pull request; a second waits rather than cancelling a push to the tap halfway.
+concurrency:
+  group: homebrew-formula-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+# No dependency caches, as in the other release workflows (zizmor's cache-poisoning).
+env:
+  NODE_VERSION: "26"
+
+jobs:
+  # Which release, checked by scripts/desktop-tag.ts (a host release tag that exists on the remote), and whether this
+  # run publishes: a tag push of a stable release, or a dispatch with dry_run off for a stable release.
+  tag:
+    name: tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      publish: ${{ steps.tag.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - id: tag
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REMOTE: ${{ github.server_url }}/${{ github.repository }}.git
+        run: |
+          case "$EVENT" in
+            push) tag="$REF_NAME" dry=false ;;
+            workflow_dispatch) tag="$INPUT_TAG" dry="$DRY_RUN" ;;
+            *)
+              tag="$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 --json tagName \
+                --jq '[.[].tagName | select(test("^inkup-v[0-9]"))][0] // empty')"
+              dry=true
+              ;;
+          esac
+          node scripts/desktop-tag.ts "$tag" "$REMOTE" > "$RUNNER_TEMP/tag"
+          prerelease="$(sed -n 's/^prerelease=//p' "$RUNNER_TEMP/tag")"
+          if [ "$dry" = false ] && [ "$prerelease" = false ]; then publish=true; else publish=false; fi
+          echo "publish=$publish" >> "$RUNNER_TEMP/tag"
+          cat "$RUNNER_TEMP/tag"
+          cat "$RUNNER_TEMP/tag" >> "$GITHUB_OUTPUT"
+
+  bottles:
+    name: bottles
+    needs: tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TAG: ${{ needs.tag.outputs.tag }}
+      VERSION: ${{ needs.tag.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      # dist's host job uploads the archives to release-please's draft release and then publishes it. The bottles and
+      # the formula point at the published release's downloads, so wait for it, up to 45 minutes (a release run takes
+      # about 10).
+      - name: Wait for the release to be published
+        run: |
+          for _ in $(seq 90); do
+            if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)" = "false" ]; then
+              exit 0
+            fi
+            echo "waiting for inkup-v-release.yml to publish the $TAG release"
+            sleep 30
+          done
+          echo "::error::the $TAG release is not published after 45 minutes; once inkup-v-release.yml publishes it, re-run this job"
+          exit 1
+      - name: Build the bottles and the formula
+        run: |
+          archives="$RUNNER_TEMP/archives"
+          out="$RUNNER_TEMP/homebrew"
+          gh release download "$TAG" -p 'inkup-*.tar.xz' -p sha256.sum -D "$archives"
+          mkdir -p "$out"
+          node scripts/formula.ts "$VERSION" "$archives" "$out/bottles" > "$out/inkup.rb"
+          cat "$out/inkup.rb"
+          ls -l "$out/bottles"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: homebrew-formula
+          path: ${{ runner.temp }}/homebrew
+          if-no-files-found: error
+
+  # Installs the formula from a local tap with its root_url pointed at the bottles just built, so it runs before
+  # anything is uploaded. Homebrew builds the bottle's download URL from root_url exactly as for the release. It fails
+  # unless Homebrew poured the bottle (a source build would need Xcode or the Command Line Tools) and the installed
+  # `inkup --version` is the release's.
+  verify:
+    name: verify (${{ matrix.runner }})
+    needs: [tag, bottles]
+    strategy:
+      fail-fast: false
+      matrix:
+        # Apple silicon, Intel, Linux x86_64 and Linux arm64: each of the formula's bottles.
+        runner: [macos-latest, macos-15-intel, ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.tag.outputs.version }}
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+      HOMEBREW_NO_ENV_HINTS: "1"
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: homebrew-formula
+          path: ${{ runner.temp }}/homebrew
+      # The macOS and x86_64 Linux images ship Homebrew (Linux's off PATH); the arm64 Linux image does not.
+      - name: Homebrew
+        run: |
+          if ! command -v brew >/dev/null; then
+            if [ ! -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+              NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            fi
+            echo /home/linuxbrew/.linuxbrew/bin >> "$GITHUB_PATH"
+          fi
+      - name: Install from a local tap
+        run: |
+          brew --version
+          bottles="$RUNNER_TEMP/homebrew/bottles"
+          brew tap-new --no-git inkup-local/verify
+          formula="$(brew --repo inkup-local/verify)/Formula/inkup.rb"
+          sed "s|^    root_url .*|    root_url \"file://$bottles\"|" "$RUNNER_TEMP/homebrew/inkup.rb" > "$formula"
+          grep -qF "root_url \"file://$bottles\"" "$formula"
+          brew style inkup-local/verify/inkup
+          brew install inkup-local/verify/inkup 2>&1 | tee "$RUNNER_TEMP/install.log"
+      - name: Homebrew poured the bottle
+        run: |
+          if ! grep -qF "Pouring inkup--$VERSION." "$RUNNER_TEMP/install.log"; then
+            echo "::error::brew install did not pour a bottle"
+            exit 1
+          fi
+          poured="$(brew info --json=v2 inkup-local/verify/inkup | jq -r '.formulae[0].installed[0].poured_from_bottle')"
+          if [ "$poured" != true ]; then
+            echo "::error::the install receipt says poured_from_bottle=$poured"
+            exit 1
+          fi
+      # `inkup update` recognises a Homebrew copy by its path running through Cellar/inkup/ (ADR 0008).
+      - name: inkup runs from the Cellar at the release's version
+        run: |
+          got="$(inkup --version)"
+          if [ "$got" != "inkup $VERSION" ]; then
+            echo "::error::inkup --version printed '$got', not 'inkup $VERSION'"
+            exit 1
+          fi
+          path="$(realpath "$(command -v inkup)")"
+          echo "$path"
+          case "$path" in
+            */Cellar/inkup/"$VERSION"/bin/inkup) ;;
+            *) echo "::error::inkup is not the Cellar copy: $path"; exit 1 ;;
+          esac
+          brew test inkup-local/verify/inkup
+
+  publish:
+    name: publish
+    needs: [tag, bottles, verify]
+    if: ${{ needs.tag.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # gh release upload, to the tag's release.
+      contents: write
+    env:
+      TAG: ${{ needs.tag.outputs.tag }}
+      VERSION: ${{ needs.tag.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: homebrew-formula
+          path: ${{ runner.temp }}/homebrew
+      # A re-run replaces the bottles, and the formula below takes their new checksums.
+      - name: Upload the bottles to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          bottles="$RUNNER_TEMP/homebrew/bottles"
+          gh release upload "$TAG" "$bottles"/*.bottle.tar.gz --clobber
+          root="$(sed -n 's/^    root_url "\(.*\)"$/\1/p' "$RUNNER_TEMP/homebrew/inkup.rb")"
+          for bottle in "$bottles"/*.bottle.tar.gz; do
+            want="$(sha256sum "$bottle" | cut -d ' ' -f 1)"
+            got="$(curl -fsSL "$root/$(basename "$bottle")" | sha256sum | cut -d ' ' -f 1)"
+            if [ "$got" != "$want" ]; then
+              echo "::error::$root/$(basename "$bottle") does not download the bottle just uploaded"
+              exit 1
+            fi
+          done
+      # Formula/inkup.rb in liatrio-labs/homebrew-tap. desktop-macos.yml pushes Casks/inkup.rb to the same tap at about
+      # the same time; each push rebases onto the other and retries. A re-run that leaves the formula unchanged pushes
+      # nothing.
+      - name: Push the formula to the tap
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN is not set"
+            exit 1
+          fi
+          basic="$(printf 'x-access-token:%s' "$TAP_TOKEN" | base64 -w 0)"
+          echo "::add-mask::$basic"
+          auth="AUTHORIZATION: basic $basic"
+          tap="$RUNNER_TEMP/homebrew-tap"
+          git -c http.extraheader="$auth" clone https://github.com/liatrio-labs/homebrew-tap.git "$tap"
+          mkdir -p "$tap/Formula"
+          cp "$RUNNER_TEMP/homebrew/inkup.rb" "$tap/Formula/inkup.rb"
+          cd "$tap"
+          # The identity also signs the commit a rebase below rewrites.
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Formula/inkup.rb
+          if git diff --cached --quiet; then
+            echo "Formula/inkup.rb is already at $VERSION with these bottles; nothing to push"
+            exit 0
+          fi
+          git commit -m "inkup $VERSION"
+          for attempt in 1 2 3 4 5; do
+            if git -c http.extraheader="$auth" push origin HEAD; then
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt); rebasing onto the tap's main"
+            git -c http.extraheader="$auth" pull --rebase origin main
+            sleep 5
+          done
+          echo "::error::could not push the formula to liatrio-labs/homebrew-tap after 5 attempts"
+          exit 1

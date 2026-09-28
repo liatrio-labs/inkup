@@ -7,7 +7,10 @@ members = ["cargo:host/"]
 [dist]
 cargo-dist-version = "0.33.0"
 ci = "github"
-installers = ["shell", "powershell", "homebrew"]
+# No "homebrew" installer: dist's formula has no bottles, so Homebrew builds it "from source" and demands a current
+# Xcode or Command Line Tools. .github/workflows/homebrew-formula.yml builds bottles from the release's archives and
+# publishes the formula instead (ADR 0008).
+installers = ["shell", "powershell"]
 targets = [
   "aarch64-apple-darwin",
   "x86_64-apple-darwin",
@@ -23,9 +26,6 @@ tag-namespace = "inkup-v"
 # The installers write the install receipt that `inkup update` reads only when this is on. It also ships the standalone
 # `inkup-update`, which `inkup update` makes redundant; it stays for the receipt.
 install-updater = true
-tap = "liatrio-labs/homebrew-tap"
-formula = "inkup"
-publish-jobs = ["homebrew"]
 # The desktop app's DMG is not a dist job: .github/workflows/desktop-macos.yml runs on the same inkup-v* tag and attaches
 # it to the release (ADR 0025).
 # release-please creates the GitHub Release (with its changelog) and the tag that starts this workflow, so dist
