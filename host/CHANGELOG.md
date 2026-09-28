@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/liatrio-labs/inkup/compare/inkup-v0.5.0...inkup-v0.5.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **release:** publish the inkup formula with Homebrew bottles ([#60](https://github.com/liatrio-labs/inkup/issues/60)) ([632cc72](https://github.com/liatrio-labs/inkup/commit/632cc72bd5e403fe74d564c6cf3c6ebacaf477df))
+
 ## [0.5.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.4.0...inkup-v0.5.0) (2026-09-26)
 
 
