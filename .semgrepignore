@@ -1,0 +1,14 @@
+# Semgrep scans code. A .semgrepignore replaces semgrep's built-in ignore list, so its usual entries come first.
+:include .gitignore
+node_modules/
+vendor/
+dist/
+build/
+target/
+.output/
+*.min.js
+
+# Prose, not code: rules written for source match words and URLs here. The ws:// a JavaScript rule flags in
+# docs/browsers.md is the LAN Host's real protocol (ADR 0006; the Host serves no TLS).
+docs/
+*.md
