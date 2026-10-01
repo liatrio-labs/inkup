@@ -84,6 +84,10 @@ export default defineConfig({
   srcDir: 'src',
   publicDir: 'public',
   modules: ['@wxt-dev/module-react'],
+  // No `version` here: WXT takes package.json's, which release-please sets to the release's version (ADR 0027). For a
+  // release candidate, `0.7.0-rc.1`, WXT writes `version: "0.7.0"`, because browsers take only dotted numbers, and the
+  // full version as `version_name` for Chrome and Safari. Firefox has no `version_name`, so there only the zip's name
+  // and the GitHub pre-release tell a candidate from the final build.
   manifest: {
     name: 'InkUp',
     description: 'Record a spoken, drawn-on review of a web page and turn it into located Change Items.',

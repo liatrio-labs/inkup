@@ -1,12 +1,15 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.6.0/schemas/config.json",
   "bootstrap-sha": "6444615b9d33fcde27cfc4bc42baab8bd8b0331b",
-  "separate-pull-requests": true,
+  "separate-pull-requests": false,
+  "group-pull-request-title-pattern": "chore(release): ${version}",
   "include-component-in-tag": true,
   "include-v-in-tag": true,
   "tag-separator": "-",
   "force-tag-creation": true,
-  "pull-request-title-pattern": "chore(release):${component} ${version}",
+  "versioning": "prerelease",
+  "prerelease-type": "rc.1",
+  "prerelease": false,
   "changelog-sections": [
     {
       "type": "feat",
@@ -60,23 +63,31 @@
       "hidden": true
     }
   ],
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "inkup",
+      "components": [
+        "inkup",
+        "inkup-extension"
+      ],
+      "merge": false
+    }
+  ],
   "packages": {
     ".": {
       "release-type": "simple",
       "component": "inkup",
       "package-name": "inkup",
       "draft": true,
-      "versioning": "prerelease",
-      "prerelease-type": "rc.1",
-      "prerelease": false,
       "changelog-path": "host/CHANGELOG.md",
       "exclude-paths": [
         ".github",
+        ".impeccable",
         "apps/site",
         "docs",
         "extensions",
         "fixtures",
-        "packages",
         "scripts",
         "tests"
       ],
