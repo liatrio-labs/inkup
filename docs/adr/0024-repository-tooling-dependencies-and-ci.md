@@ -68,7 +68,7 @@ kept: renaming classes injected into pages buys nothing.
 ## Consequences
 
 - Contributors need pre-commit installed; `pnpm install` warns when it is missing.
-- CI routing by path, and the contract check, are ADR 0007. Releases are ADR 0008.
+- CI routing by path, and the contract check, are ADR 0007. Releases are ADR 0027.
 
 ## History
 

@@ -1,10 +1,13 @@
 name: release-please
 
-# Keeps one release pull request open per train (release-please-config.json): `inkup` for the host, `inkup-extension`
-# for the Chrome extension and the Firefox add-on. Merging one creates its tag and GitHub Release, and the tag starts
-# the train's release workflow: inkup-v-release.yml for `inkup-v*`, release.yml and firefox-release.yml for
-# `inkup-extension-v*`. Releases are automatic: each release pull request is set to auto-merge, so it merges once
-# ci-ok passes (CI skips every job on it) and the tag goes out with no one reviewing it. See docs/releasing.md.
+# Keeps one release pull request open (release-please-config.json) that gives the host (`inkup`) and the extension
+# (`inkup-extension`, the Chrome extension and the Firefox add-on) the same version (ADR 0027). Merging it creates
+# both tags and GitHub Releases, and each tag starts its release workflows: inkup-v-release.yml and desktop-macos.yml
+# for `inkup-v*`, release.yml and firefox-release.yml for `inkup-extension-v*`. Releases are automatic: the release
+# pull request is set to auto-merge, so it merges once ci-ok passes (CI skips every job on it) and the tags go out
+# with no one reviewing them. A release pull request opens only when a commit since the last release ships
+# (scripts/release-worthy.ts): release-please would count a site or docs commit that touches a root file for the host.
+# See docs/releasing.md.
 on:
   push:
     branches: [main]
@@ -35,9 +38,23 @@ jobs:
           if [ "$HAS_TOKEN" != "true" ]; then
             echo "::warning::RELEASE_PLEASE_TOKEN is not set; falling back to github.token. Release pull requests get no CI run and the tags it creates start no release workflow. See docs/releasing.md."
           fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+          package-manager-cache: false
+      # Anything since the last release that ships? Without one, release-please still tags a merged release pull
+      # request, but opens or updates none.
+      - name: Check for a change that ships
+        id: worthy
+        run: node scripts/release-worthy.ts >> "$GITHUB_OUTPUT"
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          skip-github-pull-request: ${{ steps.worthy.outputs.release != 'true' }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
       # The merge must be made with RELEASE_PLEASE_TOKEN too: a push made with GITHUB_TOKEN starts no workflows, so

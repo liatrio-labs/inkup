@@ -1,4 +1,4 @@
-//! Updates (ADR 0008): the TUI's and `serve`'s wording of the daily check (inkup-update-check), and `inkup update`.
+//! Updates (ADR 0027): the TUI's and `serve`'s wording of the daily check (inkup-update-check), and `inkup update`.
 //!
 //! How inkup was installed decides how it updates:
 //! - by the shell or PowerShell installer (it wrote an install receipt): axoupdater runs the new release's installer

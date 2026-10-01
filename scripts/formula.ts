@@ -1,5 +1,5 @@
 // `node scripts/formula.ts <version> <archives-dir> <bottles-dir> [root-url]`: builds Homebrew bottles for the inkup
-// CLI from a host release's dist archives and prints its formula (ADR 0008). homebrew-formula.yml uploads the bottles to
+// CLI from a host release's dist archives and prints its formula (ADR 0027). homebrew-formula.yml uploads the bottles to
 // the release and pushes the formula to liatrio-labs/homebrew-tap as Formula/inkup.rb on stable host releases.
 //
 // A formula without a `bottle do` block is a source build to Homebrew, which then demands a current Xcode or Command

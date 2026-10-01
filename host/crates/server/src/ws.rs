@@ -322,7 +322,7 @@ impl Connection {
             }
             None => self.pair(&hello).await?,
         };
-        // For `inkup update`'s skew guard (ADR 0008).
+        // For `inkup update`'s skew guard (ADR 0027).
         let (client_id, version) = (client.id.clone(), *hello.v);
         blocking(&self.state.store, move |store| store.record_hello(&client_id, version))
             .await

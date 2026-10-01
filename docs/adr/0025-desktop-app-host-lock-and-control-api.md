@@ -51,7 +51,7 @@ option below stays rejected. **Install CLI**, in the window's header (`apps/desk
 - It says which `inkup` a terminal runs: every `inkup` on the login shell's PATH, in order, since an app started from
   Finder has only launchd's PATH.
 - Since the app's copy is inside its signed bundle, `inkup update` never overwrites it and points at the app's update
-  instead (ADR 0008).
+  instead (ADR 0027).
 - The Homebrew cask stays app-only (no `binary` stanza): the formula already links `inkup` into Homebrew's `bin`, and
   Install CLI is the app's own, explicit step.
 
@@ -101,7 +101,7 @@ menu, stops the server and gives up the data dir.
   Dock icon. The bundled .icns never changes, so Finder, and the Dock before launch, show the plain icon even for a
   development build.
 
-**It ships as a signed, notarized DMG on the host's release train.** Each `inkup-v<version>` release also carries
+**It ships as a signed, notarized DMG with each host release.** Each `inkup-v<version>` release also carries
 `InkUp_<version>_universal.dmg`: one app for Apple silicon and Intel, versioned by the tag, since it embeds that
 host. `.github/workflows/desktop-macos.yml` runs on the same `inkup-v*` tag as cargo-dist's release workflow, as a
 workflow of its own rather than a job in dist's. It first checks the tag (`scripts/desktop-tag.ts`): a host release
@@ -180,11 +180,11 @@ recognisably the same product.
   on macOS.
 - Anything the TUI can do that a window should also do becomes a control API route, added to the contract first,
   with a `CONTROL_API` bump when it breaks.
-- When the app hosts, it runs the host's daily update check (ADR 0008) and its notice fills `ControlState.update`,
+- When the app hosts, it runs the host's daily update check (ADR 0027) and its notice fills `ControlState.update`,
   which the window shows as "Update available": `brew upgrade --cask inkup` when the cask installed the app, else the
   release's DMG. When the app is a CLI host's window, that host checks and words the notice.
 - The app has no Windows or Linux release and does not update itself: a newer DMG is installed over it. The host's
-  self-update (ADR 0008) covers only an `inkup` binary installed on its own, never the one inside the app.
+  self-update (ADR 0027) covers only an `inkup` binary installed on its own, never the one inside the app.
 - Moving or renaming the app breaks the `/usr/local/bin/inkup` link until Install CLI runs again from the new place;
   the window says the link is broken. Deleting the app leaves the broken link behind.
 - A release build takes two more host builds (the CLI for each architecture) before the app's.
@@ -220,4 +220,4 @@ recognisably the same product.
 - `File::try_lock` (advisory, released on process exit): <https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock>
 - shadcn/ui: <https://ui.shadcn.com/docs>
 - 2026-09-25: the `release` environment needed a maintainer's approval for each DMG build. Now it has no required
-  reviewer, because releases are automatic (ADR 0008); its tag policy alone keeps the signing secrets to release tags.
+  reviewer, because releases are automatic (ADR 0027); its tag policy alone keeps the signing secrets to release tags.

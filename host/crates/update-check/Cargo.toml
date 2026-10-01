@@ -1,6 +1,6 @@
 [package]
 name = "inkup-update-check"
-description = "The daily check for a newer inkup release (ADR 0008), for every host: the TUI, `serve` and the desktop app"
+description = "The daily check for a newer inkup release (ADR 0027), for every host: the TUI, `serve` and the desktop app"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -25,7 +25,7 @@ jobs:
   # app runs for apps/desktop and for what it is built from (host/, packages/, the lockfile); the site (apps/site, ADR
   # 0026) for apps/site, the lockfile and release-please's manifest, and nothing else for it. A push with no usable
   # base runs everything. A release pull request (release-please--*) runs nothing: it only bumps versions and
-  # changelogs of code that was tested on its own pull request (ADR 0008), so every job skips and ci-ok passes.
+  # changelogs of code that was tested on its own pull request (ADR 0027), so every job skips and ci-ok passes.
   changes:
     name: changes
     if: ${{ !startsWith(github.head_ref, 'release-please--') }}

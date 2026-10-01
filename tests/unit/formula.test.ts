@@ -1,4 +1,4 @@
-// The inkup CLI's Homebrew formula and its bottles (scripts/formula.ts, ADR 0008), as homebrew-formula.yml builds them
+// The inkup CLI's Homebrew formula and its bottles (scripts/formula.ts, ADR 0027), as homebrew-formula.yml builds them
 // from a host release's archives.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

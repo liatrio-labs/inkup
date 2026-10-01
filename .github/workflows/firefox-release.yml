@@ -1,8 +1,10 @@
 name: Firefox extension release
 
-# Runs on the extension train's tag, inkup-extension-v<version>, which release-please creates when its release
-# pull request is merged; the same tag starts release.yml. A hand-pushed inkup-firefox-v<version> tag releases
-# this store alone. Either tag must be on main and end in extensions/web/package.json "version" (the manifest version).
+# Runs on inkup-extension-v<version>, the extension's tag in every release (ADR 0027): release-please tags the host
+# and the extension with the same version when its release pull request is merged, and the same tag starts
+# release.yml. A hand-pushed inkup-firefox-v<version> tag releases this store alone. Either tag must be on main and
+# end in extensions/web/package.json "version". A release candidate (`0.8.0-rc.1`) goes to its GitHub pre-release only,
+# not to the store.
 on:
   push:
     tags: ["inkup-extension-v*.*.*", "inkup-firefox-v*.*.*"]
@@ -24,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
+      prerelease: ${{ steps.tag.outputs.prerelease }}
       zip: ${{ steps.zip.outputs.name }}
       sources: ${{ steps.zip.outputs.sources }}
     steps:
@@ -31,21 +34,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Tag is on main and matches the extension's package.json version
+      - name: Tag is on main
         run: |
           git fetch origin main --depth=1000
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "::error::Tag $GITHUB_REF_NAME is not on main. Release only commits that passed CI on main."
             exit 1
           fi
-          version="$(node -p 'require("./extensions/web/package.json").version')"
-          case "$GITHUB_REF_NAME" in
-            "inkup-extension-v$version" | "inkup-firefox-v$version") ;;
-            *)
-              echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version."
-              exit 1
-              ;;
-          esac
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -53,6 +48,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
+      # The tag must end in the extension's package.json version. A `-` in the version makes a pre-release, which
+      # the store job skips.
+      - name: Tag matches the extension's package.json version
+        id: tag
+        run: |
+          node scripts/extension-tag.ts "$GITHUB_REF_NAME" firefox > "$RUNNER_TEMP/tag"
+          cat "$RUNNER_TEMP/tag"
+          cat "$RUNNER_TEMP/tag" >> "$GITHUB_OUTPUT"
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
@@ -93,6 +96,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ZIP: ${{ needs.build.outputs.zip }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
         run: |
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "$ZIP" --repo "$GITHUB_REPOSITORY" --clobber
@@ -101,12 +105,15 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "$GITHUB_REF_NAME" \
               --generate-notes \
-              --verify-tag
+              --verify-tag \
+              --prerelease="$PRERELEASE"
           fi
 
   firefox-amo:
     name: firefox-amo
     needs: build
+    # Release candidates stay on GitHub: only a final version goes to the store.
+    if: needs.build.outputs.prerelease == 'false'
     runs-on: ubuntu-latest
     # Environment is restricted to inkup-extension-v* and inkup-firefox-v* tags; see docs/releasing.md.
     environment: firefox-amo
