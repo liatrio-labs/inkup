@@ -89,7 +89,7 @@ impl Store {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// Records the protocol version a Client spoke in its `hello` (ADR 0008's skew guard reads it back).
+    /// Records the protocol version a Client spoke in its `hello` (ADR 0027's skew guard reads it back).
     pub fn record_hello(&self, client_id: &str, protocol_version: i64) -> Result<()> {
         self.conn().execute(
             "UPDATE clients SET protocol_version = ?1, last_seen_at = ?2 WHERE id = ?3",

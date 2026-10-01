@@ -6,7 +6,7 @@
 //!
 //! Either way the window talks to the host through one `HostLink`.
 //!
-//! Hosting, the app runs the daily update check the TUI and `serve` run (ADR 0008), so the window's "Update
+//! Hosting, the app runs the daily update check the TUI and `serve` run (ADR 0027), so the window's "Update
 //! available" shows when the app hosts too. When the CLI hosts, the CLI checks.
 
 use std::path::{Path, PathBuf};

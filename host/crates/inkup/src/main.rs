@@ -6,7 +6,7 @@
 //! - `status`: whether a host is running, which one holds the data dir, and what its store holds.
 //! - `mcp install`: point Claude Code, Cursor or Codex at the host's `/mcp` (mcp_install.rs).
 //! - `token create|list|revoke`: agent tokens, for agents on other machines in network mode (ADR 0006).
-//! - `update`: install a newer inkup release, or say how (update.rs, ADR 0008). The TUI and `serve` check for one
+//! - `update`: install a newer inkup release, or say how (update.rs, ADR 0027). The TUI and `serve` check for one
 //!   in the background at most once a day.
 //!
 //! One host per data dir (`inkup_store::instance`): the TUI and `serve` take the data dir's lock before they start.

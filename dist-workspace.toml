@@ -1,5 +1,5 @@
-# cargo-dist (`dist`) config for the host release train. The host is released when release-please creates an
-# `inkup-v<version>` release and tag; see docs/releasing.md and docs/adr/0008-independent-releases-and-host-updates.md.
+# cargo-dist (`dist`) config for the host's release. The host is released when release-please creates an
+# `inkup-v<version>` release and tag; see docs/releasing.md and docs/adr/0027-lockstep-releases-and-host-updates.md.
 # .github/workflows/inkup-v-release.yml is generated from this file: change settings here, then run `dist generate`.
 [workspace]
 members = ["cargo:host/"]
@@ -9,7 +9,7 @@ cargo-dist-version = "0.33.0"
 ci = "github"
 # No "homebrew" installer: dist's formula has no bottles, so Homebrew builds it "from source" and demands a current
 # Xcode or Command Line Tools. .github/workflows/homebrew-formula.yml builds bottles from the release's archives and
-# publishes the formula instead (ADR 0008).
+# publishes the formula instead (ADR 0027).
 installers = ["shell", "powershell"]
 targets = [
   "aarch64-apple-darwin",

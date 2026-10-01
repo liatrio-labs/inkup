@@ -1,6 +1,6 @@
 name: Homebrew formula
 
-# The inkup CLI's Homebrew formula, with bottles, for a host release (ADR 0008). scripts/formula.ts builds a bottle
+# The inkup CLI's Homebrew formula, with bottles, for a host release (ADR 0027). scripts/formula.ts builds a bottle
 # per target from the release's dist archives and renders the formula; the verify job installs it with Homebrew on
 # macOS (Apple silicon and Intel) and Linux (x86_64 and arm64) and fails unless Homebrew pours the bottle. Without
 # bottles Homebrew treats the formula as a source build and demands a current Xcode or Command Line Tools first.
@@ -190,7 +190,7 @@ jobs:
             echo "::error::the install receipt says poured_from_bottle=$poured"
             exit 1
           fi
-      # `inkup update` recognises a Homebrew copy by its path running through Cellar/inkup/ (ADR 0008).
+      # `inkup update` recognises a Homebrew copy by its path running through Cellar/inkup/ (ADR 0027).
       - name: inkup runs from the Cellar at the release's version
         run: |
           got="$(inkup --version)"

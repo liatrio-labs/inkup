@@ -14,7 +14,7 @@ down. The H1 of each file states the decision; the body says where it lives in t
 | [0005](0005-loopback-trust-and-pairing.md) | Loopback trust and pairing | accepted; superseded in part by 0006 | 2026-09-23 |
 | [0006](0006-network-mode.md) | Network mode | accepted | 2026-09-23 |
 | [0007](0007-central-contract.md) | One versioned contract in `contract/` | accepted | 2026-09-24 |
-| [0008](0008-independent-releases-and-host-updates.md) | Independent releases cut by release-please, and Host self-update | accepted | 2026-09-24 |
+| [0008](0008-independent-releases-and-host-updates.md) | Independent releases cut by release-please, and Host self-update | superseded by 0027 | 2026-09-24 |
 | [0009](0009-video-grounded-process-and-vetting.md) | Video-grounded Process and a vetting pass | accepted | 2026-09-24 |
 | [0010](0010-starting-owning-and-stopping-a-session.md) | Starting, owning and stopping a Session | accepted | 2026-09-22 |
 | [0011](0011-the-page-overlay.md) | The page overlay | accepted | 2026-09-23 |
@@ -33,6 +33,7 @@ down. The H1 of each file states the decision; the body says where it lives in t
 | [0024](0024-repository-tooling-dependencies-and-ci.md) | Repository tooling, dependencies and CI | accepted | 2026-09-22 |
 | [0025](0025-desktop-app-host-lock-and-control-api.md) | The desktop app, one host per data dir, and the control API | accepted | 2026-09-25 |
 | [0026](0026-marketing-site-astro-on-github-pages.md) | The marketing site: Astro on GitHub Pages | accepted | 2026-09-25 |
+| [0027](0027-lockstep-releases-and-host-updates.md) | Lockstep releases cut by release-please, and Host self-update | accepted | 2026-09-25 |
 
 The date is when the decision was first made. ADRs 0010 to 0024 were distilled on 2026-09-24 from the decisions log
 that the repo kept until then; their History sections carry its dates.

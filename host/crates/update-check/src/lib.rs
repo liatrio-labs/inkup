@@ -1,4 +1,4 @@
-//! The daily update check (ADR 0008), for whichever process hosts: the TUI, `inkup serve` and the desktop app. At
+//! The daily update check (ADR 0027), for whichever process hosts: the TUI, `inkup serve` and the desktop app. At
 //! most once a day, cached in `update-check.json` in the data dir, it asks GitHub for the newest `inkup-v*`
 //! release. When that is newer than this copy, the host's notice says so, and says to update the extension first
 //! when the release speaks a newer protocol than a recently seen paired Client (the skew guard).

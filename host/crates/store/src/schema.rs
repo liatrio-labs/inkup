@@ -123,7 +123,7 @@ const MIGRATIONS: &[&str] = &[
     );
     ",
     // 5: the protocol version each Client last spoke in `hello`, so `inkup update` can warn before a host release
-    // that raises it locks the Client out (ADR 0008). Null until the Client next connects.
+    // that raises it locks the Client out (ADR 0027). Null until the Client next connects.
     r"
     ALTER TABLE clients ADD COLUMN protocol_version INTEGER;
     ",
