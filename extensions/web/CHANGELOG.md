@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.1.1...inkup-extension-v0.7.0) (2026-10-01)
+
+
+### Features
+
+* **release:** release the host and the extension with one version ([#67](https://github.com/liatrio-labs/inkup/issues/67)) ([5b601b3](https://github.com/liatrio-labs/inkup/commit/5b601b375e1a3ecf57f3e63abe3dcac06b048e2f))
+
 ## [0.1.1](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.1.0...inkup-extension-v0.1.1) (2026-09-25)
 
 
