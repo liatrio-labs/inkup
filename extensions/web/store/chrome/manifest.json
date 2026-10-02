@@ -1,0 +1,83 @@
+{
+  "source": "scripts/store-assets.ts",
+  "captures": "apps/site/src/assets/captures",
+  "extensionVersion": "0.7.0",
+  "assets": [
+    {
+      "file": "screenshot-1-talk-and-draw.png",
+      "kind": "screenshot",
+      "width": 1280,
+      "height": 800,
+      "from": [
+        "toolbar-recording.png"
+      ],
+      "caption": "Talk through the page and draw on it while InkUp records."
+    },
+    {
+      "file": "screenshot-2-circle.png",
+      "kind": "screenshot",
+      "width": 1280,
+      "height": 800,
+      "from": [
+        "stroke.png"
+      ],
+      "caption": "Circle what you mean; InkUp ties the mark to the element under it."
+    },
+    {
+      "file": "screenshot-3-drafts.png",
+      "kind": "screenshot",
+      "width": 1280,
+      "height": 800,
+      "from": [
+        "drafts.png"
+      ],
+      "caption": "Every note becomes a draft change while you talk."
+    },
+    {
+      "file": "screenshot-4-review.png",
+      "kind": "screenshot",
+      "width": 1280,
+      "height": 800,
+      "from": [
+        "review.png"
+      ],
+      "caption": "Review the list of changes, then copy prompts for your coding agent or export them."
+    },
+    {
+      "file": "screenshot-5-phone-width.png",
+      "kind": "screenshot",
+      "width": 1280,
+      "height": 800,
+      "from": [
+        "stroke-mobile.png"
+      ],
+      "caption": "Review a narrow layout the same way you review a wide one."
+    },
+    {
+      "file": "small-promo-440x280.png",
+      "kind": "small-promo",
+      "width": 440,
+      "height": 280,
+      "from": [],
+      "caption": "Review your site out loud."
+    },
+    {
+      "file": "marquee-promo-1400x560.png",
+      "kind": "marquee-promo",
+      "width": 1400,
+      "height": 560,
+      "from": [
+        "stroke.png"
+      ],
+      "caption": "Review your site out loud."
+    },
+    {
+      "file": "icon-128.png",
+      "kind": "icon",
+      "width": 128,
+      "height": 128,
+      "from": [],
+      "caption": "The InkUp mark."
+    }
+  ]
+}

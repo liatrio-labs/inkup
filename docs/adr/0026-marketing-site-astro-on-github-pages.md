@@ -43,7 +43,8 @@ rename is a new event, not an edit.
 drives the built extension on a fictional page (`fixtures/site/demo-store.html`) with scripted speech and the local
 Anthropic stub, never a paid API. `.github/workflows/site-captures.yml` runs it on Linux: on a pull request that
 changes its inputs it uploads the set as an artifact, and by hand or on an `inkup-extension-v*` release it opens a
-pull request with the refreshed files. Nobody edits the captures by hand.
+pull request with the refreshed files. The same run remakes the Chrome Web Store listing images from them
+(`scripts/store-assets.ts`, into `extensions/web/store/chrome`). Nobody edits the captures or those images by hand.
 
 **Never released.** The site is not a release-please component, and `apps/site` is in the root component's
 `exclude-paths`, so site commits never bump the host's version or changelog.
@@ -69,6 +70,8 @@ pull request with the refreshed files. Nobody edits the captures by hand.
   by `site-captures.yml`, so it cannot drift from the product.
 - 2026-10-02: `install-chrome` jumped to the manual install steps while the store listing was in review; Google has
   approved it (unlisted), so it opens the listing and the Chrome zip steps have left the site.
+- 2026-10-02: the Chrome Web Store listing images are made from the captures too, so the listing shows the same
+  product as the site.
 
 ## Sources
 

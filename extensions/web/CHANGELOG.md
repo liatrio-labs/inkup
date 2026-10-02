@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.7.0...inkup-extension-v0.8.0) (2026-10-02)
+
+
+### Features
+
+* **store:** make the Chrome Web Store listing images from the site captures ([#71](https://github.com/liatrio-labs/inkup/issues/71)) ([f8b9a96](https://github.com/liatrio-labs/inkup/commit/f8b9a96a58d05ee8517a349e66d7d1bf0ea017c7))
+
 ## [0.7.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.1.1...inkup-extension-v0.7.0) (2026-10-01)
 
 
