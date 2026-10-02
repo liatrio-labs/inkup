@@ -30,20 +30,15 @@ Draft Item, Voice Command, …) is defined in `CONTEXT.md`, and the code uses th
 
 ## Install from a release
 
-The Chrome Web Store listing is in review. Until it is live, install the build from the latest
-[extension release](https://github.com/liatrio-labs/inkup/releases?q=inkup-extension&expanded=true).
+**Chrome** (153 or later): add InkUp from the
+[Chrome Web Store](https://chromewebstore.google.com/detail/inkup/efipggmcekjnednnfcfndldocmfggjmi). The listing is
+unlisted, so use this link: searching the store won't find it. Chrome keeps it up to date. The onboarding tab opens and
+asks for the microphone. Allow it, then open a page, click the extension's icon to show the toolbar, and click Start.
 
-**Chrome** (153 or later):
-
-1. Download `inkup-<version>-chrome.zip` from the release.
-2. Unzip it. Keep the folder where it is: Chrome loads the extension from it.
-3. Open `chrome://extensions` and turn on Developer mode (top right).
-4. Click "Load unpacked" and pick the unzipped folder.
-5. The onboarding tab opens and asks for the microphone. Allow it, then open a page, click the extension's icon to
-   show the toolbar, and click Start.
-
-A build loaded this way does not update itself. To update, unzip the next release over the same folder and click the
-reload icon on the extension's card in `chrome://extensions`.
+To run a build from the latest
+[extension release](https://github.com/liatrio-labs/inkup/releases?q=inkup-extension&expanded=true) instead, download
+`inkup-<version>-chrome.zip`, unzip it, and load the folder unpacked as in
+[Build from source](#build-from-source-unpacked). A build loaded this way does not update itself.
 
 **Firefox** (140 or later): download `inkup-<version>-firefox.zip`, open `about:debugging`, choose This Firefox, then
 Load Temporary Add-on and pick the zip. Firefox removes temporary add-ons when it restarts.
