@@ -160,6 +160,25 @@ for development or testing, but it is not a one-click install. So a Chrome relea
   store's item and publisher IDs are configured (otherwise it logs a notice and skips). It signs in to Google keyless,
   with the job's GitHub OIDC token, and calls the Chrome Web Store API v2 through `scripts/chrome-web-store.ts`.
 
+### Chrome Web Store listing
+
+The listing's images live in `extensions/web/store/chrome`: five 1280×800 screenshots, the 440×280 small promo tile,
+the 1400×560 marquee tile and the 128×128 store icon. `manifest.json` there lists each file with its size, the
+captures it is made from and a caption. `scripts/store-assets.ts` makes them from the site's product captures
+(`apps/site/src/assets/captures`, ADR 0026) and the InkUp mark, in Playwright's Chromium, so run
+`pnpm exec playwright install chromium` once first. Remake them after the captures change:
+
+```sh
+pnpm store:assets
+```
+
+`site-captures.yml` does this when it refreshes the captures, so its pull request carries both. Nobody edits the
+images by hand; change the script. `tests/unit/store-assets.test.ts` checks each file's size against the manifest.
+
+The images are uploaded by hand, in the developer dashboard's **Store listing** tab
+(<https://chrome.google.com/webstore/devconsole>): the Chrome Web Store API v2 covers packages and publishing only,
+not listing media. Upload the screenshots in their numbered order.
+
 ### Firefox
 
 `.github/workflows/firefox-release.yml`:

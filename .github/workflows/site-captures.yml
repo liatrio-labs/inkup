@@ -5,7 +5,8 @@ name: Site captures
 # Anthropic stub, so no paid API is called. It runs on Linux only (on a Mac desktop the fake media raise
 # screen-recording prompts). A pull request that changes the capture's inputs records them and uploads the set as an
 # artifact to look at. By hand, and when an extension release (inkup-extension-v*) is published, it also opens or
-# updates the pull request "chore(site): refresh product captures" against main.
+# updates the pull request "chore(site): refresh product captures" against main. The same run remakes the Chrome Web
+# Store listing images from the new captures (scripts/store-assets.ts) and puts them in that pull request too.
 on:
   workflow_dispatch:
   release:
@@ -55,10 +56,18 @@ jobs:
         run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg)
       # Builds the extension, then records into apps/site/src/assets/captures.
       - run: pnpm site:captures
+      # The Chrome Web Store listing images are made from the captures (docs/releasing.md, "Chrome Web Store listing").
+      - run: pnpm store:assets
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: site-captures
           path: apps/site/src/assets/captures/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: store-listing
+          path: extensions/web/store/chrome/
           if-no-files-found: error
           retention-days: 30
       - if: failure()
@@ -88,6 +97,10 @@ jobs:
         with:
           name: site-captures
           path: apps/site/src/assets/captures/
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: store-listing
+          path: extensions/web/store/chrome/
       # A pull request made with GITHUB_TOKEN starts no workflows, so CI (and ci-ok) would not run on it:
       # RELEASE_PLEASE_TOKEN, the repository's bot token, opens it when it is set, as release-please.yml does.
       - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
@@ -96,10 +109,14 @@ jobs:
           base: main
           branch: chore/site-captures
           delete-branch: true
-          add-paths: apps/site/src/assets/captures
+          add-paths: |
+            apps/site/src/assets/captures
+            extensions/web/store/chrome
           commit-message: "chore(site): refresh product captures"
           title: "chore(site): refresh product captures"
           body: |
             Product media for the marketing site, recorded by `tests/e2e/site-captures.spec.ts` in [this run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
 
             Look at the images and the clip before merging. `manifest.json` lists each file with its size, the extension version and when it was captured.
+
+            The Chrome Web Store listing images in `extensions/web/store/chrome` are remade from these captures. After merging, upload any that changed in the developer dashboard's Store listing tab (docs/releasing.md).
