@@ -1,0 +1,98 @@
+name: Chrome Web Store sync
+
+# At most one Chrome Web Store review is in flight: a release whose upload finds another version in review skips the
+# store (scripts/chrome-web-store.ts). Once a day this submits the newest final extension release, with the zip
+# release.yml built, tested and attached to its GitHub Release; the same script skips while a review is still in
+# flight or when the store already has that version, so most runs do nothing.
+on:
+  schedule:
+    - cron: "23 14 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "26"
+
+jobs:
+  chrome-web-store:
+    name: chrome-web-store
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Shared with release.yml's store job, so the sync and a release never upload at once.
+    concurrency:
+      group: chrome-web-store
+      cancel-in-progress: false
+    # The environment admits main for this workflow, besides the release tags. The workload identity provider checks
+    # only the repository and the environment, so the same keyless sign-in works here (docs/releasing.md).
+    environment: chrome-web-store
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+      CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+      CHROME_SKIP_SUBMIT_REVIEW: ${{ vars.CHROME_SKIP_SUBMIT_REVIEW || 'false' }}
+    steps:
+      - name: Skip when store credentials are not configured
+        id: creds
+        run: |
+          for v in CHROME_EXTENSION_ID CHROME_PUBLISHER_ID; do
+            if [ -z "${!v}" ]; then
+              echo "::notice::$v is not set; skipping the Chrome Web Store sync. See docs/releasing.md."
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      # The newest published, non-pre-release inkup-extension-v<version> release, by version; a `-` in the version
+      # is a release candidate, which never goes to the store (ADR 0027).
+      - if: steps.creds.outputs.ready == 'true'
+        name: Download the newest extension release's Chrome zip
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --exclude-drafts --exclude-pre-releases \
+              --json tagName --jq '.[].tagName' \
+            | sed -n 's/^inkup-extension-v\([0-9][0-9.]*\)$/\1/p' | sort -V | tail -n 1)
+          if [ -z "$version" ]; then
+            echo "::error::No final inkup-extension-v* release found."
+            exit 1
+          fi
+          zip="inkup-$version-chrome.zip"
+          gh release download "inkup-extension-v$version" --repo "$GITHUB_REPOSITORY" --pattern "$zip" \
+            --dir "$RUNNER_TEMP/chrome"
+          echo "Newest extension release: $version"
+          {
+            echo "version=$version"
+            echo "zip=$RUNNER_TEMP/chrome/$zip"
+          } >> "$GITHUB_OUTPUT"
+      - if: steps.creds.outputs.ready == 'true'
+        name: Authenticate to Google Cloud (keyless, workload identity federation)
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: projects/600628809675/locations/global/workloadIdentityPools/github/providers/liatrio-labs-inkup
+          service_account: inkup-cws-upload@inkup-cws.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          create_credentials_file: false
+          export_environment_variables: false
+      - if: steps.creds.outputs.ready == 'true'
+        name: Submit the newest release unless a review is in flight or the store has it
+        env:
+          CHROME_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          ZIP: ${{ steps.release.outputs.zip }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: node scripts/chrome-web-store.ts "$ZIP" "$VERSION"

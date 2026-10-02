@@ -27,6 +27,7 @@ jobs:
     timeout-minutes: 20
     outputs:
       prerelease: ${{ steps.tag.outputs.prerelease }}
+      version: ${{ steps.tag.outputs.version }}
       zip: ${{ steps.zip.outputs.name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -107,8 +108,13 @@ jobs:
     if: needs.build.outputs.prerelease == 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Environment is restricted to inkup-extension-v* and inkup-chrome-v* tags. Required reviewers need a paid
-    # plan on private repos; see docs/releasing.md.
+    # Shared with chrome-web-store-sync.yml, so a release and the daily sync never upload at once. A newer queued run
+    # replaces an older queued one, which is safe: whichever runs reads the store first (scripts/chrome-web-store.ts).
+    concurrency:
+      group: chrome-web-store
+      cancel-in-progress: false
+    # Environment admits inkup-extension-v* and inkup-chrome-v* tags, and main for the daily sync. Required reviewers
+    # need a paid plan on private repos; see docs/releasing.md.
     environment: chrome-web-store
     # id-token: keyless Google auth. The workload identity provider admits only this repo's OIDC tokens from the
     # chrome-web-store environment, so no Google key is stored anywhere.
@@ -156,9 +162,12 @@ jobs:
           access_token_scopes: https://www.googleapis.com/auth/chromewebstore
           create_credentials_file: false
           export_environment_variables: false
+      # Skips with a notice, and passes, while another version is in review or when the store already has this one;
+      # chrome-web-store-sync.yml then submits the newest release once the review clears.
       - if: steps.creds.outputs.ready == 'true'
         name: Upload to the Chrome Web Store and submit for review
         env:
           CHROME_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
           ZIP: ${{ needs.build.outputs.zip }}
-        run: node scripts/chrome-web-store.ts "extensions/web/dist-release/$ZIP"
+          VERSION: ${{ needs.build.outputs.version }}
+        run: node scripts/chrome-web-store.ts "extensions/web/dist-release/$ZIP" "$VERSION"
