@@ -14,6 +14,9 @@ use inkup_store::instance::{HOST_FILE, HostKind, HostLock, holder};
 use inkup_store::{HostConfig, Store};
 use inkup_update_check::{Checked, now, write_cache};
 
+#[path = "../../../../host/crates/server/tests/common/lan.rs"]
+mod lan;
+
 type Socket = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 /// Any free port, hooks that do nothing, no mDNS.
@@ -214,6 +217,9 @@ async fn pairing_ids_are_not_reused_after_a_network_restart() {
 /// host.json unchanged, and off again.
 #[tokio::test]
 async fn network_mode_restarts_the_server_on_the_same_port() {
+    if !lan::lan_tests_enabled() {
+        return;
+    }
     let dir = tempfile::tempdir().unwrap();
     let asked = Arc::new(Mutex::new(Vec::new()));
     let on_network = {

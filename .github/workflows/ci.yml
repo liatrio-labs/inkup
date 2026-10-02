@@ -304,8 +304,11 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       # Includes the contract: the shared fixture corpus decodes, and src/generated.rs matches
-      # contract/protocol.schema.json.
+      # contract/protocol.schema.json. INKUP_LAN_TESTS runs the tests that listen beyond loopback, off by default so a
+      # local run does not set off a macOS firewall prompt.
       - run: cargo test --workspace --locked
+        env:
+          INKUP_LAN_TESTS: "1"
 
   # The desktop app (apps/desktop, ADR 0025): its own Cargo workspace, so the host's job never builds Tauri. fmt,
   # clippy and tests for the app crate, and a debug build of the app with its UI, on all three platforms; the UI's
@@ -360,6 +363,8 @@ jobs:
         run: cargo clippy --all-targets --locked -- -D warnings
       - working-directory: apps/desktop/src-tauri
         run: cargo test --locked
+        env:
+          INKUP_LAN_TESTS: "1"
       # The UI (vite build) and the app binary, as `pnpm desktop:build` makes them. The check after it fails a build
       # that exits 0 without making anything.
       - run: pnpm desktop:build

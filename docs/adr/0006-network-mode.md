@@ -74,6 +74,9 @@ harnesses. Even then a Client on another machine pairs only with its code.
   `wrong_pairing_code`, and `/health.hub_name`. The Rust types are regenerated.
 - CI cannot count on multicast. The mDNS browse test is skipped when `CI` is set. The peer-address rule is also tested
   with a switch that treats every peer as remote, and with a real bind reached through the machine's LAN address.
+- Tests that listen beyond loopback (a bind on every interface, mDNS) run only with `INKUP_LAN_TESTS=1`, which CI
+  sets, and they check it before they bind. The one gate is `lan_tests_enabled` in
+  `host/crates/server/tests/common/lan.rs`.
 
 ## History
 
@@ -93,6 +96,8 @@ harnesses. Even then a Client on another machine pairs only with its code.
 - 2026-09-25: a machine's codes stacked, so its fifth ask within two minutes (Connect clicked again while nobody read
   the code, say with the desktop window hidden) was refused as `pairing_denied`, which the extension shows as "Pairing
   was declined at the host" though nobody declined. Now each machine has one waiting code, its newest.
+- 2026-10-02: every rebuilt test binary set off the macOS "accept incoming network connections?" prompt on its
+  first bind beyond loopback. Those tests now run only with `INKUP_LAN_TESTS=1`, which CI sets; elsewhere they skip.
 
 ## Sources
 
