@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.7.0...inkup-v0.8.0) (2026-10-02)
+
+
+### Features
+
+* **site:** send Chrome installs to the Chrome Web Store listing ([#70](https://github.com/liatrio-labs/inkup/issues/70)) ([47ce32d](https://github.com/liatrio-labs/inkup/commit/47ce32d06822e5753b7e9af1cb178529690662fb))
+* **store:** make the Chrome Web Store listing images from the site captures ([#71](https://github.com/liatrio-labs/inkup/issues/71)) ([f8b9a96](https://github.com/liatrio-labs/inkup/commit/f8b9a96a58d05ee8517a349e66d7d1bf0ea017c7))
+
 ## [0.7.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.6.0...inkup-v0.7.0) (2026-10-01)
 
 
