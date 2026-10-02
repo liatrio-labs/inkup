@@ -27,6 +27,15 @@ releases in a repo that also holds extension releases.
 code changed: the host is rebuilt for five targets, the DMG is rebuilt, and the extension is uploaded to both stores
 and waits on their reviews again. There is no release of one side alone through release-please.
 
+**One Chrome Web Store review at a time.** The store refuses an upload while a submission is in review, and cancelling
+that submission to make room puts the item back at the end of the queue. So before uploading,
+`scripts/chrome-web-store.ts` reads the item's status and skips, with a notice and a passing job, while any submission
+is in review or when the store already has this version or newer, published or submitted (a rejected one included: the
+fix ships as a newer release). It never cancels a submission. `chrome-web-store-sync.yml` runs daily on `main` and runs
+the same script with the newest final extension release's Chrome zip from its GitHub Release, so the newest release is
+submitted once the review in flight clears; releases in between are never submitted on their own. The sync and
+`release.yml`'s store job share a concurrency group, and the `chrome-web-store` environment admits `main` for the sync.
+
 **release-please cuts the release.** `release-please.yml` runs on every push to `main` with
 `release-please-config.json` and `.release-please-manifest.json`, and keeps one release pull request open,
 `chore(release): <version>`, for both packages: `separate-pull-requests` is off, and the `linked-versions` plugin links
@@ -183,8 +192,9 @@ Clients behind.
 ## Consequences
 
 - Every release rebuilds five host targets and the DMG, and resubmits the extension to both store reviews, even for a
-  change to one side only. A fix to one side waits no longer than before: the other side's review does not hold it up,
-  because each workflow runs alone.
+  change to one side only, except that a Chrome release made while another is in review waits for the daily sync. A
+  fix to one side waits no longer than before: the other side's review does not hold it up, because each workflow
+  runs alone.
 - The extension's version jumped from 0.1.1 to the host's line at the first lockstep release (0.7.0). The Chrome Web
   Store and AMO accept a jump.
 - A version bump on one side bumps the other: a `feat` on the extension alone makes a minor release of the host too.
@@ -193,7 +203,9 @@ Clients behind.
   `inkup-v…` release.
 - `RELEASE_PLEASE_TOKEN` must exist and stay unexpired. Without it the release pull request gets no CI run, so it
   cannot pass `ci-ok`, and the tags start no release workflow.
-- The `chrome-web-store` and `firefox-amo` environments and the release-tag ruleset must list `inkup-extension-v*`.
+- The `chrome-web-store` and `firefox-amo` environments and the release-tag ruleset must list `inkup-extension-v*`,
+  and `chrome-web-store` must admit `main` too, or the daily sync cannot start.
+- A Chrome release can reach the store up to a day after its review clears, and some versions never reach it.
   A pre-release still enters neither environment: its store job is skipped before it starts.
 - The Chrome Web Store upload holds no Google key. The job exchanges its GitHub OIDC token for an access token of the
   `inkup-cws-upload` service account through a workload identity provider that admits only this repository's
@@ -240,6 +252,9 @@ Clients behind.
   0.3.0, 0.4.0 and 0.5.0 had no host change). Now `scripts/release-worthy.ts` lists the paths that ship and
   release-please opens a release pull request only for a change to one, and `packages/` counts, since the extension
   and the desktop app are built from it.
+- 2026-10-02: we thought every release submits to the Chrome Web Store. Now at most one review is in flight, and a
+  daily sync submits the newest release once it clears, because rapid releases failed the upload ("You may not edit
+  or publish an item that is in review") or would have queued a review each.
 
 ## Sources
 
