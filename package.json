@@ -39,7 +39,8 @@
     "eval": "pnpm -C extensions/web eval",
     "eval:stt": "pnpm -C extensions/web eval:stt",
     "test:e2e:whisper": "pnpm build && playwright test --config playwright.whisper.config.ts",
-    "site:captures": "pnpm build && CAPTURE_SITE=apps/site/src/assets/captures playwright test --project=chrome site-captures"
+    "site:captures": "pnpm build && CAPTURE_SITE=apps/site/src/assets/captures playwright test --project=chrome site-captures",
+    "store:assets": "node scripts/store-assets.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
