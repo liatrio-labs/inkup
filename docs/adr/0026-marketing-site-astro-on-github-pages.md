@@ -35,7 +35,7 @@ attributes on the calls to action, and their names are a contract that dashboard
 `download-chrome-zip`, `download-firefox-zip`, `install-firefox`, `download-dmg`, `copy-brew-cli`, `copy-brew-cask`,
 `copy-mcp-install`, `github` and `liatrio`, with `data-umami-event-location` (such as `hero`, `nav`, `install`,
 `closing` or
-`oss`) saying where. Until the Chrome Web Store listing is live, `install-chrome` jumps to the manual install steps. A
+`oss`) saying where. `install-chrome` opens the Chrome Web Store listing. A
 rename is a new event, not an edit.
 
 **Product media is recorded from the real extension.** The site's screenshots and clips
@@ -67,6 +67,8 @@ pull request with the refreshed files. Nobody edits the captures by hand.
 - 2026-09-25: first version, with a one-page site and Umami Cloud analytics (free Hobby tier; self-hosted later).
 - 2026-09-25: we planned hand-made placeholders for the product media; now it is recorded from the real extension
   by `site-captures.yml`, so it cannot drift from the product.
+- 2026-10-02: `install-chrome` jumped to the manual install steps while the store listing was in review; Google has
+  approved it (unlisted), so it opens the listing and the Chrome zip steps have left the site.
 
 ## Sources
 
