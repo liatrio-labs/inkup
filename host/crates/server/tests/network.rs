@@ -5,7 +5,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{Host, expect_error, fixture, hello_with, lan_ip, recv, send};
+use common::{Host, expect_error, fixture, hello_with, lan_ip, lan_tests_enabled, recv, send};
 use inkup_protocol::{ErrorCode, ServerMessage};
 use inkup_server::{Config, NetworkConfig, PairingDecision, PairingRequest};
 use rmcp::ServiceExt;
@@ -85,6 +85,9 @@ async fn mcp_from_another_machine_needs_an_agent_token_until_it_is_revoked() {
 
 #[tokio::test]
 async fn mcp_from_this_machine_needs_no_token() {
+    if !lan_tests_enabled() {
+        return;
+    }
     let host = Host::start_with(network(false)).await;
     mcp_handshake(host.url("/mcp"), None).await.expect("loopback MCP is open");
 }

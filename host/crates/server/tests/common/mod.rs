@@ -14,6 +14,9 @@ use tokio::net::TcpStream as TokioTcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
+mod lan;
+pub use lan::lan_tests_enabled;
+
 pub type Socket = WebSocketStream<MaybeTlsStream<TokioTcpStream>>;
 
 pub fn fixture(name: &str) -> Value {
@@ -108,11 +111,15 @@ pub fn hello_with(token: &str) -> Value {
     hello
 }
 
-/// This machine's first LAN address, if it has one and a connection to it gets through. A firewall can hold a new test
-/// binary's incoming data until someone answers the macOS "accept incoming connections?" prompt; the tests that go
-/// through the LAN address would then wait forever, so they skip instead. CI has no such firewall and runs them.
+/// This machine's first LAN address, if LAN tests are on (`lan_tests_enabled`), it has one, and a connection to it
+/// gets through. A firewall can hold a new test binary's incoming data until someone answers the macOS "accept
+/// incoming connections?" prompt; the tests that go through the LAN address would then wait forever, so they skip
+/// instead. CI has no such firewall and runs them.
 pub async fn lan_ip() -> Option<std::net::Ipv4Addr> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    if !lan_tests_enabled() {
+        return None;
+    }
     let Some(ip) = inkup_server::lan_addresses().into_iter().next() else {
         eprintln!("skipped: this machine has no LAN address");
         return None;

@@ -66,6 +66,10 @@ cd apps/desktop/src-tauri && cargo fmt --all --check && cargo clippy --all-targe
 pnpm desktop:build                            # the desktop app, as CI builds it
 ```
 
+The host and desktop tests that listen beyond loopback (network mode on every interface, mDNS) skip unless
+`INKUP_LAN_TESTS=1` is set. CI sets it. Locally each rebuilt test binary would set off a macOS "accept incoming network
+connections?" prompt, so set it only when you change network mode and can answer the prompts.
+
 - **Conventional Commits.** Messages look like `feat(host): pair by code` or `fix: keep the draft on reload`
   (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, ...). The `commit-msg` hook checks the format. The
   pull request title becomes the squash commit, and release-please reads it: `feat`, `fix`, `perf` and `revert` go

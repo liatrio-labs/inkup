@@ -2,6 +2,9 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
 
+#[path = "../../server/tests/common/lan.rs"]
+mod lan;
+
 const BIN: &str = env!("CARGO_BIN_EXE_inkup");
 
 struct Serve(Child);
@@ -77,6 +80,9 @@ fn auto_approve_is_refused_in_network_mode() {
 /// warns. Reached through this machine's LAN address, which the Host sees as another machine.
 #[test]
 fn network_mode_prints_codes_for_tests_and_warns() {
+    if !lan::lan_tests_enabled() {
+        return;
+    }
     let Some(ip) = inkup_server::lan_addresses().into_iter().next() else {
         eprintln!("skipped: no LAN address");
         return;
