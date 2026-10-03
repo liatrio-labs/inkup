@@ -306,7 +306,7 @@ jobs:
       # Includes the contract: the shared fixture corpus decodes, and src/generated.rs matches
       # contract/protocol.schema.json. INKUP_LAN_TESTS runs the tests that listen beyond loopback, off by default so a
       # local run does not set off a macOS firewall prompt.
-      - run: cargo test --workspace --locked -- --show-output
+      - run: cargo test --workspace --locked
         env:
           INKUP_LAN_TESTS: "1"
 
@@ -362,7 +362,7 @@ jobs:
       - working-directory: apps/desktop/src-tauri
         run: cargo clippy --all-targets --locked -- -D warnings
       - working-directory: apps/desktop/src-tauri
-        run: cargo test --locked -- --show-output
+        run: cargo test --locked
         env:
           INKUP_LAN_TESTS: "1"
       # The UI (vite build) and the app binary, as `pnpm desktop:build` makes them. The check after it fails a build
