@@ -6,6 +6,7 @@
 //   shown again (hidePopover, showPopover) whenever the page adds to the top layer: a popover's `toggle`, a dialog's
 //   `open`, `fullscreenchange`. Its own `:host` style undoes the UA popover box (it stays a full-viewport,
 //   transparent, pointer-events: none layer; only the toolbar and, while drawing, the canvas take pointer events).
+//   That style is in @inkup/ui's shadow stylesheet (packages/ui/src/styles/shadow.css), adopted by mountInShadow.
 // - Painting on top is not the whole story: a modal dialog makes everything outside it inert, and so does element
 //   fullscreen (Chrome 153 and Firefox 155 both hit-test past an inert popover to the page). So while one is open the
 //   host moves inside it and moves back to the document root when it closes. An element that cannot have children
@@ -23,13 +24,6 @@ const DEBOUNCE_MS = 30;
 const RAISE_WINDOW_MS = 2000;
 const MAX_RAISES = 10;
 
-const HOST_CSS = `:host {
-  position: fixed !important; inset: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important;
-  width: auto !important; height: auto !important; max-width: none !important; max-height: none !important;
-  display: block !important; overflow: visible !important; background: transparent !important;
-  pointer-events: none !important; z-index: ${Z_MAX} !important;
-}`;
-
 export interface TopLayer {
   /** Check where the host should be now (after `canMove` may have changed). */
   refresh(): void;
@@ -41,10 +35,6 @@ type Movable = Element & { moveBefore?: (node: Node, child: Node | null) => void
 export function keepOnTop(host: HTMLElement, opts: { canMove: () => boolean }): TopLayer {
   const home = document.documentElement;
   const popover = typeof host.showPopover === 'function';
-  const style = document.createElement('style');
-  style.textContent = HOST_CSS;
-  // Last in the shadow root, so it wins over WXT's `:host { all: initial !important }` reset.
-  host.shadowRoot?.append(style);
   if (popover) host.setAttribute('popover', 'manual');
 
   // Modal dialogs and fullscreen elements, oldest first; the newest still open holds the host.
@@ -160,7 +150,6 @@ export function keepOnTop(host: HTMLElement, opts: { canMove: () => boolean }): 
       document.removeEventListener('toggle', onToggle, true);
       document.removeEventListener('fullscreenchange', onFullscreen);
       if (popover && host.matches(':popover-open')) host.hidePopover();
-      style.remove();
     },
   };
 }

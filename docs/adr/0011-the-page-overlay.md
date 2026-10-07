@@ -45,11 +45,18 @@ every Stroke, the outline, a pick in progress, an open comment box and the page'
 A `cleared` Annotation is kept: Clear all is for stuck ink, not a discard (Cancel and "scratch that" are).
 
 **The toolbar renders pushed state.** The service worker pushes a `ToolbarState` to every tab that shows the toolbar,
-coalesced over 30 ms. The toolbar's only state of its own is its position (`toolbarPosition`, `storage.local`). It
-patches its children in place (`patchChildren`): a button replaced between press and release loses the click. A mode
-change (Draw, Object Select, Select Text, Esc) is applied in the page at once and then sent; the worker's pushes have
-the last word. Hide is not offered while recording, so the controls cannot be lost mid-Session. The toolbar is never in
-a screenshot (ADR 0013).
+coalesced over 30 ms. The toolbar is the `Toolbar` React component from `@inkup/ui` (`packages/ui/src/toolbar/`, with
+`ToolbarState` and `ToolbarActions` in `packages/ui/src/toolbar-state.ts`), rendered into the overlay host's one React
+root (`mountSurfaces`, made in `content/client.ts` with the host and unmounted before it goes; later surfaces join it by
+key) and styled by the package stylesheet that `mountInShadow` adopts into the shadow root, which also holds the host's
+own `:host` rules. Its only state of its own is its position (`toolbarPosition`, `storage.local`, through
+`loadPosition`/`savePosition`), clamped to the viewport. Every control has a stable key, so a push updates it in place:
+a button replaced between press and release loses the click. A mode change (Draw, Object Select, Select Text, Esc) is
+applied in the page at once and then sent; the worker's pushes have the last word. Hide is not offered while recording,
+so the controls cannot be lost mid-Session. The theme is `data-theme` on the shadow host, set by `content/theme.ts`,
+where the package's light and dark tokens read it. The toolbar is never in a screenshot (ADR 0013): the content script
+calls its handle's `hideForCapture`, which hides it and resolves once a frame without it has been painted; the canvas
+beside it stays.
 
 **Page-side code imports no worker state.** `@wxt-dev/storage`'s `defineItem` reads its item at once, and content
 scripts get no `storage.session`. The worker's `session:` items live in `src/session-state.ts`, imported only by the
@@ -83,3 +90,8 @@ service worker and extension pages, and the panel Port's contract lives in `src/
 - 2026-09-23 (F2): a tab still loading at install got two overlays; the claim rules above fixed it.
 - 2026-09-24 (#31): content scripts imported the worker's `session:` items and threw on every page in Firefox; the
   module boundary above fixed it.
+- 2026-10-07 (spec 01, unit 2): the toolbar and its viewport control moved from DOM code with CSS strings
+  (`content/toolbar.ts`, `content/viewport-control.ts`, `patchChildren`) to `@inkup/ui` React components, rendered into
+  one React root per overlay host; stable keys keep a pushed state from replacing a pressed button. Its theme, position
+  and hide-for-capture rules are unchanged, and the host's `:host` style moved from a `<style>` in `content/top-layer.ts`
+  to the package's shadow stylesheet.

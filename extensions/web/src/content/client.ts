@@ -6,6 +6,10 @@
 // host. Either way the host is kept in the browser's top layer, above the page's dialogs, popovers and fullscreen
 // elements (content/top-layer.ts).
 //
+// The host has one React root (mountSurfaces from @inkup/ui), made with the host and unmounted before it goes; the
+// toolbar renders into it as the "toolbar" surface, and the other in-page surfaces join it by key as they move to
+// @inkup/ui. The drawing canvas stays outside React.
+//
 // Draw, Object Select and Select Text (E7) are the Session's modes, one at a time, held by the service worker
 // (background/modes.ts): the toolbar's buttons, Alt+Shift+D/O/T and Esc (all off) ask it, and this page follows the
 // state it pushes. Alt+Shift+M mutes and unmutes the microphone (E10) the same way, also while paused. Object Select
@@ -15,12 +19,15 @@
 // Annotation asks for a typed note before it is recorded (./draw-note.ts).
 import { toOffset } from '@inkup/core/clock';
 import { SHOT_TIMEOUT_MS, SWEEP_EVERY_MS, withTimeout } from '@inkup/core/overlay-lifetime';
+import { mountSurfaces, type Surfaces, Toolbar, type ToolbarHandle } from '@inkup/ui/toolbar';
+import { createElement } from 'react';
 import { type ModeRequest, modesOf, nextModes } from '@/background/modes';
 import {
   type ContentSessionState,
   type ObjectSelectInput,
   onMessage,
   sendMessage,
+  type ToolbarActions,
   type ToolbarState,
 } from '@/messaging';
 import { platform } from '@/platform';
@@ -36,10 +43,9 @@ import { nextPaint } from './paint';
 import { snapshotElementSourced } from './snapshot';
 import { TextCommentUi } from './text-comment';
 import { nextSetting, ToolbarThemer } from './theme';
-import { FloatingToolbar, type ToolbarActions } from './toolbar';
 import { keepOnTop, type TopLayer } from './top-layer';
 
-/** The shadow root's container and host, where the overlay and the toolbar mount. */
+/** The shadow root's container and host, where the overlay and the toolbar mount. The mount adopts @inkup/ui's styles. */
 export interface OverlayRoot {
   container: HTMLElement;
   host: HTMLElement;
@@ -108,7 +114,11 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
   if (!claimPage(() => leave())) return;
   let root: OverlayRoot | null = null;
   let overlay: DrawingOverlay | null = null;
-  let toolbar: FloatingToolbar | null = null;
+  /** The host's React root, made with the host and unmounted before it goes. */
+  let surfaces: Surfaces | null = null;
+  /** The toolbar's handle while it is rendered (hide for a capture, the Start frame, its theme and rect). */
+  const toolbarRef: { current: ToolbarHandle | null } = { current: null };
+  let toolbar: ToolbarHandle | null = null;
   let objects: ObjectSelect<PickRecord> | null = null;
   let comments: TextCommentUi | null = null;
   let layer: TopLayer | null = null;
@@ -165,12 +175,14 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
     if (!bar && toolbar) {
       themer?.destroy();
       themer = null;
-      toolbar.destroy();
+      surfaces?.set('toolbar', null);
       toolbar = null;
     }
     if (!session && !bar) {
       layer?.destroy();
       layer = null;
+      surfaces?.unmount();
+      surfaces = null;
       root?.remove();
       root = null;
       return;
@@ -180,6 +192,7 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
       if (left) return mounted.remove();
       root = mounted;
     }
+    surfaces ??= mountSurfaces(root.container);
     layer ??= keepOnTop(root.host, { canMove: () => !toolbar?.holdsRecordingFrame() });
     if (session) {
       notes ??= new DrawNote(root.container);
@@ -226,9 +239,9 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
     if (objectOn) objects?.start();
     else objects?.stop();
     if (bar) {
-      if (toolbar) toolbar.update(bar);
-      else {
-        const tb = new FloatingToolbar(root.container, bar, actions);
+      surfaces.set('toolbar', createElement(Toolbar, { state: bar, actions, ref: toolbarRef }));
+      if (!toolbar) {
+        const tb = toolbarRef.current!;
         toolbar = tb;
         themer = new ToolbarThemer({
           host: root.host,
@@ -276,6 +289,7 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
     // its own: with the runtime gone, anything that reaches for the extension's APIs throws.
     const steps = [
       () => layer?.destroy(),
+      () => surfaces?.unmount(),
       () => root?.remove(),
       () => root?.host.remove(),
       () => clearInterval(sweeper),
@@ -286,7 +300,6 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
       () => comments?.destroy(),
       () => notes?.destroy(),
       () => themer?.destroy(),
-      () => toolbar?.destroy(),
     ];
     for (const step of steps) {
       try {
@@ -296,6 +309,7 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
       }
     }
     objects = overlay = comments = notes = toolbar = layer = root = null;
+    surfaces = null;
     themer = null;
   }
 

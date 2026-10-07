@@ -2,7 +2,9 @@
 // chrome-extension:// pages, so the review, Sessions, options and onboarding pages call this at startup: it runs
 // the same overlay client as the content script, in a plain shadow host. The service worker reaches the page
 // with tabs.sendMessage (which extension pages in a tab receive) and reads its page context from the overlay.
-// The side panel and the offscreen document never call it.
+// The side panel and the offscreen document never call it. The shadow root takes @inkup/ui's styles (mountInShadow),
+// as the content script's does.
+import { mountInShadow } from '@inkup/ui/mount-in-shadow';
 import { runOverlayClient } from '@/content/client';
 import { HOST_TAG } from '@/content/instance';
 
@@ -10,6 +12,7 @@ export function mountPageOverlay(): void {
   void runOverlayClient(async () => {
     const host = document.createElement(HOST_TAG);
     const shadow = host.attachShadow({ mode: 'open' });
+    mountInShadow(shadow);
     const container = document.createElement('div');
     container.style.pointerEvents = 'none';
     Object.assign(host.style, { position: 'fixed', inset: '0', zIndex: '2147483647', pointerEvents: 'none' });

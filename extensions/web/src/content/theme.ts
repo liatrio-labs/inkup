@@ -8,6 +8,9 @@
 //
 // The comment boxes and the Object Select highlight take their theme from the page under them the same way, without
 // sampling: where the styles cannot tell, they follow the toolbar.
+//
+// The decision is set as `data-theme` on the overlay's shadow host, where @inkup/ui's tokens read it (light or dark
+// whatever the system scheme), and handed to the toolbar, which marks its bar, pill and toast with it.
 import {
   type Background,
   effectiveBackground,
@@ -112,6 +115,8 @@ export class ToolbarThemer {
   private destroyed = false;
 
   constructor(private readonly deps: ThemeDeps) {
+    // Until the page under the toolbar is read, the theme it last had (dark on a fresh page), not the system's.
+    deps.host.setAttribute('data-theme', this.theme);
     this.unwatch = deps.watchSetting((s) => this.setSetting(s));
     void deps.loadSetting().then((s) => this.setSetting(s));
     window.addEventListener('scroll', this.onSettle, { capture: true, passive: true });
@@ -183,6 +188,7 @@ export class ToolbarThemer {
 
   private apply(theme: Theme, from: ThemeSource) {
     this.theme = toolbarTheme = theme;
+    this.deps.host.setAttribute('data-theme', theme);
     this.deps.target.setTheme(theme, from, themeSetting);
   }
 }

@@ -155,6 +155,13 @@ Setup, once:
   `assets/`, from ORT's `new URL(..., import.meta.url)`. Slice 6 or 7 should dedupe it by pointing `wasmPaths.wasm` at
   the emitted asset or by excluding it. Slice 6 removed the `assets/` copy (49 MB). Slice 7 moved the VAD onto the same
   ORT build and dropped the unused legacy Silero model (32.5 MB).
+  - **The shadcn migration (spec 01) has a budget:** the Chrome and Firefox zips may grow by less than 200 KB over the
+    pre-migration build (v0.8.0, `dc5d2a7`). Compare `pnpm zip` and `pnpm zip:firefox` against zips of that commit
+    built the same way; `docs/specs/01-spec-extension-ui-shadcn/02-proofs/T02-sizes.sh` does it. Unit 1 (`@inkup/ui`
+    and the pages' fonts) used 108 KiB. Unit 2 (React and the toolbar in the content script) added 82 KiB, for 191 KiB
+    in all; the content script went from 147 KB to 408 KB uncompressed, mostly React DOM. The shadow stylesheet scans
+    only the in-page surfaces (`packages/ui/src/styles/shadow.css`): scanning all of `packages/ui/src` put the pages'
+    dialog, table and tab utilities in the content script and the zip over budget.
 
 ## Deviations and versions
 

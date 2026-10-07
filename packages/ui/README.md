@@ -12,7 +12,12 @@ compiles it. `pnpm -C packages/ui test` runs its tests.
 - `src/styles/fonts.css`: Schibsted Grotesk and Fragment Mono, bundled from Fontsource, for the extension's pages and
   the desktop app only. Never import it into anything that reaches a reviewed page.
 - `src/styles/shadow.css` and `src/mount-in-shadow.ts`: `mountInShadow(shadowRoot)` adopts Tailwind and the theme
-  into a shadow root, scoped to `:host`, with the system font stack and nothing added to the host document.
+  into a shadow root, scoped to `:host`, with the system font stack and nothing added to the host document. It scans
+  only the in-page surfaces' directories, and holds the overlay host's own `:host` rules (ADR 0011).
+- `src/toolbar/` and `src/toolbar-state.ts`: the capture surfaces' floating `Toolbar` and its `ViewportControl`,
+  driven by a pushed `ToolbarState` and asking through `ToolbarActions` (the contract the extension's service worker
+  pushes, and the desktop app's toolbar panel will), plus `mountSurfaces`, the one React root an overlay host renders
+  its surfaces into (ADR 0011).
 
 ## Using it in an app
 

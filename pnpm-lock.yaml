@@ -334,6 +334,9 @@ importers:
       '@fontsource/fragment-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@inkup/core':
+        specifier: workspace:*
+        version: link:../core
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -359,6 +362,12 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+      '@testing-library/dom':
+        specifier: ^10.4.0
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: ^16.3.0
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/node':
         specifier: ^26.6.2
         version: 26.6.2
