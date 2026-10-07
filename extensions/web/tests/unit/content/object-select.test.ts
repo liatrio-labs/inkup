@@ -31,7 +31,7 @@ describe('Object Select drops', () => {
       discard: vi.fn(),
     };
     surfaces = mountSurfaces(host);
-    select = new ObjectSelect(host, host, cb as unknown as ObjectSelectCallbacks<string>, surfaces);
+    select = new ObjectSelect(host, cb as unknown as ObjectSelectCallbacks<string>, surfaces);
     select.start();
   });
   afterEach(() => {
@@ -84,5 +84,69 @@ describe('Object Select drops', () => {
     expect(cb.record).toHaveBeenCalledWith('shot-1', null);
     expect(cb.discard).toHaveBeenCalledWith('shot-2');
     expect(cb.discard).not.toHaveBeenCalledWith('shot-1');
+  });
+});
+
+// The highlight is @inkup/ui's (packages/ui/tests/highlight.test.tsx covers it); here the logic layer drives it: the
+// outline follows the pointer, the picked state shows, ↑ moves it to the parent, and stopping takes it away.
+describe('Object Select highlight', () => {
+  let host: HTMLElement;
+  let wrap: HTMLElement;
+  let page: HTMLElement;
+  let select: ObjectSelect<string>;
+  let surfaces: Surfaces;
+
+  const frame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
+  const outline = () => host.querySelector<HTMLElement>('[data-testid="object-select-highlight"]');
+  const label = () => host.querySelector<HTMLElement>('[data-testid="object-select-label"]');
+  const move = (el: Element) =>
+    el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, composed: true, cancelable: true }));
+
+  beforeEach(() => {
+    host = document.createElement('div');
+    wrap = document.createElement('section');
+    wrap.className = 'hero';
+    page = document.createElement('button');
+    page.className = 'cta';
+    wrap.append(page);
+    document.body.append(host, wrap);
+    surfaces = mountSurfaces(host);
+    const cb = { pick: vi.fn(async () => 'shot'), record: vi.fn(async () => {}), discard: vi.fn() };
+    select = new ObjectSelect(host, cb as unknown as ObjectSelectCallbacks<string>, surfaces);
+  });
+  afterEach(() => {
+    select.destroy();
+    surfaces.unmount();
+    document.body.replaceChildren();
+  });
+
+  it('is not drawn until the pointer is over something, and leaves no <style> behind', async () => {
+    select.start();
+    await frame();
+    expect(outline()).toBeNull();
+    move(page);
+    await frame();
+    expect(outline()).toBeTruthy();
+    expect(label()?.textContent).toMatch(/^button\.cta · \d+×\d+$/);
+    expect(document.querySelector('style')).toBeNull();
+    expect(host.querySelector('style')).toBeNull();
+  });
+
+  it('↑ moves it to the parent, ↓ back, a pick marks it picked, and stopping takes it away', async () => {
+    select.start();
+    move(page);
+    await frame();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    await frame();
+    expect(label()?.textContent).toMatch(/^section\.hero · /);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    await frame();
+    expect(label()?.textContent).toMatch(/^button\.cta · /);
+    expect(outline()?.hasAttribute('data-picked')).toBe(false);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    await frame();
+    expect(outline()?.hasAttribute('data-picked')).toBe(true);
+    select.stop();
+    expect(outline()).toBeNull();
   });
 });

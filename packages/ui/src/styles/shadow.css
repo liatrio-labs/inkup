@@ -5,11 +5,12 @@
 @import "tw-animate-css";
 @import "./theme.css";
 
-/* Only what renders in a shadow root: the in-page surfaces' directories (the toolbar and the comment box now; the
-   highlight joins as it moves here). The pages' primitives (dialogs, tables, tabs, toasts) stay out of the content
+/* Only what renders in a shadow root: the in-page surfaces' directories (the toolbar, the comment box and the
+   highlight). The pages' primitives (dialogs, tables, tabs, toasts) stay out of the content
    script's bundle; a surface that uses one lists its file here. */
 @source "../toolbar";
 @source "../comment-box";
+@source "../highlight";
 
 @theme {
   --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
@@ -50,6 +51,8 @@
   --paper-3: #e9edf4;
   --hairline: rgb(31 42 68 / 0.16);
   --on-ink: #ffffff;
+  --pen: #e5484d;
+  --box-content: rgb(140 182 192 / 0.2);
   --muted-foreground: var(--ink-muted);
 }
 [data-island][data-theme="dark"] {
@@ -62,5 +65,7 @@
   --paper-3: #232d47;
   --hairline: rgb(231 235 243 / 0.14);
   --on-ink: #141b2d;
+  --pen: #ff6b70;
+  --box-content: rgb(140 182 192 / 0.14);
   --muted-foreground: var(--ink-muted);
 }

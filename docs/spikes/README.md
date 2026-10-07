@@ -163,9 +163,12 @@ Setup, once:
     used 108 KiB. Unit 2 (React and the toolbar in the content script) added 82 KiB, for 191 KiB in all; the content
     script went from 147 KB to 408 KB uncompressed, mostly React DOM. Unit 3 (the comment box and draw note as
     components, replacing about 10 KB of DOM code and CSS strings) added under 1 KiB: 196,210 B (191.6 KiB) over
-    pre-migration main for Chrome, 196,185 B for Firefox. The shadow stylesheet scans only the in-page surfaces
-    (`packages/ui/src/styles/shadow.css`): scanning all of `packages/ui/src` put the pages' dialog, table and tab
-    utilities in the content script and the zip over budget.
+    pre-migration main for Chrome, 196,185 B for Firefox. Unit 4 (the Object Select highlight as a component, replacing
+    a CSS string and two DOM elements) added 347 B Chrome, 398 B Firefox and 2,676 B sources over `feat/ui-comment-box`
+    (`ef38118`): 197,248 B (192 KiB) over `b725268`, the main that stack merged, for Chrome, 197,291 B for Firefox, and
+    204,793 B over the pre-migration 0.8.0 build (`dc5d2a7`; that gap includes 0.9.0's own changes). The shadow
+    stylesheet scans only the in-page surfaces (`packages/ui/src/styles/shadow.css`): scanning all of `packages/ui/src`
+    put the pages' dialog, table and tab utilities in the content script and the zip over budget.
 
 ## Deviations and versions
 

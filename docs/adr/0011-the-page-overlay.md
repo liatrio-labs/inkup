@@ -101,3 +101,9 @@ service worker and extension pages, and the panel Port's contract lives in `src/
   Select, Select Text and the content client. Their words, keys, dictation and close reasons are unchanged. A box still
   takes its theme from the page under it ("any new overlay element takes its theme the same way"): it sets `data-theme`
   on itself, and `shadow.css` gives such an element the palette for that theme.
+- 2026-10-07 (spec 01, unit 4): the Object Select outline and its `tag.class · W×H` label moved from two DOM elements
+  and a CSS string in `content/object-select.ts` to `Highlight` in `@inkup/ui` (`packages/ui/src/highlight/`), a
+  surface in the same React root, drawn at the rectangle Object Select supplies and never taking a pointer event.
+  Hit-testing, ↑/↓, the capture-phase handlers and the pick's events stay in the page code. It wears the page-under-it
+  palette as the comment box does; its colours now come from DESIGN.md (the content tint inside an ink edge, the tag
+  chip, the red pen edge once picked) in place of the toolbar's blues and `#dc2626`.
