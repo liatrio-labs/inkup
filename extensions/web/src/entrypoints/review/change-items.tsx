@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils';
 import { sendMessage } from '@/messaging';
 import { normalizeProcessingSettings, processingSettings } from '@/settings';
 import { SendToTracker } from './send-to-tracker';
+import { SendToTrackerBulk } from './send-to-tracker-bulk';
 
 type Phase =
   | { kind: 'idle' }
@@ -496,6 +497,7 @@ export function ChangeItemList({
         >
           Redo
         </Button>
+        <SendToTrackerBulk items={shown} />
       </div>
       {error && (
         <p role="alert" className="text-destructive">
