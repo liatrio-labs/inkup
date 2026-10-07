@@ -51,6 +51,25 @@ a badge: open, closed (completed), closed (not planned), or "status unavailable"
 nothing. A status is never stored, logged or exported, and InkUp never updates or closes an issue; tracker state is not
 a Resolution (ADR 0021).
 
+**A registry lists the trackers.** `TRACKERS` (`trackers/registry.ts`) describes each tracker as data: its label,
+its fields (a secret field is a token), its destination's label, its help and one-time notice, and how to build its
+adapter and credentials from the saved values, and an optional `prepare` that checks a field before it is saved
+(Jira's site must be Atlassian Cloud). A Client's settings and send controls are drawn from it, so a new tracker is
+one entry there.
+
+**The desktop app sends the items its host holds.** Its Items view (`apps/desktop/ui/src/send-to-tracker.tsx`) has
+Send on each row and a bulk Send, with the same rules as the review page. Its Trackers view (`trackers.tsx`) has the
+same fields, Test and notice. The adapters run in the webview on `tauri-plugin-http`'s fetch, which
+`capabilities/default.json` limits to the trackers' hosts, so no CORS rule applies and nothing else can be reached.
+Tokens are in the OS keychain (`src-tauri/src/keychain.rs`, service `dev.inkup.desktop`, account
+`tracker:<tracker>:<field>`), read at the moment of use and never kept in web storage. The rest of a tracker's
+settings (its destination) is in localStorage. The host's control API serves the item in full and its screenshots,
+and records the link (ADR 0025). The host keeps such links in its own `tracker_links` table, apart from the item's
+body, because the Client's next push replaces the body. Every read of the item (the control API, the window's state,
+MCP's `get_item` and `read_items`) gives the body's links and the recorded ones, one per issue url. An issue made
+whose link the host then failed to record is kept in the window, so Retry records the link and makes no second
+issue.
+
 **The API base is overridable only in a development build.** `devOverrides.githubBaseUrl` points the extension at the
 stub for e2e tests, like `anthropicBaseUrl`; `githubApiBase` ignores it in a release build (`__INKUP_RELEASE_BUILD__`),
 so nothing stored can send a token anywhere but `https://api.github.com`.
@@ -90,6 +109,12 @@ so nothing stored can send a token anywhere but `https://api.github.com`.
   update the description) and writes the body as Atlassian Document Format (`adf.ts`), not Markdown. It signs in with
   the account's email and an API token (Basic auth) on a `https://<site>.atlassian.net` site, which the settings check
   unless a development build points at a stub.
+- 2026-10-07: the desktop app sends too (spec 01, Unit 4). We planned for it to run the same adapters with its own
+  fetch and the OS keychain. That is now built: it reads the same registry and sends through `pushItem` (so Jira's
+  `sendItem` too), and the host records the desktop app's links in a `tracker_links` table. Links made on the desktop
+  don't reach the extension's review page, which doesn't read items back from the host. We thought only the
+  extension's settings would check a field before saving it; now the registry has an optional `prepare`, so the
+  desktop's Trackers view refuses a Jira site that isn't Atlassian Cloud too.
 
 ## Sources
 

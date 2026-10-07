@@ -98,7 +98,16 @@
         "note": null,
         "agent": "claude-code",
         "since": 1790124360000,
-        "prompt": "Increase the size of the Get started button on the pricing page."
+        "prompt": "Increase the size of the Get started button on the pricing page.",
+        "tracker_links": [
+          {
+            "tracker": "github",
+            "destination": "acme/web",
+            "key": "#1",
+            "url": "https://github.com/acme/web/issues/1",
+            "created_at": "2026-10-07T10:15:00.000Z"
+          }
+        ]
       }
     ],
     "watchers": [

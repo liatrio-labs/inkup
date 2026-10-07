@@ -57,7 +57,10 @@ option below stays rejected. **Install CLI**, in the window's header (`apps/desk
 
 **The control API.** A window, or any other local front end, runs a host through `/api/host/*` on the host's own
 port (`host/crates/server/src/control.rs`). It exposes what the TUI's keys do: the state with the timeline, a
-long-poll for changes, Session commands, agent tokens, network mode, pairing answers, and "come forward".
+long-poll for changes, Session commands, agent tokens, network mode, pairing answers, and "come forward". For
+tracker push (ADR 0028) it also serves one stored Change Item in full (`GET /api/host/items/{id}`), a stored blob's
+bytes (`GET /api/host/blobs/{id}`), and records the issue an item was sent to
+(`POST /api/host/items/{id}/tracker-links`). The tracker's token never comes through it.
 
 - **Trust.** Only loopback peers are accepted, in every network mode, and a web page's Origin is refused. The only
   credential is the Bearer `control_token` from `host.json`, which only the user who runs the host can read, the
@@ -218,6 +221,11 @@ the TUI's views and words, so the two stay recognisably the same product.
   `ui/src/components/ui`. Now it is "shadcn/ui and `@inkup/ui` components": the primitives live in the shared package
   (ADR 0029), so the desktop's toolbar and Review view (native capture, Phase 1) import the extension's components
   instead of copying them.
+- 2026-10-07: the control API only drove the host. Now it also reads a full item and a blob, and records a tracker
+  link, so the window can send items to trackers (ADR 0028). The change is additive, so `CONTROL_API` stays 2.
+  `ItemView.tracker_links` is optional, so a window still reads an older host's state. The webview has two plugins
+  now, each scoped in `capabilities/default.json`: `tauri-plugin-http`, for the trackers' hosts only, and
+  `tauri-plugin-opener`, for https links only.
 
 ## Sources
 

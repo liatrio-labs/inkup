@@ -451,3 +451,69 @@ async fn a_discarded_screenshot_is_gone_from_the_read_api_and_the_blob_store() {
     push(&mut ws, unknown).await;
     assert_eq!(blob("shot-kept".into()).await.unwrap().status(), 200);
 }
+
+/// R4.4: a link the desktop app recorded through the control API survives a Host restart, and an agent sees it in
+/// the MCP full item (and in read_items), as the control API's full-item read does.
+#[tokio::test]
+async fn a_recorded_tracker_link_survives_a_restart_and_reaches_agents() {
+    use std::sync::Arc;
+
+    use inkup_server::{Config, Control};
+    use inkup_store::Store;
+    use inkup_store::instance::HostKind;
+
+    const TOKEN: &str = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+    let dir = tempfile::tempdir().unwrap();
+    let start = || async {
+        let store = Arc::new(Store::open(dir.path()).unwrap());
+        let control =
+            Control { token: TOKEN.into(), kind: HostKind::Serve, on_activate: None, on_network: None, update: None };
+        let config = Config { port: 0, control: Some(control), ..Config::default() };
+        let server = inkup_server::start(Arc::clone(&store), config).await.unwrap();
+        (server, store)
+    };
+    let link = fixture("host-control/tracker-link.json");
+
+    let (server, store) = start().await;
+    let message = fixture("items.json");
+    let mut item = message["items"][0].clone();
+    item.as_object_mut().unwrap().remove("tracker_links");
+    let session = message["session_id"].as_str().unwrap();
+    let seq = store.put_items(None, session, message["run_id"].as_str().unwrap(), &[item]).unwrap().added[0];
+    let id = format!("item-{seq}");
+    let port = server.addr.port();
+    let recorded = reqwest::Client::new()
+        .post(format!("http://127.0.0.1:{port}/api/host/items/{id}/tracker-links"))
+        .bearer_auth(TOKEN)
+        .json(&link)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(recorded.status(), 200);
+    server.shutdown().await.unwrap();
+    drop(store);
+
+    let (server, _store) = start().await;
+    let port = server.addr.port();
+    let host_url = format!("http://127.0.0.1:{port}");
+    let transport = StreamableHttpClientTransport::from_config(StreamableHttpClientTransportConfig::with_uri(format!(
+        "{host_url}/mcp"
+    )));
+    let config = ClientConfig::new(ClientCapabilities::default(), Implementation::new("claude-code", "1.0.0"));
+    let agent = config.serve(transport).await.expect("the MCP handshake");
+    let detail = call_json(&agent, "get_item", json!({ "id": id })).await;
+    assert_eq!(detail["item"]["tracker_links"], json!([link]));
+    let listed = call_json(&agent, "read_items", json!({})).await;
+    assert_eq!(listed["items"][0]["tracker_links"], json!([link]));
+    let full: Value = reqwest::Client::new()
+        .get(format!("{host_url}/api/host/items/{id}"))
+        .bearer_auth(TOKEN)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(full["item"]["tracker_links"], json!([link]));
+    server.shutdown().await.unwrap();
+}

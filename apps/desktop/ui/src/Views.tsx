@@ -47,6 +47,7 @@ import {
   sessionPage,
   sessionState,
 } from './host';
+import { BulkSend, SendToTracker, TrackerScope } from './send-to-tracker';
 
 /** A table with a header row, or one muted line when there are no rows. */
 function View({ head, empty, rows }: { head: ReactNode[]; empty: string; rows: ReactNode[] }) {
@@ -247,20 +248,28 @@ export function TimelineView({ host }: { host: ControlState }) {
 
 export function ItemsView({ host, now }: { host: ControlState; now: number }) {
   return (
-    <View
-      head={['Id', 'Status', 'Title', 'Resolution']}
-      empty="No Change Items yet. They arrive when a Session is processed in the extension."
-      rows={host.state.items.map((item) => (
-        <TableRow key={item.id}>
-          <TableCell className="font-mono">{item.id}</TableCell>
-          <TableCell>
-            <Badge variant={item.status === 'open' ? 'default' : 'outline'}>{STATUS_LABEL[item.status]}</Badge>
-          </TableCell>
-          <TableCell className="whitespace-normal">{item.title}</TableCell>
-          <TableCell className="text-muted-foreground whitespace-normal">{resolutionLine(now, item)}</TableCell>
-        </TableRow>
-      ))}
-    />
+    <TrackerScope>
+      <div className="flex flex-col gap-2">
+        <BulkSend items={host.state.items} />
+        <View
+          head={['Id', 'Status', 'Title', 'Resolution', 'Tracker']}
+          empty="No Change Items yet. They arrive when a Session is processed in the extension."
+          rows={host.state.items.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell className="font-mono">{item.id}</TableCell>
+              <TableCell>
+                <Badge variant={item.status === 'open' ? 'default' : 'outline'}>{STATUS_LABEL[item.status]}</Badge>
+              </TableCell>
+              <TableCell className="whitespace-normal">{item.title}</TableCell>
+              <TableCell className="text-muted-foreground whitespace-normal">{resolutionLine(now, item)}</TableCell>
+              <TableCell>
+                <SendToTracker item={item} />
+              </TableCell>
+            </TableRow>
+          ))}
+        />
+      </div>
+    </TrackerScope>
   );
 }
 

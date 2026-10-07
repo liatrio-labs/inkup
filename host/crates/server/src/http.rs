@@ -194,6 +194,11 @@ pub(crate) async fn get_blob(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Response, ApiError> {
+    blob_response(&state, id).await
+}
+
+/// A stored blob's bytes, streamed, with its type: for a Client or agent here, and for the control API.
+pub(crate) async fn blob_response(state: &AppState, id: String) -> Result<Response, ApiError> {
     let (meta, path) = blocking(&state.store, move |store| store.blob(&id)).await?.ok_or(ApiError::NotFound)?;
     let file = tokio::fs::File::open(path).await?;
     let body = Body::from_stream(tokio_util::io::ReaderStream::new(file));

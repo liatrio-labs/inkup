@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { startGithubStub } from '../../../../tests/support/github-stub';
 import { startJiraStub } from '../../../../tests/support/jira-stub';
 import { startLinearStub } from '../../../../tests/support/linear-stub';
-import { TRACKERS, trackerDefinition } from '../../src/trackers';
+import { prepareField, TRACKERS, trackerDefinition } from '../../src/trackers';
 
 const closers: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -61,6 +61,23 @@ describe('TRACKERS', () => {
     expect(projects.map((p) => p.id)).toEqual(['ABC']);
     expect(() => def.adapter(fetch, { ...values, site: 'https://jira.example.com' })).toThrow('atlassian.net');
     expect(() => def.adapter(fetch, values)).not.toThrow();
+  });
+});
+
+describe('prepareField', () => {
+  it("tidies Jira's site to its Atlassian Cloud address and refuses any other, so a Client saves only a good one", () => {
+    const jira = trackerDefinition('jira')!;
+    expect(prepareField(jira, 'site', ' acme ')).toEqual({ value: 'https://acme.atlassian.net' });
+    expect(prepareField(jira, 'site', 'https://acme.atlassian.net/')).toEqual({ value: 'https://acme.atlassian.net' });
+    expect(prepareField(jira, 'site', 'https://jira.example.com')).toEqual({
+      error: 'The site must look like https://<your-team>.atlassian.net. Check the address in your Jira URL.',
+    });
+    expect(prepareField(jira, 'email', ' me@example.com ')).toEqual({ value: 'me@example.com' });
+  });
+
+  it('takes any other field trimmed', () => {
+    expect(prepareField(trackerDefinition('github')!, 'token', ' gh-token ')).toEqual({ value: 'gh-token' });
+    expect(prepareField(trackerDefinition('linear')!, 'token', 'lin-key')).toEqual({ value: 'lin-key' });
   });
 });
 
