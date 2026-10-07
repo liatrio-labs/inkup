@@ -291,6 +291,12 @@ importers:
       '@types/node':
         specifier: ^26.6.2
         version: 26.6.2
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+      ajv-draft-04:
+        specifier: ^1.0.0
+        version: 1.0.0(ajv@8.20.0)
       client-zip:
         specifier: ^2.5.1
         version: 2.5.1

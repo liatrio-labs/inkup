@@ -1,6 +1,13 @@
 // Processing settings: every saved shape reads as per-role provider, model and effort.
 import { describe, expect, it } from 'vitest';
-import { GITHUB_API_BASE, githubApiBase, normalizeProcessingSettings } from '@/settings';
+import {
+  GITHUB_API_BASE,
+  githubApiBase,
+  jiraApiBase,
+  LINEAR_API_BASE,
+  linearApiBase,
+  normalizeProcessingSettings,
+} from '@/settings';
 
 describe('normalizeProcessingSettings', () => {
   it('reads nothing saved as the Anthropic defaults, with no effort', () => {
@@ -65,5 +72,31 @@ describe('githubApiBase', () => {
   it("is GitHub's API without an override", () => {
     expect(githubApiBase(null, false)).toBe(GITHUB_API_BASE);
     expect(githubApiBase({}, false)).toBe(GITHUB_API_BASE);
+  });
+});
+
+describe('linearApiBase', () => {
+  const dev = { linearBaseUrl: 'http://127.0.0.1:4568' };
+
+  it("is the dev override in a development build, and Linear's API in a release build", () => {
+    expect(linearApiBase(dev, false)).toBe('http://127.0.0.1:4568');
+    expect(linearApiBase(dev, true)).toBe(LINEAR_API_BASE);
+    expect(LINEAR_API_BASE).toBe('https://api.linear.app');
+  });
+
+  it("is Linear's API without an override", () => {
+    expect(linearApiBase(null, false)).toBe(LINEAR_API_BASE);
+    expect(linearApiBase({}, false)).toBe(LINEAR_API_BASE);
+  });
+});
+
+describe('jiraApiBase', () => {
+  const dev = { jiraBaseUrl: 'http://127.0.0.1:4569' };
+
+  it('is the dev override in a development build, and empty (the saved site) in a release build', () => {
+    expect(jiraApiBase(dev, false)).toBe('http://127.0.0.1:4569');
+    expect(jiraApiBase(dev, true)).toBe('');
+    expect(jiraApiBase(null, false)).toBe('');
+    expect(jiraApiBase({}, false)).toBe('');
   });
 });

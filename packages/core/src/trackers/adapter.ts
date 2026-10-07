@@ -4,6 +4,7 @@
 //
 // Errors are TrackerError, with a message written for the reviewer: what went wrong in plain words, then what to do.
 import type { TrackerLink, TrackerName } from '../timeline.ts';
+import type { IssueItem, IssueSession } from './issue.ts';
 
 export type { TrackerLink, TrackerName } from '../timeline.ts';
 
@@ -12,9 +13,9 @@ export interface TrackerCredentials {
   token: string;
 }
 
-/** Somewhere an issue can be created: a GitHub repo (`owner/repo`). */
+/** Somewhere an issue can be created: a GitHub repo (`owner/repo`), a Linear team. */
 export interface Destination {
-  /** What a TrackerLink records as `destination`: `owner/repo` on GitHub. */
+  /** What a TrackerLink records as `destination`: `owner/repo` on GitHub, the team's id on Linear. */
   id: string;
   /** What the reviewer sees in a list. */
   name: string;
@@ -35,8 +36,15 @@ export interface ImageUpload {
   bytes: Uint8Array;
 }
 
-/** The issue's state as the tracker reports it now. Read live, never stored (ADR 0028). */
-export type IssueStatus = { state: 'open' } | { state: 'closed'; reason: 'completed' | 'not_planned' | null };
+/**
+ * The issue's state as the tracker reports it now. Read live, never stored (ADR 0028). `name` is the tracker's own
+ * word for it ("In Progress"), shown on the badge in place of "open" or "closed" when the tracker has one. `category`
+ * is Jira's status category, which colours the badge.
+ */
+export type IssueStatus = ({ state: 'open' } | { state: 'closed'; reason: 'completed' | 'not_planned' | null }) & {
+  name?: string;
+  category?: 'new' | 'indeterminate' | 'done';
+};
 
 /** One line of a Test: what was checked, and whether it passed. A failed line says what to do. */
 export interface TestCheck {
@@ -74,6 +82,16 @@ export interface TrackerAdapter {
     issue: IssueDraft,
   ): Promise<Omit<TrackerLink, 'created_at'>>;
   getStatus(credentials: TrackerCredentials, link: Pick<TrackerLink, 'destination' | 'key'>): Promise<IssueStatus>;
+  /**
+   * For a tracker that can only take images once the issue exists (Jira: create, attach, then update the description)
+   * and writes its own body format: sends the whole item and answers its link. pushItem uses it instead of
+   * uploadImages then createIssue.
+   */
+  sendItem?(
+    credentials: TrackerCredentials,
+    destination: string,
+    input: { item: IssueItem; session: IssueSession & { id: string }; images: readonly ImageUpload[] },
+  ): Promise<Omit<TrackerLink, 'created_at'>>;
 }
 
 export interface AdapterOptions {
@@ -101,13 +119,26 @@ export class TrackerError extends Error {
     readonly kind: TrackerErrorKind,
     message: string,
     readonly status: number | null = null,
+    /** For a rate limit: how long the tracker asked to wait (its `retry-after`), in milliseconds. */
+    readonly retryAfterMs: number | null = null,
   ) {
     super(message);
   }
 }
 
-/** How a status reads on a badge: "open", "closed (completed)", "closed (not planned)". */
+/** How a `retry-after` header reads in milliseconds: delta-seconds or an HTTP date; null when absent or unreadable. */
+export function retryAfterMs(header: string | null | undefined, now: () => number = Date.now): number | null {
+  const value = header?.trim();
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return seconds < 0 ? null : Math.round(seconds * 1000);
+  const at = Date.parse(value);
+  return Number.isNaN(at) ? null : Math.max(0, at - now());
+}
+
+/** How a status reads on a badge: the tracker's own name for it, else "open", "closed (completed)", "closed (not planned)". */
 export function statusLabel(status: IssueStatus): string {
+  if (status.name) return status.name;
   if (status.state === 'open') return 'open';
   if (status.reason === 'completed') return 'closed (completed)';
   if (status.reason === 'not_planned') return 'closed (not planned)';
