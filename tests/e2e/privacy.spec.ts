@@ -8,7 +8,10 @@
 // - Free tier, no Anthropic key: a full Session, Stop, review and Export reach only the fixture site.
 // - Better tier: only the Deepgram stub is contacted besides the fixture site.
 // - Local Whisper: huggingface.co is contacted only after Download is clicked in options (routed to a stub reply).
-// - Keys for every vendor never appear in session.json, the export zip, any console, or the stored rows.
+// - Keys for every vendor never appear in session.json, the export zip, any console, or the stored rows. That
+//   includes the GitHub token (ADR 0028), used for a real send to tests/support/github-stub.ts: it is in no
+//   storage.local row but its own `githubToken` key, and in no storage.sync row. The Host's `items` message is built
+//   from the stored run and events (db/review.ts currentChangeItems), which are among the rows checked.
 //
 // Chrome's server speech runs in the browser process, outside any target: it is covered by the adapter unit tests
 // (no recognizer is ever constructed without the opt-in) and here by the `to: none` fallback event.
@@ -20,6 +23,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BrowserContext, Page, Worker } from '@playwright/test';
 import { type AnthropicStub, messageReply, startAnthropicStub } from '../support/anthropic-stub';
+import { type GithubStub, startGithubStub } from '../support/github-stub';
 import { type SttStub, startDeepgramStub } from '../support/stt-stubs';
 import { expect, grantMic, test } from './fixtures';
 import { circle } from './helpers/draw';
@@ -321,10 +325,12 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     deepgram: 'dg-PRIVACY-deepgram-key-0123456789',
     elevenlabs: 'el-PRIVACY-elevenlabs-key-0123456789',
     gateway: 'vck-PRIVACY-gateway-key-0123456789',
+    github: 'github_pat_PRIVACYCANARY',
   };
   const consoleLines: string[] = [];
   context.on('console', (m) => consoleLines.push(m.text()));
   const dg: SttStub = await startDeepgramStub({ key: KEYS.deepgram, script: 'this button should go in the header' });
+  const github: GithubStub = await startGithubStub({ token: KEYS.github, repos: [{ full_name: 'acme/web' }] });
   const anthropic: AnthropicStub = await startAnthropicStub({
     onMessage: (req) => {
       const shot = /screenshot (s\d+)/.exec(JSON.stringify(req.body))?.[1] ?? 's1';
@@ -361,19 +367,27 @@ test('stored keys for every vendor never reach session.json, the export zip, any
   });
   try {
     await serviceWorker.evaluate(
-      async ({ keys, dgBase, anthropicBase }) => {
+      async ({ keys, dgBase, anthropicBase, githubBase }) => {
         await chrome.storage.local.set({
           anthropicKey: keys.anthropic,
           gatewayKey: keys.gateway,
           deepgramKey: keys.deepgram,
           elevenlabsKey: keys.elevenlabs,
+          githubToken: keys.github,
           anthropicNoticeShown: true,
+          githubNoticeShown: true,
+          trackerSettings: { github: { repo: 'acme/web' } },
           vendorNoticeShown: { deepgram: true, elevenlabs: true },
           transcriptionSettings: { tier: 'better', freeEngine: 'webspeech', whisperModel: 'base' },
-          devOverrides: { deepgramBaseUrl: dgBase, anthropicBaseUrl: anthropicBase, gatewayBaseUrl: anthropicBase },
+          devOverrides: {
+            deepgramBaseUrl: dgBase,
+            anthropicBaseUrl: anthropicBase,
+            gatewayBaseUrl: anthropicBase,
+            githubBaseUrl: githubBase,
+          },
         });
       },
-      { keys: KEYS, dgBase: dg.baseURL, anthropicBase: anthropic.baseURL },
+      { keys: KEYS, dgBase: dg.baseURL, anthropicBase: anthropic.baseURL, githubBase: github.baseURL },
     );
     await grantMic(openExtensionPage);
     const { panel } = await startAndDraw(context, site.primaryOrigin, openExtensionPage);
@@ -383,6 +397,10 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     await review.getByTestId('process-button').click();
     await review.getByTestId('process-confirm').click();
     await expect(review.getByTestId('change-item')).toHaveCount(1, { timeout: 30_000 });
+    // Send the item to GitHub, so the token is really used, and its status is read.
+    await review.getByTestId('send-to-github').click();
+    await expect(review.getByTestId('tracker-link')).toHaveText('GitHub #1');
+    await expect(review.getByTestId('tracker-status')).toHaveText('open');
     // The Gateway key's Test call (the same stub stands in for the Gateway).
     const options = await openExtensionPage('options.html');
     await options.getByTestId('test-gateway').click();
@@ -395,6 +413,8 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     expect(dg.rest.some((r) => JSON.stringify(r.headers).includes(KEYS.deepgram))).toBe(true);
     expect(anthropic.requests.some((r) => r.headers['x-api-key'] === KEYS.anthropic)).toBe(true);
     expect(anthropic.requests.some((r) => r.headers['x-api-key'] === KEYS.gateway)).toBe(true);
+    expect(github.requests.some((r) => r.headers.authorization === `Bearer ${KEYS.github}`)).toBe(true);
+    expect(github.repo('acme/web').issues).toHaveLength(1);
 
     const zipped = readdirSync(dir, { recursive: true, withFileTypes: true })
       .filter((d) => d.isFile())
@@ -413,8 +433,19 @@ test('stored keys for every vendor never reach session.json, the export zip, any
       for (const [vendor, key] of Object.entries(KEYS))
         expect(text.includes(key), `${vendor} key in ${where}`).toBe(false);
     }
+    // The GitHub token is in its own storage.local key and nowhere else in extension storage.
+    const local = await serviceWorker.evaluate(() => chrome.storage.local.get(null));
+    expect(local.githubToken).toBe(KEYS.github);
+    for (const [key, value] of Object.entries(local))
+      if (key !== 'githubToken')
+        expect(JSON.stringify(value).includes(KEYS.github), `GitHub token in storage.local ${key}`).toBe(false);
+    const sync = await serviceWorker.evaluate(() => chrome.storage.sync.get(null));
+    expect(JSON.stringify(sync).includes(KEYS.github), 'GitHub token in storage.sync').toBe(false);
+    // The link the send recorded is in session.json, with no token beside it.
+    expect(JSON.parse(sessionJson).change_items[0].tracker_links).toHaveLength(1);
   } finally {
     await dg.close();
     await anthropic.close();
+    await github.close();
   }
 });

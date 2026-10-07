@@ -11,9 +11,11 @@
 //   folds them away first: a step is one op, except that a merge's combine joins the merge's step, so undoing a
 //   merge brings both originals back and drops the combined words. A new step clears what can be redone.
 // - Name: the latest `session_rename` names the Session; before any, its start page's title (sessionName).
+// - Tracker links (ADR 0028): each `tracker_link` of the run puts its issue on the item with that id, as
+//   `tracker_links`, after the edits are folded. They are not item_edit ops, so Undo and Redo never take one back.
 // - Acceptance rate (PRD §8): generated items that reach the final list with no edit ÷ generated items.
 import { type ChangeItem, isLowConfidence, sortForReview } from './process/change-item.ts';
-import type { EventOf, ItemEditOp, TimelineEvent } from './timeline.ts';
+import type { EventOf, ItemEditOp, TimelineEvent, TrackerLink } from './timeline.ts';
 import { activeTranscript } from './transcription-runs.ts';
 
 type Ev<T extends TimelineEvent['type']> = EventOf<T>;
@@ -176,8 +178,36 @@ export function undoState(edits: readonly ItemEditOp[]): { canUndo: boolean; can
   return { canUndo: done.length > 0, canRedo: undone.length > 0 };
 }
 
-/** Folds the edits over the generated items. The starting order is the review order (unsure items first). */
-export function applyItemEdits(generated: readonly ChangeItem[], log: readonly ItemEditOp[]): EditedItems {
+/** The tracker links of one run, by item id, oldest first (trackerLinksFor). */
+export type TrackerLinks = ReadonlyMap<string, readonly TrackerLink[]>;
+
+/** The run's `tracker_link` events as links by item id, in log order. */
+export function trackerLinksFor(events: readonly TimelineEvent[], runId: string): Map<string, TrackerLink[]> {
+  const out = new Map<string, TrackerLink[]>();
+  for (const e of events) {
+    if (e.type !== 'tracker_link' || e.run_id !== runId) continue;
+    const { tracker, destination, key, url, created_at } = e;
+    out.set(e.item_id, [...(out.get(e.item_id) ?? []), { tracker, destination, key, url, created_at }]);
+  }
+  return out;
+}
+
+/** The latest link of each tracker an item was sent to, the newest first. */
+export function latestLinks(links: readonly TrackerLink[] | undefined): TrackerLink[] {
+  const byTracker = new Map<string, TrackerLink>();
+  for (const l of links ?? []) byTracker.set(l.tracker, l);
+  return [...byTracker.values()].reverse();
+}
+
+/**
+ * Folds the edits over the generated items. The starting order is the review order (unsure items first). `links`
+ * (trackerLinksFor) are put on the items they name; an item left without one has no `tracker_links`.
+ */
+export function applyItemEdits(
+  generated: readonly ChangeItem[],
+  log: readonly ItemEditOp[],
+  links?: TrackerLinks,
+): EditedItems {
   const edits = effectiveItemEdits(log);
   let items = sortForReview(generated);
   const touched = new Set<string>();
@@ -242,6 +272,11 @@ export function applyItemEdits(generated: readonly ChangeItem[], log: readonly I
       }
     }
   }
+  if (links?.size)
+    items = items.map((item) => {
+      const own = links.get(item.id);
+      return own?.length ? { ...item, tracker_links: [...own] } : item;
+    });
   return { items, touched, uncombined };
 }
 

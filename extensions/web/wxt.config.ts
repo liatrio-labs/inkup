@@ -83,7 +83,7 @@ function firefoxManifest(manifest: Browser.runtime.Manifest) {
 export default defineConfig({
   srcDir: 'src',
   publicDir: 'public',
-  // `@/components/ui/*` is @inkup/ui's (ADR 0028), for review/change-items.tsx, which still imports it that way until
+  // `@/components/ui/*` is @inkup/ui's (ADR 0029), for review/change-items.tsx, which still imports it that way until
   // spec 02 moves its imports; WXT puts these before its own `@`. tsconfig.json carries the same path.
   alias: { '@/components/ui': '../../packages/ui/src/components' },
   modules: ['@wxt-dev/module-react'],

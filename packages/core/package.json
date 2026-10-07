@@ -7,6 +7,7 @@
   "description": "Pure TypeScript domain logic: timeline, grouping, shapes, candidates, Process, export and the Zod schemas.",
   "exports": {
     "./process": "./src/process/index.ts",
+    "./trackers": "./src/trackers/index.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {

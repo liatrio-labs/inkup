@@ -45,7 +45,9 @@ import { z } from 'zod';
 // v18 (E8, adaptive contrast): a Stroke records its ink `color` (absent before: the old red).
 // v19 (F5, review-page Undo/Redo): item_edit ops `undo` and `redo`.
 // v20 (review page redesign): the `session_rename` review edit (the Session's name, typed on the review page).
-export const SCHEMA_VERSION = 20 as const;
+// v21 (tracker push, ADR 0028): the `tracker_link` event (a Change Item was sent to an issue tracker), and a Change
+// Item's optional `tracker_links`.
+export const SCHEMA_VERSION = 21 as const;
 
 /** ms since t0. */
 export const Offset = z.number().int().nonnegative().describe('ms since the Session t0');
@@ -515,6 +517,33 @@ export const ItemEditEvent = base('item_edit').extend({
   edit: ItemEditOp,
 });
 
+/** The issue trackers a Change Item can be sent to (ADR 0028). */
+export const TrackerName = z.enum(['github', 'linear', 'jira']);
+export type TrackerName = z.infer<typeof TrackerName>;
+
+/**
+ * Where a Change Item was sent: the issue it became. Status is never stored here; the review page reads it live
+ * from the tracker.
+ */
+export const TrackerLinkSchema = z.object({
+  tracker: TrackerName,
+  destination: z.string().min(1).describe('where the issue was created: owner/repo on GitHub'),
+  key: z.string().min(1).describe("the tracker's short name for the issue, e.g. #142"),
+  url: z.string().min(1).describe("the issue's web page"),
+  created_at: z.iso.datetime(),
+});
+export type TrackerLink = z.infer<typeof TrackerLinkSchema>;
+
+/**
+ * A Change Item was sent to an issue tracker (ADR 0028). Appended after the Session like a review edit, but it is
+ * not an `item_edit`: Undo and Redo never take it back, because the issue exists whatever the review page does.
+ */
+export const TrackerLinkEvent = base('tracker_link').extend({
+  item_id: z.string().min(1).describe('the Change Item that was sent'),
+  run_id: z.string().min(1).describe('the Process run whose Change Items it belongs to'),
+  ...TrackerLinkSchema.shape,
+});
+
 /** One value to change on an element: its computed value now, and what it should become. */
 export const ValueChangeSchema = z.object({
   from: z.string().describe("the element's computed value when the change was recorded"),
@@ -572,6 +601,7 @@ export const TimelineEventSchema = z.discriminatedUnion('type', [
   VoiceOnEvent,
   OverlayClearedEvent,
   SessionRenameEvent,
+  TrackerLinkEvent,
 ]);
 
 export type TimelineEvent = z.infer<typeof TimelineEventSchema>;

@@ -5,7 +5,14 @@
 // never has to copy a UUID. restoreScreenshotIds() (script.ts) maps them back to the stored ids before an item
 // is saved, so a stored item cites `screenshots/<screenshot_id>.png`, the path inside an export folder.
 import { z } from 'zod';
-import { AnnotationSource, Category, LocationRole, SourceSchema, ValueChangeSchema } from '../timeline.ts';
+import {
+  AnnotationSource,
+  Category,
+  LocationRole,
+  SourceSchema,
+  TrackerLinkSchema,
+  ValueChangeSchema,
+} from '../timeline.ts';
 
 export const LOW_CONFIDENCE = 0.6;
 
@@ -112,6 +119,11 @@ const StoredChangeItemObject = ChangeItemObject.extend({
   vetting: VettingSchema.optional().describe(
     'how the item fared when checked against the recording after Process; absent: not checked',
   ),
+  // Tracker push (ADR 0028): folded from `tracker_link` events (review-edits.ts), never written by the model.
+  tracker_links: z
+    .array(TrackerLinkSchema)
+    .optional()
+    .describe('the issues this item was sent to, oldest first; absent: never sent'),
 });
 
 /** Rules structured output cannot express. The repair retry sends these messages back to the model. */

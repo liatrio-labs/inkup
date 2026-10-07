@@ -60,11 +60,16 @@ The rest of CI you run yourself. None of it needs API keys or makes calls outsid
 ```sh
 pnpm schema && git diff --exit-code -- contract
 node scripts/contract-compat.ts origin/main   # contract/ changes: breaking without a version bump fails (ADR 0007)
-pnpm test:e2e                                 # Chrome; pnpm test:e2e:firefox for Firefox
+pnpm test:e2e:docker                          # Chrome e2e in Linux Docker; pnpm test:e2e:firefox:docker for Firefox
 cd host && cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked
 cd apps/desktop/src-tauri && cargo fmt --all --check && cargo clippy --all-targets --locked -- -D warnings && cargo test --locked
 pnpm desktop:build                            # the desktop app, as CI builds it
 ```
+
+On macOS, run the e2e in Docker. Chromium's tab and screen capture otherwise asks macOS for screen recording again and
+again, and `network-host.spec.ts` needs local-network access; Linux has neither, and CI runs Linux. The raw
+`pnpm test:e2e` and `pnpm test:e2e:firefox` still work on the machine itself. Docker needs no setup beyond Docker
+itself; [tests/e2e/README.md](tests/e2e/README.md#running-in-docker) has the details.
 
 The host and desktop tests that listen beyond loopback (network mode on every interface, mDNS) skip unless
 `INKUP_LAN_TESTS=1` is set. CI sets it. Locally each rebuilt test binary would set off a macOS "accept incoming network
