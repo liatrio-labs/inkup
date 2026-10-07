@@ -34,6 +34,7 @@ down. The H1 of each file states the decision; the body says where it lives in t
 | [0025](0025-desktop-app-host-lock-and-control-api.md) | The desktop app, one host per data dir, and the control API | accepted | 2026-09-25 |
 | [0026](0026-marketing-site-astro-on-github-pages.md) | The marketing site: Astro on GitHub Pages | accepted | 2026-09-25 |
 | [0027](0027-lockstep-releases-and-host-updates.md) | Lockstep releases cut by release-please, and Host self-update | accepted | 2026-09-25 |
+| [0028](0028-tracker-push.md) | Sending Change Items to issue trackers | accepted | 2026-10-07 |
 
 The date is when the decision was first made. ADRs 0010 to 0024 were distilled on 2026-09-24 from the decisions log
 that the repo kept until then; their History sections carry its dates.

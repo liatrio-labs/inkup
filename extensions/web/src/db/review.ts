@@ -2,8 +2,8 @@
 // its end, so the log stays append-only (packages/core/src/review-edits.ts folds them in). The service worker writes
 // every capture event; the review page writes only these, and only for an ended Session.
 import type { ChangeItem } from '@inkup/core/process/change-item';
-import { applyItemEdits, itemEditsFor } from '@inkup/core/review-edits';
-import { type EventOf, type TimelineEvent, TimelineEventSchema } from '@inkup/core/timeline';
+import { applyItemEdits, itemEditsFor, trackerLinksFor } from '@inkup/core/review-edits';
+import { type EventOf, type TimelineEvent, TimelineEventSchema, type TrackerLink } from '@inkup/core/timeline';
 import { buildRunEvents, type RunInput } from '@inkup/core/transcription-runs';
 import { db } from './index';
 import { addEventRows, notifyOutbox, outboxEnabled, queueItems, storeEvents } from './outbox';
@@ -27,12 +27,44 @@ export async function appendReviewEvent(sessionId: string, event: ReviewEvent): 
   return parsed;
 }
 
-/** The Session's Change Items as the review page shows them: its latest done run with the review edits applied. */
+/**
+ * Records that a Change Item was sent to a tracker (ADR 0028): a `tracker_link` event, stamped at the Session's end
+ * like a review edit, then the items again for the Host, which now carry the link.
+ */
+export async function appendTrackerLink(
+  sessionId: string,
+  runId: string,
+  itemId: string,
+  link: TrackerLink,
+): Promise<EventOf<'tracker_link'>> {
+  const row = await db.sessions.get(sessionId);
+  if (row?.status !== 'ended') throw new Error('Only a finished Session can be sent to a tracker.');
+  const parsed = TimelineEventSchema.parse({
+    ...link,
+    type: 'tracker_link',
+    id: crypto.randomUUID(),
+    t: row.duration_ms ?? 0,
+    item_id: itemId,
+    run_id: runId,
+  }) as EventOf<'tracker_link'>;
+  await storeEvents(sessionId, [parsed]);
+  await queueItems(sessionId);
+  return parsed;
+}
+
+/**
+ * The Session's Change Items as the review page shows them: its latest done run with the review edits applied, and
+ * the issues each was sent to as `tracker_links`.
+ */
 export async function currentChangeItems(sessionId: string): Promise<{ run_id: string; items: ChangeItem[] } | null> {
   const run = await db.latestRun(sessionId, 'done');
   if (!run?.items) return null;
   const edits = await db.eventsOfType(sessionId, 'item_edit').toArray();
-  return { run_id: run.id, items: applyItemEdits(run.items, itemEditsFor(edits, run.id)).items };
+  const links = await db.eventsOfType(sessionId, 'tracker_link').toArray();
+  return {
+    run_id: run.id,
+    items: applyItemEdits(run.items, itemEditsFor(edits, run.id), trackerLinksFor(links, run.id)).items,
+  };
 }
 
 /**
