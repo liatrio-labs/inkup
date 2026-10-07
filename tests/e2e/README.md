@@ -32,12 +32,17 @@ pnpm test:e2e:docker tests/e2e/<spec>.ts:<line> --repeat-each=20 --workers=4
 ```
 
 The image (`docker/e2e.Dockerfile`) is the Playwright image at the lockfile's version, with CI's Node, pnpm and Rust
-added. The first run builds it and fills the caches; later runs reuse them. The worktree is mounted read-write, so
-`test-results/` and `playwright-report/` land in it as usual, and `.git` read-only. Linux builds go to named
-volumes, never into the Mac's `node_modules`, `extensions/web/.output` or `host/target`:
+added, on Docker's own architecture (arm64 on Apple silicon). `E2E_DOCKER_PLATFORM=linux/amd64` matches CI's
+runners exactly, but on Apple silicon through emulation: the Chrome suite took 17 minutes instead of 6, and
+timing-sensitive specs failed. The first run builds the image and fills the caches; later runs reuse them. The
+worktree is mounted read-write, so `test-results/` and `playwright-report/` land in it as usual, and `.git`
+read-only. Linux builds go to named volumes, never into the Mac's `node_modules`, `extensions/web/.output` or
+`host/target`:
 
-- `inkup-e2e-<worktree>-<hash>-*`: this worktree's `node_modules` (one per package), `.output`, `.wxt` and host build.
-- `inkup-e2e-cargo-home` and `inkup-e2e-pnpm-store`: the cargo registry and pnpm store, shared by all worktrees.
+- `inkup-e2e-<worktree>-<hash>-<arch>-*`: this worktree's `node_modules` (one per package), `.output`, `.wxt` and
+  host build.
+- `inkup-e2e-cargo-home-<arch>` and `inkup-e2e-pnpm-store-<arch>`: the cargo registry and pnpm store, shared by all
+  worktrees.
 
 To start over, remove them: `docker volume ls -q --filter name=inkup-e2e- | xargs docker volume rm`.
 

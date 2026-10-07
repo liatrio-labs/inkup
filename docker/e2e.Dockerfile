@@ -18,8 +18,9 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && npm install --global "pnpm@${PNPM_VERSION}" \
   && node --version && pnpm --version
 
-# A C toolchain for cargo's build scripts; pulseaudio for the Firefox job (with no sound server, an AudioContext's
-# resume() and close() hang); unzip, with which the Export specs open the zip (the runners have it); util-linux's setpriv, with which the entrypoint drops to the caller's UID.
+# A C toolchain for cargo's build scripts; unzip, with which the Export specs open the zip (CI's runners have it);
+# pulseaudio for the Firefox job (with no sound server, an AudioContext's resume() and close() hang); util-linux's
+# setpriv, with which the entrypoint drops to the caller's UID.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends build-essential pkg-config pulseaudio unzip util-linux \
   && rm -rf /var/lib/apt/lists/*
