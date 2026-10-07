@@ -94,6 +94,16 @@ describe('toShadowCss', () => {
     expect(toShadowCss(':root, :host{--b:1}')).toBe(':host, :host{--b:1}');
   });
 
+  it('keeps every part that follows :root inside :host(), and leaves look-alikes alone', () => {
+    expect(toShadowCss(':root[data-theme="dark"]:not(.x){--a:2}')).toBe(':host([data-theme="dark"]:not(.x)){--a:2}');
+    expect(toShadowCss(':root:not(:not(a(b))){--a:2}')).toBe(':host(:not(:not(a(b)))){--a:2}');
+    expect(toShadowCss(':root:not(:root){--a:2}')).toBe(':host(:not(:host)){--a:2}');
+    expect(toShadowCss(':rootx{--a:1}')).toBe(':rootx{--a:1}');
+    expect(toShadowCss(':root-x{--a:1}')).toBe(':host-x{--a:1}');
+    expect(toShadowCss(':root[unterminated')).toBe(':host[unterminated');
+    expect(toShadowCss(':root[a]:not(.x')).toBe(':host([a]):not(.x');
+  });
+
   it('declares @property initial values on every element, since a shadow root cannot register them', () => {
     const out = toShadowCss(
       '@property --tw-x{syntax:"*";inherits:false;initial-value:0}@property --tw-y{syntax:"*";inherits:false}.a{b:c}',
@@ -111,5 +121,16 @@ describe('toShadowCss on hostile input', () => {
     const out = toShadowCss(css);
     expect(performance.now() - start).toBeLessThan(1000);
     expect(out).toBe(`@layer properties{:host,*,::before,::after,::backdrop{--a:1;--b:2}}\n${hostile}`);
+  });
+
+  it.each([
+    [':root followed by unclosed brackets', `:root${'['.repeat(50_000)}`, `:host${'['.repeat(50_000)}`],
+    ['repeated :root[ with no ]', ':root['.repeat(50_000), ':host['.repeat(50_000)],
+    ['repeated :root:not( that never closes', ':root:not('.repeat(50_000), ':host:not('.repeat(50_000)],
+  ])('scopes :root in linear time: %s', (_name, css, expected) => {
+    const start = performance.now();
+    const out = toShadowCss(css);
+    expect(performance.now() - start).toBeLessThan(200);
+    expect(out).toBe(expected);
   });
 });
