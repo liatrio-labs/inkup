@@ -3,7 +3,7 @@
 // records a `text_comment` with the selected text, a text-quote anchor, the element holding the selection and a
 // screenshot of the selection. While Select Text is off, selecting text does nothing special.
 //
-// - The box (./comment-box.ts) lives in the overlay's shadow root, so snapshots and click capture skip it, and it hides
+// - The box (@inkup/ui's comment box) lives in the overlay's shadow root, so snapshots and click capture skip it, and it hides
 //   for every screenshot like the toolbar.
 // - Draw, Object Select and Select Text are one at a time (background/modes.ts); a pause or the mode going off cancels
 //   an open box.
@@ -14,12 +14,14 @@
 import { toOffset } from '@inkup/core/clock';
 import { CLOSE_TIMEOUT_MS, expired, withTimeout } from '@inkup/core/overlay-lifetime';
 import { textQuoteAnchor } from '@inkup/core/text-quote';
+import { type MountedCommentBox, mountCommentBox } from '@inkup/ui/comment-box';
+import type { Surfaces } from '@inkup/ui/toolbar';
 import { computeAccessibleName, getRole } from 'dom-accessibility-api';
 import type { ContentSessionState, TextCommentInput } from '@/messaging';
-import { CommentBox } from './comment-box';
 import { pageContext } from './overlay';
 import { nextPaint } from './paint';
 import { CLASS_BLACKLIST, selectorFor } from './selector';
+import { themeFor } from './theme';
 
 export interface TextCommentCallbacks {
   /** Close the open Annotation (reason text_comment) and wait until it is recorded. */
@@ -38,7 +40,7 @@ interface Picked {
 }
 
 export class TextCommentUi {
-  private readonly box: CommentBox;
+  private readonly box: MountedCommentBox;
   private state: ContentSessionState;
   /** Session time the current selection was made; null while nothing is selected. */
   private selectedAt: number | null = null;
@@ -47,13 +49,13 @@ export class TextCommentUi {
   private saving = false;
 
   constructor(
-    container: HTMLElement,
+    surfaces: Surfaces,
     private readonly host: HTMLElement,
     state: ContentSessionState,
     private readonly cb: TextCommentCallbacks,
   ) {
     this.state = state;
-    this.box = new CommentBox(container, {
+    this.box = mountCommentBox(surfaces, {
       testid: 'text-comment-box',
       inputTestid: 'text-comment-input',
       label: 'Comment on the selected text',
@@ -64,6 +66,7 @@ export class TextCommentUi {
         this.cancel();
         document.getSelection()?.removeAllRanges();
       },
+      themeFor: (rect) => themeFor(rect, host),
     });
     document.addEventListener('selectionchange', this.onSelectionChange);
     document.addEventListener('pointerdown', this.onPagePointerDown, true);

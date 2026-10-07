@@ -13,6 +13,7 @@
     "./components/*": "./src/components/*.tsx",
     "./lib/*": "./src/lib/*.ts",
     "./mount-in-shadow": "./src/mount-in-shadow.ts",
+    "./comment-box": "./src/comment-box/index.ts",
     "./toolbar": "./src/toolbar/index.ts",
     "./toolbar-state": "./src/toolbar-state.ts",
     "./theme.css": "./src/styles/theme.css",

@@ -15,14 +15,16 @@
 // state it pushes. Alt+Shift+M mutes and unmutes the microphone (E10) the same way, also while paused. Object Select
 // lives as long as the Session on this page; a pick closes the open drawn Annotation first.
 //
-// E11: comment boxes dictate through the service worker (./comment-box.ts), and in a Session without voice a drawn
-// Annotation asks for a typed note before it is recorded (./draw-note.ts).
+// E11: comment boxes (@inkup/ui's comment box) dictate through the service worker, and in a Session without voice a
+// drawn Annotation asks for a typed note before it is recorded (@inkup/ui's draw note).
 import { toOffset } from '@inkup/core/clock';
 import { SHOT_TIMEOUT_MS, SWEEP_EVERY_MS, withTimeout } from '@inkup/core/overlay-lifetime';
+import { connectDictation, type MountedDrawNote, mountDrawNote, receiveDictation } from '@inkup/ui/comment-box';
 import { mountSurfaces, type Surfaces, Toolbar, type ToolbarHandle } from '@inkup/ui/toolbar';
 import { createElement } from 'react';
 import { type ModeRequest, modesOf, nextModes } from '@/background/modes';
 import {
+  type AnnotationInput,
   type ContentSessionState,
   type ObjectSelectInput,
   onMessage,
@@ -32,8 +34,6 @@ import {
 } from '@/messaging';
 import { platform } from '@/platform';
 import { type SelectMode, toolbarPosition, toolbarTheme } from '@/settings';
-import { connectDictation, receiveDictation } from './comment-box';
-import { asksForNote, DrawNote } from './draw-note';
 import { claimPage } from './instance';
 import { maxOverlayMs } from './lifetime';
 import { ObjectSelect } from './object-select';
@@ -42,7 +42,7 @@ import { connectPageApi } from './page-api';
 import { nextPaint } from './paint';
 import { snapshotElementSourced } from './snapshot';
 import { TextCommentUi } from './text-comment';
-import { nextSetting, ToolbarThemer } from './theme';
+import { nextSetting, ToolbarThemer, themeFor } from './theme';
 import { keepOnTop, type TopLayer } from './top-layer';
 
 /** The shadow root's container and host, where the overlay and the toolbar mount. The mount adopts @inkup/ui's styles. */
@@ -56,6 +56,10 @@ export type MountRoot = () => Promise<OverlayRoot>;
 
 /** An Object Select pick, started (its screenshot taken) but not yet done. */
 type PickRecord = Omit<ObjectSelectInput, 't_end' | 'comment'> & { screenshot_id: string | null };
+
+/** Closes the reviewer is present for; the others (Stop, navigation, a pick, a pause) record the Annotation as it is. */
+const ASKS: ReadonlySet<AnnotationInput['close_reason']> = new Set(['time_gap', 'draw_toggle', 'scroll']);
+const asksForNote = (reason: AnnotationInput['close_reason']) => ASKS.has(reason);
 
 const baseCallbacks: OverlayCallbacks = {
   recordStroke: (stroke) => sendMessage('recordStroke', stroke),
@@ -122,7 +126,7 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
   let objects: ObjectSelect<PickRecord> | null = null;
   let comments: TextCommentUi | null = null;
   let layer: TopLayer | null = null;
-  let notes: DrawNote | null = null;
+  let notes: MountedDrawNote | null = null;
   let session: ContentSessionState | null = null;
   let bar: ToolbarState | null = null;
   let applying = Promise.resolve();
@@ -136,7 +140,7 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
   const callbacks: OverlayCallbacks = {
     ...baseCallbacks,
     noteFor: (input) =>
-      session && !session.voice && notes && asksForNote(input.close_reason) ? notes.ask(input) : null,
+      session && !session.voice && notes && asksForNote(input.close_reason) ? notes.ask(input.bbox) : null,
   };
   connectDictation({
     mode: () => (session?.voice && !session.paused ? session.box_dictation : null),
@@ -195,44 +199,50 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
     surfaces ??= mountSurfaces(root.container);
     layer ??= keepOnTop(root.host, { canMove: () => !toolbar?.holdsRecordingFrame() });
     if (session) {
-      notes ??= new DrawNote(root.container);
+      const host = root.host;
+      notes ??= mountDrawNote(surfaces, (rect) => themeFor(rect, host));
       if (overlay) overlay.update(session);
       else overlay = new DrawingOverlay(root.container, root.host, session, callbacks);
       if (comments) comments.update(session);
       else
-        comments = new TextCommentUi(root.container, root.host, session, {
+        comments = new TextCommentUi(surfaces, root.host, session, {
           closeAnnotation: async (t) => {
             notes?.flush();
             await overlay?.signal({ reason: 'text_comment', t });
           },
           record: (input) => sendMessage('recordTextComment', input),
         });
-      objects ??= new ObjectSelect(root.container, root.host, {
-        pick: async (el) => {
-          const s = session;
-          if (!s || !overlay) return null;
-          const t = toOffset(s.t0, Date.now());
-          notes?.flush();
-          await overlay.closeForPick();
-          const page = pageContext();
-          const element = await snapshotElementSourced(el);
-          const annotation_id = crypto.randomUUID();
-          // Shot now, with the pick's outline on screen and before the comment box opens.
-          // A screenshot that never answers counts as none (E9).
-          const { screenshot_id } = await withTimeout(
-            sendMessage('captureAnnotation', { annotation_id, page }),
-            SHOT_TIMEOUT_MS,
-            { screenshot_id: null },
-          );
-          return { annotation_id, t, page, element, screenshot_id };
+      objects ??= new ObjectSelect(
+        root.container,
+        root.host,
+        {
+          pick: async (el) => {
+            const s = session;
+            if (!s || !overlay) return null;
+            const t = toOffset(s.t0, Date.now());
+            notes?.flush();
+            await overlay.closeForPick();
+            const page = pageContext();
+            const element = await snapshotElementSourced(el);
+            const annotation_id = crypto.randomUUID();
+            // Shot now, with the pick's outline on screen and before the comment box opens.
+            // A screenshot that never answers counts as none (E9).
+            const { screenshot_id } = await withTimeout(
+              sendMessage('captureAnnotation', { annotation_id, page }),
+              SHOT_TIMEOUT_MS,
+              { screenshot_id: null },
+            );
+            return { annotation_id, t, page, element, screenshot_id };
+          },
+          record: (pick, comment) =>
+            sendMessage('objectSelect', { ...pick, t_end: toOffset(session?.t0 ?? 0, Date.now()), comment }),
+          discard: (pick) => {
+            if (pick.screenshot_id) void sendMessage('dropPick', { screenshot_id: pick.screenshot_id }).catch(() => {});
+          },
+          target: (pick) => ({ annotation_id: pick.annotation_id }),
         },
-        record: (pick, comment) =>
-          sendMessage('objectSelect', { ...pick, t_end: toOffset(session?.t0 ?? 0, Date.now()), comment }),
-        discard: (pick) => {
-          if (pick.screenshot_id) void sendMessage('dropPick', { screenshot_id: pick.screenshot_id }).catch(() => {});
-        },
-        target: (pick) => ({ annotation_id: pick.annotation_id }),
-      });
+        surfaces,
+      );
     }
     const objectOn = live?.select_mode === 'object';
     overlay?.setSelecting(!!live?.select_mode);

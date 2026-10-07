@@ -48,7 +48,7 @@ optional typed `comment`, and a span from pick to Enter so speech in it attaches
 is `isObjectSelectPick` (the reason and no Strokes). Esc drops the pick and deletes its screenshot (ADR 0013).
 
 **Select Text makes a Text Comment.** While it is on, a finished selection opens the same comment box
-(`content/comment-box.ts`). The comment is anchored with a W3C TextQuoteSelector (`packages/core/src/text-quote.ts`):
+(`CommentBox` in `packages/ui/src/comment-box/`). The comment is anchored with a W3C TextQuoteSelector (`packages/core/src/text-quote.ts`):
 `exact` is the source text (`textContent`, so an agent can grep it), with up to 32 characters of prefix and suffix
 from an ancestor holding enough text; `selected_text` is what the page showed. `t` is the selection, `t_end` the save,
 and speech overlapping that span belongs to the comment, with no slack. The screenshot is taken at the save with the

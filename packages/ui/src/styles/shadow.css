@@ -5,10 +5,11 @@
 @import "tw-animate-css";
 @import "./theme.css";
 
-/* Only what renders in a shadow root: the in-page surfaces' directories (the toolbar now; the comment box and the
-   highlight join as they move here). The pages' primitives (dialogs, tables, tabs, toasts) stay out of the content
+/* Only what renders in a shadow root: the in-page surfaces' directories (the toolbar and the comment box now; the
+   highlight joins as it moves here). The pages' primitives (dialogs, tables, tabs, toasts) stay out of the content
    script's bundle; a surface that uses one lists its file here. */
 @source "../toolbar";
+@source "../comment-box";
 
 @theme {
   --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
@@ -34,4 +35,32 @@
   background: transparent !important;
   pointer-events: none !important;
   z-index: 2147483647 !important;
+}
+
+/* A surface that picks its own theme (the comment boxes: light over a dark page, dark over a light one) wears the
+   palette it reads on the element itself, since the shadcn variables above are resolved on the host. The values are
+   theme.css's, which tests/theme.test.ts holds to DESIGN.md; the box falls back to the host's without a `data-theme`. */
+[data-island][data-theme="light"] {
+  color-scheme: light;
+  --ink: #1f2a44;
+  --ink-2: #3a4663;
+  --ink-muted: #566077;
+  --paper: #ffffff;
+  --paper-2: #f4f6fa;
+  --paper-3: #e9edf4;
+  --hairline: rgb(31 42 68 / 0.16);
+  --on-ink: #ffffff;
+  --muted-foreground: var(--ink-muted);
+}
+[data-island][data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e7ebf3;
+  --ink-2: #c3cadb;
+  --ink-muted: #9aa4ba;
+  --paper: #141b2d;
+  --paper-2: #1a2238;
+  --paper-3: #232d47;
+  --hairline: rgb(231 235 243 / 0.14);
+  --on-ink: #141b2d;
+  --muted-foreground: var(--ink-muted);
 }

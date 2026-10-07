@@ -1,6 +1,7 @@
 // #22: a pick dropped after its screenshot was taken hands that screenshot back to be discarded (`discard`), whether
 // Esc comes after the pick's start was recorded or while it is still being recorded. A pick ended (not dropped) while
 // its start is in flight is recorded once it lands, even if a later pick is dropped meanwhile.
+import { mountSurfaces, type Surfaces } from '@inkup/ui/toolbar';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ObjectSelect, type ObjectSelectCallbacks } from '@/content/object-select';
 
@@ -10,6 +11,7 @@ describe('Object Select drops', () => {
   let other: HTMLElement;
   let cb: { pick: ReturnType<typeof vi.fn>; record: ReturnType<typeof vi.fn>; discard: ReturnType<typeof vi.fn> };
   let select: ObjectSelect<string>;
+  let surfaces: Surfaces;
   let answers: ((token: string) => void)[];
 
   const click = (el: Element) => el.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
@@ -28,11 +30,13 @@ describe('Object Select drops', () => {
       record: vi.fn(async () => {}),
       discard: vi.fn(),
     };
-    select = new ObjectSelect(host, host, cb as unknown as ObjectSelectCallbacks<string>);
+    surfaces = mountSurfaces(host);
+    select = new ObjectSelect(host, host, cb as unknown as ObjectSelectCallbacks<string>, surfaces);
     select.start();
   });
   afterEach(() => {
     select.destroy();
+    surfaces.unmount();
     document.body.replaceChildren();
   });
 
