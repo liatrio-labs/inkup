@@ -31,7 +31,7 @@ pub use config::{CONFIG_FILE, DesktopConfig, HostConfig};
 pub use events::{SessionSummary, TIMELINE_TYPES, Upsert};
 pub use items::{
     Item, ItemFilter, ItemResolution, ItemStatus, PutItems, Resolution, ResolutionStatus, SessionOverview, Signal,
-    SignalFilter, StartItem, origin_of,
+    SignalFilter, StartItem, TrackerLink, origin_of,
 };
 
 pub const DB_FILE: &str = "inkup.db";

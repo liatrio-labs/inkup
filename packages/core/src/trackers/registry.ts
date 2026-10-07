@@ -49,6 +49,20 @@ export interface TrackerDefinition {
   notice: TrackerNotice;
   adapter(fetch: AdapterOptions['fetch'], values: TrackerValues): TrackerAdapter;
   credentials(values: TrackerValues): TrackerCredentials;
+  /**
+   * Checks and tidies a field before a Client saves it: the value to store, or what to tell the reviewer is wrong.
+   * Jira's site must be an Atlassian Cloud site. A Client that points the adapter at a stub may skip it.
+   */
+  prepare?(fieldId: string, value: string): { value: string } | { error: string };
+}
+
+/** The value a Client should save for a field, or what is wrong with it; a tracker with no `prepare` takes it trimmed. */
+export function prepareField(
+  definition: TrackerDefinition,
+  fieldId: string,
+  value: string,
+): { value: string } | { error: string } {
+  return definition.prepare ? definition.prepare(fieldId, value) : { value: value.trim() };
 }
 
 export const TRACKERS: TrackerDefinition[] = [
@@ -113,6 +127,13 @@ export const TRACKERS: TrackerDefinition[] = [
       });
     },
     credentials: (v) => ({ token: (v.token ?? '').trim() }),
+    prepare(fieldId, value) {
+      if (fieldId !== 'site') return { value: value.trim() };
+      const site = parseJiraSite(value);
+      return site
+        ? { value: site }
+        : { error: 'The site must look like https://<your-team>.atlassian.net. Check the address in your Jira URL.' };
+    },
   },
 ];
 

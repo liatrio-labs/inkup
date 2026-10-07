@@ -9,12 +9,17 @@
 //! What they show (the Clients dot, the development stripes) is icon.rs.
 //!
 //! On macOS the app bundles the `inkup` CLI, and Install CLI links it onto PATH (cli.rs). It never runs it.
+//!
+//! Tracker push (ADR 0028): the window sends Change Items to GitHub, Linear or Jira with the packages/core adapters,
+//! on `tauri-plugin-http`'s fetch (scoped to the trackers' hosts in capabilities/default.json). Their tokens are in
+//! the OS keychain (keychain.rs). The host serves the item and its screenshots, and records the link.
 
 #[cfg(unix)]
 pub mod cli;
 #[cfg(target_os = "macos")]
 mod dock;
 pub mod icon;
+pub mod keychain;
 pub mod link;
 pub mod startup;
 
@@ -22,7 +27,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
 use anyhow::{Context, Result};
-use inkup_protocol::control::{CommandOutcome, CommandRequest, ControlState, NewToken, PairingAnswer};
+use inkup_protocol::control::{
+    CommandOutcome, CommandRequest, ControlState, FullItem, NewToken, PairingAnswer, TrackerLink,
+};
 use inkup_server::{ActivateHook, NetworkHook};
 use inkup_store::DesktopConfig;
 use serde::{Deserialize, Serialize};
@@ -235,6 +242,24 @@ async fn set_network(desktop: State<'_, Desktop>, on: bool) -> Result<bool, Stri
 #[tauri::command]
 async fn answer_pairing(desktop: State<'_, Desktop>, id: u64, answer: PairingAnswer) -> Result<(), String> {
     desktop.link().answer_pairing(id, &answer).await.map_err(text)
+}
+
+/// One stored Change Item in full, to send to a tracker.
+#[tauri::command]
+async fn host_item(desktop: State<'_, Desktop>, id: String) -> Result<FullItem, String> {
+    desktop.link().item(&id).await.map_err(text)
+}
+
+/// A screenshot's bytes, as an ArrayBuffer in the window.
+#[tauri::command]
+async fn host_screenshot(desktop: State<'_, Desktop>, id: String) -> Result<tauri::ipc::Response, String> {
+    desktop.link().blob(&id).await.map(tauri::ipc::Response::new).map_err(text)
+}
+
+/// Records the issue an item was sent to; answers the item with it.
+#[tauri::command]
+async fn record_tracker_link(desktop: State<'_, Desktop>, id: String, link: TrackerLink) -> Result<FullItem, String> {
+    desktop.link().record_tracker_link(&id, &link).await.map_err(text)
 }
 
 /// A pairing link as a QR code: an SVG the window shows in an `<img>`.
@@ -500,6 +525,8 @@ pub fn run(launch: Launch) -> Result<()> {
     };
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(desktop)
         .invoke_handler(tauri::generate_handler![
             host_state,
@@ -517,6 +544,11 @@ pub fn run(launch: Launch) -> Result<()> {
             cli_status,
             install_cli,
             uninstall_cli,
+            host_item,
+            host_screenshot,
+            record_tracker_link,
+            keychain::tracker_secret,
+            keychain::set_tracker_secret,
         ])
         .setup(move |app| {
             let _ = handle.set(app.handle().clone());

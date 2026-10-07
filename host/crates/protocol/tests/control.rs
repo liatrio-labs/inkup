@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use inkup_protocol::control::{
-    Activated, CONTROL_API, Changes, CommandOutcome, CommandRequest, ControlState, HostFile, NetworkRequest,
-    NetworkSwitched, NewToken, NewTokenRequest, PairingAnswer,
+    Activated, CONTROL_API, Changes, CommandOutcome, CommandRequest, ControlState, FullItem, HostFile, NetworkRequest,
+    NetworkSwitched, NewToken, NewTokenRequest, PairingAnswer, TrackerLink,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -36,6 +36,8 @@ fn every_fixture_decodes_and_round_trips() {
         round_trips::<NetworkRequest>("network-request.json"),
         round_trips::<NetworkSwitched>("network-switched.json"),
         round_trips::<PairingAnswer>("pairing-answer.json"),
+        round_trips::<TrackerLink>("tracker-link.json"),
+        round_trips::<FullItem>("full-item.json"),
     ];
     checked.sort();
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../contract/fixtures/host-control");

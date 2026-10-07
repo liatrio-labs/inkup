@@ -284,6 +284,10 @@ pub(crate) fn agent_item(item: &Item) -> Value {
     if !crops.is_empty() {
         view["crops"] = json!(crops.iter().filter_map(Fields::value).collect::<Vec<_>>());
     }
+    // The issues it was sent to (ADR 0028): an agent can see an item is already planned in a tracker.
+    if !item.tracker_links.is_empty() {
+        view["tracker_links"] = json!(item.tracker_links);
+    }
     if let Some(r) = &item.resolution {
         view["resolution"] = json!({ "status": r.status, "note": r.note, "at": r.created_at });
         if let Some(agent) = &r.agent {
@@ -291,6 +295,17 @@ pub(crate) fn agent_item(item: &Item) -> Value {
         }
     }
     view
+}
+
+/// An item's body with every tracker link: those its Client sent and those recorded through the control API.
+fn with_tracker_links(body: Value, links: &[inkup_store::TrackerLink]) -> Value {
+    let mut body = body;
+    if let Some(object) = body.as_object_mut()
+        && (!links.is_empty() || object.contains_key("tracker_links"))
+    {
+        object.insert("tracker_links".into(), json!(links));
+    }
+    body
 }
 
 /// The connected agent's name, as its MCP client said in `initialize` (clientInfo.name).
@@ -401,7 +416,7 @@ impl Mcp {
     }
 
     #[tool(description = "Everything about one Change Item: the item exactly as the review produced it (with the \
-        reviewer's edits), its Session (URL, title), its status, and every resolution so far, oldest first.")]
+        reviewer's edits, and every issue it was sent to in tracker_links), its Session (URL, title), its status, and every resolution so far, oldest first.")]
     async fn get_item(&self, Parameters(args): Parameters<ItemArgs>) -> Result<CallToolResult, ErrorData> {
         let Some(seq) = parse_item_id(&args.id) else {
             return tool_error(format!("{} is not an item id; ids look like item-12", args.id));
@@ -422,7 +437,7 @@ impl Mcp {
             "status": item.status().as_str(),
             "withdrawn": item.withdrawn_at.is_some(),
             "session": session.map(|s| json!({ "id": s.id, "url": s.url, "title": s.title, "live": s.live })),
-            "item": item.body,
+            "item": with_tracker_links(item.body, &item.tracker_links),
             "resolutions": resolutions,
         }))
     }

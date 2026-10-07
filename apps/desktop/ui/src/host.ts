@@ -6,6 +6,7 @@ import type {
   CommandOutcome,
   CommandRequest,
   ControlState,
+  FullItem,
   HostKind,
   ItemStatus,
   ItemView,
@@ -13,10 +14,21 @@ import type {
   PairingAnswer,
   PairingPrompt,
   SessionOverview,
+  TrackerLink,
 } from '@inkup/protocol/host-control';
 import { invoke } from '@tauri-apps/api/core';
 
-export type { ClientView, CommandRequest, ControlState, ItemView, NewToken, PairingPrompt, SessionOverview };
+export type {
+  ClientView,
+  CommandRequest,
+  ControlState,
+  FullItem,
+  ItemView,
+  NewToken,
+  PairingPrompt,
+  SessionOverview,
+  TrackerLink,
+};
 
 /** Host or client: the app's own view of where it runs (src-tauri/src/lib.rs `HostView`), not the contract's. */
 export type HostView = {
@@ -44,6 +56,23 @@ export const answerPairing = (id: number, decision: PairingAnswer['decision']) =
 export const pairingQr = (link: string) => invoke<string>('pairing_qr', { link });
 /** Tries the data dir again after the host went away: the app hosts it, or joins whoever took it. */
 export const hostHere = () => invoke<HostView>('host_here');
+
+// Tracker push (ADR 0028): the item and its screenshots from the host, and the link recorded there. The tracker's
+// token never goes to the host: it is read from the OS keychain (src-tauri/src/keychain.rs) when it is used.
+/** One stored Change Item in full: `id` is `item-<seq>`. */
+export const hostItem = (id: string) => invoke<FullItem>('host_item', { id });
+/** A screenshot's bytes. */
+export const hostScreenshot = (id: string) => invoke<ArrayBuffer>('host_screenshot', { id });
+/** Records the issue an item became; answers the item with it. */
+export const recordTrackerLink = (id: string, link: TrackerLink) =>
+  invoke<FullItem>('record_tracker_link', { id, link });
+/** A tracker setting kept in the OS keychain (a token); null when none is saved. */
+export const trackerSecret = (tracker: string, field: string) =>
+  invoke<string | null>('tracker_secret', { tracker, field });
+/** Saves a tracker setting in the OS keychain; an empty value removes it. */
+export const setTrackerSecret = (tracker: string, field: string, value: string) =>
+  invoke<void>('set_tracker_secret', { tracker, field, value });
+
 export const desktopToggles = () => invoke<Toggles>('desktop_toggles');
 export const setDesktopToggles = (toggles: Toggles) => invoke<Toggles>('set_desktop_toggles', { toggles });
 

@@ -218,6 +218,21 @@ impl<'de> ::serde::Deserialize<'de> for ControlStateVersion {
             })
     }
 }
+///GET /api/host/items/{id}, and the answer to POST /api/host/items/{id}/tracker-links
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct FullItem {
+    ///item-<seq>, as agents see it
+    pub id: ::std::string::String,
+    pub item: StoredItem,
+    ///the Process run it comes from
+    pub run_id: ::std::string::String,
+    pub session_id: ::std::string::String,
+    ///the Session's latest name, else its page title, else its url
+    pub session_name: ::std::string::String,
+    pub status: ItemStatus,
+    ///no longer among its Session's current items
+    pub withdrawn: bool,
+}
 ///`HostCommand`
 #[derive(
     ::serde::Deserialize,
@@ -566,6 +581,9 @@ pub struct ItemView {
     pub since: ::std::option::Option<i64>,
     pub status: ItemStatus,
     pub title: ::std::string::String,
+    ///the issues it was sent to, oldest first; absent from a Host that does not record them
+    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
+    pub tracker_links: ::std::vec::Vec<TrackerLink>,
 }
 ///POST /api/host/network
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
@@ -881,6 +899,84 @@ pub struct SessionOverview {
     #[serde(deserialize_with = "::std::option::Option::deserialize")]
     pub url: ::std::option::Option<::std::string::String>,
 }
+///a Change Item as its Client sent it (packages/core change-item.ts), with every tracker link
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct StoredItem {
+    pub evidence: StoredItemEvidence,
+    ///item_0001, …: its id within its Process run
+    pub id: StoredItemId,
+    ///where it is (packages/core change-item.ts Location)
+    pub locations: ::std::vec::Vec<
+        ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+    >,
+    pub title: ::std::string::String,
+    ///the issues it was sent to, oldest first: the links its Client sent and those recorded here
+    pub tracker_links: ::std::vec::Vec<TrackerLink>,
+    #[serde(flatten)]
+    pub extra: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+}
+///its screenshots, element crops and video range
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct StoredItemEvidence {
+    ///ids of every screenshot that shows it
+    pub screenshots: ::std::vec::Vec<::std::string::String>,
+    #[serde(flatten)]
+    pub extra: ::serde_json::Map<::std::string::String, ::serde_json::Value>,
+}
+///item_0001, …: its id within its Process run
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct StoredItemId(::std::string::String);
+impl ::std::ops::Deref for StoredItemId {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<StoredItemId> for ::std::string::String {
+    fn from(value: StoredItemId) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for StoredItemId {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        if value.chars().count() < 1usize {
+            return Err("shorter than 1 characters".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for StoredItemId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for StoredItemId {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for StoredItemId {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
 ///`Timeline`
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
 pub struct Timeline {
@@ -895,6 +991,294 @@ pub struct TimelineEntry {
     ///ms since the Session t0
     pub t: i64,
     pub text: ::std::string::String,
+}
+///an issue a Change Item was sent to (ADR 0028); the body of POST /api/host/items/{id}/tracker-links. Its status is read from the tracker, never stored
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct TrackerLink {
+    ///when it was sent, ISO 8601
+    pub created_at: TrackerLinkCreatedAt,
+    ///where the issue was created: owner/repo on GitHub
+    pub destination: TrackerLinkDestination,
+    ///the tracker's short name for the issue, e.g. #142
+    pub key: TrackerLinkKey,
+    pub tracker: TrackerLinkTracker,
+    ///the issue's web page: http or https
+    pub url: TrackerLinkUrl,
+}
+///when it was sent, ISO 8601
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct TrackerLinkCreatedAt(::std::string::String);
+impl ::std::ops::Deref for TrackerLinkCreatedAt {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<TrackerLinkCreatedAt> for ::std::string::String {
+    fn from(value: TrackerLinkCreatedAt) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for TrackerLinkCreatedAt {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        if value.chars().count() < 1usize {
+            return Err("shorter than 1 characters".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for TrackerLinkCreatedAt {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for TrackerLinkCreatedAt {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for TrackerLinkCreatedAt {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
+///where the issue was created: owner/repo on GitHub
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct TrackerLinkDestination(::std::string::String);
+impl ::std::ops::Deref for TrackerLinkDestination {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<TrackerLinkDestination> for ::std::string::String {
+    fn from(value: TrackerLinkDestination) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for TrackerLinkDestination {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        if value.chars().count() < 1usize {
+            return Err("shorter than 1 characters".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for TrackerLinkDestination {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for TrackerLinkDestination {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for TrackerLinkDestination {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
+///the tracker's short name for the issue, e.g. #142
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct TrackerLinkKey(::std::string::String);
+impl ::std::ops::Deref for TrackerLinkKey {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<TrackerLinkKey> for ::std::string::String {
+    fn from(value: TrackerLinkKey) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for TrackerLinkKey {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        if value.chars().count() < 1usize {
+            return Err("shorter than 1 characters".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for TrackerLinkKey {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for TrackerLinkKey {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for TrackerLinkKey {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
+///`TrackerLinkTracker`
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum TrackerLinkTracker {
+    #[serde(rename = "github")]
+    Github,
+    #[serde(rename = "linear")]
+    Linear,
+    #[serde(rename = "jira")]
+    Jira,
+}
+impl ::std::fmt::Display for TrackerLinkTracker {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Github => f.write_str("github"),
+            Self::Linear => f.write_str("linear"),
+            Self::Jira => f.write_str("jira"),
+        }
+    }
+}
+impl ::std::str::FromStr for TrackerLinkTracker {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "github" => Ok(Self::Github),
+            "linear" => Ok(Self::Linear),
+            "jira" => Ok(Self::Jira),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for TrackerLinkTracker {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for TrackerLinkTracker {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+///the issue's web page: http or https
+#[derive(::serde::Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct TrackerLinkUrl(::std::string::String);
+impl ::std::ops::Deref for TrackerLinkUrl {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<TrackerLinkUrl> for ::std::string::String {
+    fn from(value: TrackerLinkUrl) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for TrackerLinkUrl {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        if value.chars().count() < 1usize {
+            return Err("shorter than 1 characters".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for TrackerLinkUrl {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for TrackerLinkUrl {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for TrackerLinkUrl {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
 }
 ///an agent blocked in watch_items
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]

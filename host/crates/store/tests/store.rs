@@ -12,11 +12,11 @@ fn session_start() -> Value {
 fn reopening_keeps_data_and_the_schema_version() {
     let dir = tempfile::tempdir().unwrap();
     let store = Store::open(dir.path()).unwrap();
-    assert_eq!(store.schema_version().unwrap(), 5);
+    assert_eq!(store.schema_version().unwrap(), 6);
     store.upsert_event(None, "s1", &session_start()).unwrap();
     drop(store);
     let store = Store::open(dir.path()).unwrap();
-    assert_eq!(store.schema_version().unwrap(), 5);
+    assert_eq!(store.schema_version().unwrap(), 6);
     assert_eq!(store.session_events("s1").unwrap().unwrap(), vec![session_start()]);
 }
 

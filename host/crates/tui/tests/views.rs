@@ -72,6 +72,7 @@ fn state() -> HostState {
                 agent: Some("claude-code".into()),
                 since: Some(NOW - 600_000),
                 prompt: "On / move button.cta into the header.".into(),
+                tracker_links: Vec::new(),
             },
             ItemView {
                 id: "item-3".into(),
@@ -83,6 +84,7 @@ fn state() -> HostState {
                 agent: Some("claude-code".into()),
                 since: Some(NOW - 120_000),
                 prompt: "Give button.cta var(--brand).".into(),
+                tracker_links: Vec::new(),
             },
             ItemView {
                 id: "item-2".into(),
@@ -94,6 +96,7 @@ fn state() -> HostState {
                 agent: None,
                 since: None,
                 prompt: "Reduce the padding.".into(),
+                tracker_links: Vec::new(),
             },
         ],
         watchers: vec![Watcher { id: 1, url: Some("http://localhost:3000".into()), session_id: None, since: 0 }],

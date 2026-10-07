@@ -12,12 +12,14 @@ import {
   CommandOutcome,
   CommandRequest,
   ControlState,
+  FullItem,
   HostFile,
   NetworkRequest,
   NetworkSwitched,
   NewToken,
   NewTokenRequest,
   PairingAnswer,
+  TrackerLink,
 } from '../src/host-control.ts';
 
 const FIXTURES = join(
@@ -49,6 +51,8 @@ const SCHEMA_OF = Object.fromEntries([
   ['network-request.json', NetworkRequest],
   ['network-switched.json', NetworkSwitched],
   ['pairing-answer.json', PairingAnswer],
+  ['tracker-link.json', TrackerLink],
+  ['full-item.json', FullItem],
 ] as const) as Record<string, { parse: (v: unknown) => unknown }>;
 
 describe('fixtures/host-control/', () => {

@@ -26,11 +26,17 @@ anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive", "env"] }
 gethostname = "1.1.0"
 image = { version = "0.25.10", default-features = false, features = ["png"] }
+# Tracker tokens (ADR 0028): the OS keychain on macOS and Windows, the Secret Service (pure Rust, over zbus) on Linux.
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "async-secret-service", "tokio", "crypto-rust"] }
 qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "query"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 tauri = { version = "2", features = ["tray-icon"] }
+# The webview's fetch for tracker APIs (ADR 0028), scoped to their hosts in capabilities/default.json.
+tauri-plugin-http = "2.8.0"
+# Opens a sent item's issue in the browser; https only (capabilities/default.json).
+tauri-plugin-opener = "2.7.0"
 thiserror = "2.0.20"
 tokio = { version = "1.53.1", features = ["full"] }
 tracing = "0.1.44"

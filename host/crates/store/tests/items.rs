@@ -1,7 +1,7 @@
 mod common;
 
 use common::event;
-use inkup_store::{ItemFilter, ItemStatus, ResolutionStatus, SignalFilter, StartItem, Store, StoreError};
+use inkup_store::{ItemFilter, ItemStatus, ResolutionStatus, SignalFilter, StartItem, Store, StoreError, TrackerLink};
 use serde_json::{Value, json};
 
 fn item(id: &str, title: &str) -> Value {
@@ -56,6 +56,46 @@ fn a_push_replaces_the_sessions_items_and_withdraws_the_rest() {
         store.put_items(None, "s1", "run-3", &[item("x", "X"), item("x", "Y")]),
         Err(StoreError::InvalidItems(_))
     ));
+}
+
+fn github_link(number: u32, created_at: &str) -> TrackerLink {
+    TrackerLink {
+        tracker: "github".into(),
+        destination: "acme/web".into(),
+        key: format!("#{number}"),
+        url: format!("https://github.com/acme/web/issues/{number}"),
+        created_at: created_at.into(),
+    }
+}
+
+/// ADR 0028: a link recorded through the control API outlives the Client's next push (which replaces the body) and
+/// a reopen, sits with the links the body already has, and is kept once per issue url.
+#[test]
+fn recorded_tracker_links_survive_a_push_and_a_reopen() {
+    let (dir, store, c1, _) = open();
+    let c1 = Some(c1.as_str());
+    store.upsert_event(c1, "s1", &start("http://localhost:3000/")).unwrap();
+    // The fixture item was sent once already; this one never was.
+    let mut never_sent = item("item_0001", "A");
+    never_sent.as_object_mut().unwrap().remove("tracker_links");
+    let seq = store.put_items(c1, "s1", "run-1", &[never_sent]).unwrap().added[0];
+    assert!(store.item(seq).unwrap().unwrap().tracker_links.is_empty());
+
+    let sent = github_link(1, "2026-10-07T10:00:00.000Z");
+    let item_now = store.record_tracker_link(seq, &sent).unwrap().unwrap();
+    assert_eq!(item_now.tracker_links, std::slice::from_ref(&sent));
+    assert_eq!(store.record_tracker_link(seq, &sent).unwrap().unwrap().tracker_links.len(), 1, "once per url");
+    assert!(store.record_tracker_link(9999, &sent).unwrap().is_none());
+
+    // The Client pushes again, its body now carrying an older link of its own.
+    let mut body = item("item_0001", "A edited");
+    body["tracker_links"] = json!([github_link(7, "2026-10-01T09:00:00.000Z")]);
+    store.put_items(c1, "s1", "run-1", &[body]).unwrap();
+    drop(store);
+    let store = Store::open(dir.path()).unwrap();
+    let links = &store.items(&ItemFilter::default()).unwrap()[0].tracker_links;
+    assert_eq!(links.iter().map(|l| l.key.as_str()).collect::<Vec<_>>(), ["#7", "#1"]);
+    assert_eq!(store.session_name("s1").unwrap(), "t");
 }
 
 #[test]

@@ -11,7 +11,7 @@
 use std::collections::{HashMap, HashSet};
 
 use rusqlite::{OptionalExtension, Row, params};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::fields::Fields;
@@ -121,6 +121,52 @@ pub struct Item {
     pub client_id: Option<String>,
     /// The latest.
     pub resolution: Option<Resolution>,
+    /// The issues it was sent to (ADR 0028), oldest first: those in its body (folded by the Client from its
+    /// `tracker_link` events), then those recorded through the control API, one per issue url.
+    pub tracker_links: Vec<TrackerLink>,
+}
+
+/// An issue a Change Item was sent to. Its status lives in the tracker and is never stored here.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrackerLink {
+    /// `github`, `linear` or `jira`.
+    pub tracker: String,
+    /// Where the issue was created: `owner/repo` on GitHub.
+    pub destination: String,
+    /// The tracker's short name for it: `#142`.
+    pub key: String,
+    /// Its web page.
+    pub url: String,
+    /// When it was sent, ISO 8601.
+    pub created_at: String,
+}
+
+/// The links an item's body carries, read leniently: one missing a field is left out.
+fn body_links(body: &Value) -> Vec<TrackerLink> {
+    Fields::item(body)
+        .array("tracker_links")
+        .iter()
+        .filter_map(|link| {
+            Some(TrackerLink {
+                tracker: link.str("tracker")?.to_owned(),
+                destination: link.str("destination")?.to_owned(),
+                key: link.str("key")?.to_owned(),
+                url: link.str("url")?.to_owned(),
+                created_at: link.str("created_at")?.to_owned(),
+            })
+        })
+        .collect()
+}
+
+/// The body's links, then the recorded ones it does not have (by url), oldest first.
+fn merge_links(mut links: Vec<TrackerLink>, recorded: Vec<TrackerLink>) -> Vec<TrackerLink> {
+    for link in recorded {
+        if !links.iter().any(|l| l.url == link.url) {
+            links.push(link);
+        }
+    }
+    links.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+    links
 }
 
 impl Item {
@@ -305,6 +351,7 @@ fn item_from_row(row: &Row<'_>) -> rusqlite::Result<(Item, String)> {
             session_url: row.get(9)?,
             client_id: row.get(10)?,
             resolution,
+            tracker_links: Vec::new(),
         },
         body,
     ))
@@ -429,12 +476,85 @@ impl Store {
                 .collect::<rusqlite::Result<Vec<_>>>()?
         };
         let origin = filter.origin.as_deref().map(wanted_origin);
-        let items = parse_items(rows)?;
-        Ok(items
+        let items: Vec<Item> = parse_items(rows)?
             .into_iter()
             .filter(|item| filter.status.is_none_or(|status| item.status() == status))
             .filter(|item| matches_origin(item.session_url.as_deref(), origin.as_deref()))
-            .collect())
+            .collect();
+        self.with_tracker_links(items)
+    }
+
+    /// Fills each item's `tracker_links`: its body's and the recorded ones.
+    fn with_tracker_links(&self, mut items: Vec<Item>) -> Result<Vec<Item>> {
+        if items.is_empty() {
+            return Ok(items);
+        }
+        let conn = self.conn();
+        let mut stmt = conn.prepare_cached(
+            "SELECT tracker, destination, key, url, created_at FROM tracker_links WHERE item_seq = ?1 ORDER BY seq",
+        )?;
+        for item in &mut items {
+            let recorded = stmt
+                .query_map([item.seq], |row| {
+                    Ok(TrackerLink {
+                        tracker: row.get(0)?,
+                        destination: row.get(1)?,
+                        key: row.get(2)?,
+                        url: row.get(3)?,
+                        created_at: row.get(4)?,
+                    })
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            item.tracker_links = merge_links(body_links(&item.body), recorded);
+        }
+        Ok(items)
+    }
+
+    /// Records that item `seq` was sent to a tracker, and answers the item with it. `None` when there is no such
+    /// item. Recording an issue url the item already has changes nothing.
+    pub fn record_tracker_link(&self, seq: i64, link: &TrackerLink) -> Result<Option<Item>> {
+        {
+            let conn = self.conn();
+            let found: Option<i64> =
+                conn.query_row("SELECT seq FROM items WHERE seq = ?1", [seq], |row| row.get(0)).optional()?;
+            if found.is_none() {
+                return Ok(None);
+            }
+            conn.execute(
+                "INSERT INTO tracker_links (item_seq, tracker, destination, key, url, created_at, recorded_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT (item_seq, url) DO NOTHING",
+                params![seq, link.tracker, link.destination, link.key, link.url, link.created_at, now_ms()],
+            )?;
+        }
+        self.item(seq)
+    }
+
+    /// A Session's name as the review page shows it: its latest rename, else its page title, else its url, else
+    /// its id.
+    pub fn session_name(&self, session_id: &str) -> Result<String> {
+        let conn = self.conn();
+        let renamed: Option<String> = conn
+            .query_row(
+                "SELECT body FROM events WHERE session_id = ?1 AND type = 'session_rename' ORDER BY t DESC, seq DESC
+                 LIMIT 1",
+                [session_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let renamed = renamed
+            .and_then(|body| serde_json::from_str::<Value>(&body).ok())
+            .and_then(|body| Fields::event(&body).str("name").map(str::trim).map(str::to_owned))
+            .filter(|name| !name.is_empty());
+        if let Some(name) = renamed {
+            return Ok(name);
+        }
+        let (title, url): (Option<String>, Option<String>) = conn
+            .query_row("SELECT title, url FROM sessions WHERE id = ?1", [session_id], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .optional()?
+            .unwrap_or_default();
+        Ok([title, url].into_iter().flatten().find(|s| !s.trim().is_empty()).unwrap_or_else(|| session_id.to_owned()))
     }
 
     /// One item by its seq, withdrawn or not.
@@ -443,7 +563,7 @@ impl Store {
             let conn = self.conn();
             conn.query_row(&format!("SELECT {ITEM_COLUMNS} WHERE i.seq = ?1"), [seq], item_from_row).optional()?
         };
-        Ok(parse_items(row.into_iter().collect())?.pop())
+        Ok(self.with_tracker_links(parse_items(row.into_iter().collect())?)?.pop())
     }
 
     /// Every Resolution of an item, oldest first.
@@ -798,5 +918,30 @@ mod tests {
         assert_eq!(origin_of("https://example.com").as_deref(), Some("https://example.com"));
         assert_eq!(origin_of("/pricing"), None);
         assert_eq!(wanted_origin("http://localhost:3000/a"), "http://localhost:3000");
+    }
+
+    fn link(url: &str, created_at: &str) -> TrackerLink {
+        TrackerLink {
+            tracker: "github".into(),
+            destination: "acme/web".into(),
+            key: "#1".into(),
+            url: url.into(),
+            created_at: created_at.into(),
+        }
+    }
+
+    #[test]
+    fn links_merge_by_url_oldest_first() {
+        let body = json!({ "tracker_links": [
+            { "tracker": "github", "destination": "acme/web", "key": "#1", "url": "https://x/1", "created_at": "2026-10-07T10:00:00.000Z" },
+            { "tracker": "github", "url": "missing fields" },
+        ] });
+        let recorded =
+            vec![link("https://x/1", "2026-10-07T11:00:00.000Z"), link("https://x/0", "2026-10-06T09:00:00.000Z")];
+        let merged = merge_links(body_links(&body), recorded);
+        assert_eq!(
+            merged.iter().map(|l| (l.url.as_str(), l.created_at.as_str())).collect::<Vec<_>>(),
+            [("https://x/0", "2026-10-06T09:00:00.000Z"), ("https://x/1", "2026-10-07T10:00:00.000Z")]
+        );
     }
 }

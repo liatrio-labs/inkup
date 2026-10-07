@@ -21,6 +21,11 @@
 //!   server). `{handled: false}` without one: the TUI switches it in its terminal.
 //! - `POST /api/host/pairing/{id}`: answers a pairing request, when the embedder has the server ask here
 //!   (`Server::ask_pairing_over_control`) rather than on its own screen.
+//! - `GET /api/host/items/{id}`: one stored Change Item in full, with every tracker link (ADR 0028), so the desktop
+//!   app can build its issue.
+//! - `GET /api/host/blobs/{id}`: a stored blob's bytes (a screenshot), to upload with that issue.
+//! - `POST /api/host/items/{id}/tracker-links`: records that the item was sent to a tracker, and answers the item.
+//!   The token that sent it never comes here: the window holds it (the OS keychain), the Host never does.
 
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -31,11 +36,14 @@ use axum::Json;
 use axum::extract::{FromRequestParts, Path, Query, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::response::Response;
 use inkup_protocol::control::{
-    Activated, CONTROL_API, Changes, CommandOutcome, CommandRequest, ControlState, NetworkRequest, NetworkSwitched,
-    NewToken, NewTokenRequest, PairingAnswer, PairingAnswerDecision,
+    Activated, CONTROL_API, Changes, CommandOutcome, CommandRequest, ControlState, FullItem, NetworkRequest,
+    NetworkSwitched, NewToken, NewTokenRequest, PairingAnswer, PairingAnswerDecision, TrackerLink,
 };
+use inkup_store::fields::Fields;
 use inkup_store::instance::HostKind;
+use inkup_store::{Item, TrackerLink as StoredLink};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -332,9 +340,111 @@ pub(crate) async fn activate(Controller(control): Controller) -> Json<Activated>
     Json(Activated { handled })
 }
 
+/// `item-<seq>`, as `ItemView.id` and agents name an item.
+fn item_seq(id: &str) -> Option<i64> {
+    id.strip_prefix("item-")?.parse().ok().filter(|seq| *seq > 0)
+}
+
+/// An item as `FullItem`: its body with every tracker link, and a body missing its Locations or evidence (a Client
+/// stores items verbatim) given empty ones.
+fn full_item(mut item: Item, session_name: String) -> Result<FullItem, ApiError> {
+    let status = item.status();
+    let fields = Fields::item(&item.body);
+    let has_locations = fields.raw("locations").is_array();
+    let has_screenshots = fields.get("evidence").raw("screenshots").is_array();
+    let evidence = fields.get("evidence").value().filter(|e| e.is_object()).cloned();
+    let mut body = match std::mem::take(&mut item.body) {
+        Value::Object(body) => body,
+        _ => serde_json::Map::new(),
+    };
+    body.entry("id").or_insert_with(|| json!(item.item_id));
+    body.entry("title").or_insert_with(|| json!(""));
+    if !has_locations {
+        body.insert("locations".into(), json!([]));
+    }
+    if !has_screenshots {
+        let mut evidence = evidence.unwrap_or_else(|| json!({}));
+        evidence["screenshots"] = json!([]);
+        body.insert("evidence".into(), evidence);
+    }
+    body.insert("tracker_links".into(), json!(item.tracker_links));
+    typed(json!({
+        "id": format!("item-{}", item.seq),
+        "session_id": item.session_id,
+        "session_name": session_name,
+        "run_id": item.run_id,
+        "status": status,
+        "withdrawn": item.withdrawn_at.is_some(),
+        "item": body,
+    }))
+}
+
+async fn read_full_item(state: &AppState, seq: i64) -> Result<FullItem, ApiError> {
+    let found = blocking(&state.store, move |store| {
+        let Some(item) = store.item(seq)? else { return Ok(None) };
+        let name = store.session_name(&item.session_id)?;
+        Ok(Some((item, name)))
+    })
+    .await?;
+    let (item, name) = found.ok_or(ApiError::NotFound)?;
+    full_item(item, name)
+}
+
+pub(crate) async fn item(
+    _: Controller,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<FullItem>, ApiError> {
+    let seq = item_seq(&id).ok_or(ApiError::NotFound)?;
+    read_full_item(&state, seq).await.map(Json)
+}
+
+pub(crate) async fn blob(
+    _: Controller,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Response, ApiError> {
+    crate::http::blob_response(&state, id).await
+}
+
+pub(crate) async fn record_tracker_link(
+    _: Controller,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(body): Json<Value>,
+) -> Result<Json<FullItem>, ApiError> {
+    let seq = item_seq(&id).ok_or(ApiError::NotFound)?;
+    let asked: TrackerLink = request(body)?;
+    let link = StoredLink {
+        tracker: asked.tracker.to_string(),
+        destination: asked.destination.trim().to_owned(),
+        key: asked.key.trim().to_owned(),
+        url: asked.url.trim().to_owned(),
+        created_at: asked.created_at.trim().to_owned(),
+    };
+    // The window shows it as a link: a web page only.
+    if !(link.url.starts_with("https://") || link.url.starts_with("http://")) {
+        return Err(ApiError::BadRequest("a tracker link's url is the issue's web page: http or https".into()));
+    }
+    let recorded = blocking(&state.store, move |store| store.record_tracker_link(seq, &link)).await?;
+    if recorded.is_none() {
+        return Err(ApiError::NotFound);
+    }
+    state.hub.view_changed();
+    read_full_item(&state, seq).await.map(Json)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::same;
+    use super::{item_seq, same};
+
+    #[test]
+    fn item_ids_are_item_dash_seq() {
+        assert_eq!(item_seq("item-12"), Some(12));
+        for id in ["item-0", "item--1", "12", "item-x", "item_0001"] {
+            assert_eq!(item_seq(id), None, "{id}");
+        }
+    }
 
     #[test]
     fn tokens_compare_whole() {
