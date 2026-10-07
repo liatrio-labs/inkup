@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.9.0...inkup-v0.10.0) (2026-10-07)
+
+
+### Features
+
+* **trackers:** send to Linear, in bulk, and to a chosen destination ([#84](https://github.com/liatrio-labs/inkup/issues/84)) ([d22f2d4](https://github.com/liatrio-labs/inkup/commit/d22f2d44a92c1c4cf54542e003120efc58eff78f))
+
 ## [0.9.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.8.0...inkup-v0.9.0) (2026-10-07)
 
 
