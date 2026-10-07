@@ -16,6 +16,7 @@
 import { CLOSE_TIMEOUT_MS, expired, withTimeout } from '@inkup/core/overlay-lifetime';
 import type { DictationTarget } from '@inkup/core/timeline';
 import { type MountedCommentBox, mountCommentBox } from '@inkup/ui/comment-box';
+import { type MountedHighlight, mountHighlight } from '@inkup/ui/highlight';
 import type { Surfaces } from '@inkup/ui/toolbar';
 import { composedParent } from './snapshot';
 import { themeFor } from './theme';
@@ -44,19 +45,6 @@ const SWALLOWED = [
   'contextmenu',
 ] as const;
 
-const STYLES = `
-.var-hl { all: initial; position: fixed; z-index: 0; pointer-events: none; box-sizing: border-box; border: 2px solid #2563eb;
-  background: rgba(37,99,235,.12); border-radius: 2px; }
-.var-hl[data-picked] { border-color: #dc2626; background: rgba(220,38,38,.08); }
-.var-hl-label { all: initial; position: fixed; z-index: 0; pointer-events: none; padding: 2px 6px; border-radius: 4px; background: #1e3a8a;
-  color: #fff; font: 500 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; max-width: 60vw; overflow: hidden;
-  text-overflow: ellipsis; }
-.var-hl[hidden], .var-hl-label[hidden] { display: none !important; }
-.var-hl[data-theme="light"] { border-color: #93c5fd; background: rgba(147,197,253,.18); }
-.var-hl[data-theme="light"][data-picked] { border-color: #f87171; background: rgba(248,113,113,.14); }
-.var-hl-label[data-theme="light"] { background: #dbeafe; color: #1e3a8a; }
-`;
-
 interface Picked<T> {
   el: Element;
   /** Null until the caller has recorded the pick's start. */
@@ -66,9 +54,7 @@ interface Picked<T> {
 }
 
 export class ObjectSelect<T> {
-  private readonly style: HTMLStyleElement;
-  private readonly outlineBox: HTMLElement;
-  private readonly label: HTMLElement;
+  private readonly highlight: MountedHighlight;
   private readonly box: MountedCommentBox;
   private on = false;
   private hovered: Element | null = null;
@@ -81,20 +67,11 @@ export class ObjectSelect<T> {
   private lastActivity = Date.now();
 
   constructor(
-    container: HTMLElement,
     private readonly host: HTMLElement,
     private readonly cb: ObjectSelectCallbacks<T>,
     surfaces: Surfaces,
   ) {
-    this.style = document.createElement('style');
-    this.style.textContent = STYLES;
-    this.outlineBox = document.createElement('div');
-    Object.assign(this.outlineBox, { className: 'var-hl', hidden: true });
-    this.outlineBox.dataset.testid = 'object-select-highlight';
-    this.label = document.createElement('div');
-    Object.assign(this.label, { className: 'var-hl-label', hidden: true });
-    this.label.dataset.testid = 'object-select-label';
-    container.append(this.style, this.outlineBox, this.label);
+    this.highlight = mountHighlight(surfaces);
     this.box = mountCommentBox(surfaces, {
       testid: 'object-select-box',
       inputTestid: 'object-select-input',
@@ -136,7 +113,7 @@ export class ObjectSelect<T> {
     cancelAnimationFrame(this.raf);
     this.hovered = null;
     this.down = [];
-    this.outlineBox.hidden = this.label.hidden = true;
+    this.highlight.hide();
   }
 
   /** Records the pick in progress and resolves once every pick is recorded (before Stop). */
@@ -148,9 +125,7 @@ export class ObjectSelect<T> {
 
   destroy(): void {
     this.stop();
-    this.style.remove();
-    this.outlineBox.remove();
-    this.label.remove();
+    this.highlight.destroy();
     this.box.destroy();
   }
 
@@ -175,13 +150,13 @@ export class ObjectSelect<T> {
     this.hovered = null;
     this.down = [];
     cancelAnimationFrame(this.raf);
-    this.outlineBox.hidden = this.label.hidden = true;
+    this.highlight.hide();
     return dropped;
   }
 
   /** The comment box and the label are never in a screenshot; the outline is, like the ink of a Stroke. */
   async hideForCapture(hidden: boolean): Promise<void> {
-    this.label.style.visibility = hidden ? 'hidden' : '';
+    this.highlight.hideLabelForCapture(hidden);
     await this.box.hideForCapture(hidden);
   }
 
@@ -243,29 +218,12 @@ export class ObjectSelect<T> {
     this.raf = requestAnimationFrame(() => {
       const el = this.picked?.el ?? this.hovered;
       if (!el?.isConnected) {
-        this.outlineBox.hidden = this.label.hidden = true;
+        this.highlight.hide();
         return;
       }
       const r = el.getBoundingClientRect();
-      Object.assign(this.outlineBox.style, {
-        left: `${r.left}px`,
-        top: `${r.top}px`,
-        width: `${r.width}px`,
-        height: `${r.height}px`,
-      });
-      this.outlineBox.toggleAttribute('data-picked', !!this.picked);
       // Light over a dark element, dark over a light one (E8).
-      this.outlineBox.dataset.theme = this.label.dataset.theme = themeFor(r, this.host);
-      const cls = [...el.classList]
-        .slice(0, 2)
-        .map((c) => `.${c}`)
-        .join('');
-      this.label.textContent = `${el.tagName.toLowerCase()}${cls} · ${Math.round(r.width)}×${Math.round(r.height)}`;
-      Object.assign(this.label.style, {
-        left: `${Math.max(0, r.left)}px`,
-        top: `${r.top >= 22 ? r.top - 22 : r.bottom + 4}px`,
-      });
-      this.outlineBox.hidden = this.label.hidden = false;
+      this.highlight.show({ el, rect: r, picked: !!this.picked, theme: themeFor(r, this.host) });
       this.box.reposition();
     });
   };

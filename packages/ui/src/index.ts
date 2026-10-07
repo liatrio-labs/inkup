@@ -16,6 +16,7 @@ export * from './components/table';
 export * from './components/tabs';
 export * from './components/textarea';
 export * from './components/tooltip';
+export * from './highlight';
 export { cn } from './lib/utils';
 export { mountInShadow, toShadowCss } from './mount-in-shadow';
 export * from './toolbar';

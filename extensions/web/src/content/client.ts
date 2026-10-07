@@ -213,7 +213,6 @@ export async function runOverlayClient(mount: MountRoot): Promise<void> {
           record: (input) => sendMessage('recordTextComment', input),
         });
       objects ??= new ObjectSelect(
-        root.container,
         root.host,
         {
           pick: async (el) => {
