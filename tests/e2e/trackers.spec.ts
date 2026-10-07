@@ -1,11 +1,12 @@
-// Tracker push, GitHub (spec 01 Unit 1, ADR 0028): the options page's Trackers section and the review page's Send to
-// GitHub, against a local stand-in for the GitHub API (tests/support/github-stub.ts) through the dev-only
-// `githubBaseUrl` override. A processed Session is seeded straight into IndexedDB, with two screenshots and an element
+// Tracker push (spec 01, ADR 0028): the options page's Trackers section and the review page's Send to GitHub (Unit 1)
+// and to Linear, in bulk and to a chosen team (Unit 2), against local stand-ins for the trackers' APIs
+// (tests/support/github-stub.ts, linear-stub.ts) through the dev-only `githubBaseUrl` and `linearBaseUrl` overrides. A processed Session is seeded straight into IndexedDB, with two screenshots and an element
 // crop, so no recording or model is involved.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page, Worker } from '@playwright/test';
 import { type GithubStub, startGithubStub } from '../support/github-stub';
+import { type LinearStub, startLinearStub } from '../support/linear-stub';
 import { expect, test } from './fixtures';
 import { exportAndUnzip } from './helpers/export';
 import { storeRows } from './helpers/seed';
@@ -13,6 +14,7 @@ import { storeRows } from './helpers/seed';
 const SESSION_ID = 'track-1';
 const RUN_ID = 'run-track-1';
 const TOKEN = 'github_pat_E2E_0123456789abcdef';
+const LINEAR_KEY = 'lin_api_E2E_key';
 const PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 const page = {
@@ -33,9 +35,16 @@ const shot = (id: string, t: number) => ({
   ...page,
 });
 
+const TITLES = [
+  'Make the Get started button larger',
+  'Tighten the pricing table',
+  'Align the footer links',
+  'Rename the Pricing tab',
+];
+
 const item = (n: number, screenshots: string[], crops: string[] = []) => ({
   id: `item_000${n}`,
-  title: n === 1 ? 'Make the Get started button larger' : 'Tighten the pricing table',
+  title: TITLES[n - 1] ?? `Item ${n}`,
   category: 'style',
   intent: n === 1 ? 'The primary call to action is too small to notice.' : 'The rows are too far apart.',
   locations: [
@@ -56,8 +65,8 @@ const item = (n: number, screenshots: string[], crops: string[] = []) => ({
   pinned: false,
 });
 
-/** A processed, ended Session "Pricing page review" with two items, two screenshots and one element crop. */
-async function seedProcessed(p: Page): Promise<void> {
+/** A processed, ended Session "Pricing page review" with `count` items, two screenshots and one element crop. */
+async function seedProcessed(p: Page, count = 2): Promise<void> {
   await expect
     .poll(() => p.evaluate(async () => (await indexedDB.databases()).some((d) => d.name === 'inkup')))
     .toBe(true);
@@ -103,7 +112,10 @@ async function seedProcessed(p: Page): Promise<void> {
       status: 'done',
       model: 'seeded',
       estimate: null,
-      items: [item(1, ['s-abc', 's-def'], ['s-abc.crop']), item(2, ['s-def'])],
+      items: [
+        item(1, ['s-abc', 's-def'], ['s-abc.crop']),
+        ...Array.from({ length: count - 1 }, (_, i) => item(i + 2, ['s-def'])),
+      ],
       calls: [],
       second_pass: [],
       error: null,
@@ -179,12 +191,12 @@ async function downloadSessionJson(review: Page, sw: Worker) {
 const card = (review: Page, id: string) => review.locator(`[data-testid="change-item"][data-item-id="${id}"]`);
 const issueCreates = (stub: GithubStub) => stub.calls('POST', /^\/repos\/acme\/web\/issues$/);
 
-async function openReview(openExtensionPage: (path: string) => Promise<Page>): Promise<Page> {
+async function openReview(openExtensionPage: (path: string) => Promise<Page>, count = 2): Promise<Page> {
   const list = await openExtensionPage('sessions.html');
-  await seedProcessed(list);
+  await seedProcessed(list, count);
   await list.close();
   const review = await openExtensionPage(`review.html?session=${SESSION_ID}`);
-  await expect(review.getByTestId('change-item')).toHaveCount(2);
+  await expect(review.getByTestId('change-item')).toHaveCount(count);
   return review;
 }
 
@@ -219,7 +231,7 @@ test('without a tracker each card links to Trackers settings; saving a token sho
 
     // The default repo is picked from what the token can see.
     const repo = options.getByTestId('github-destination');
-    await expect(repo.locator('option')).toHaveText(['Pick a repo', 'acme/web', 'acme/api']);
+    await expect(repo.locator('option')).toHaveText(['Pick one', 'acme/web', 'acme/api']);
     await repo.selectOption('acme/web');
     await expect
       .poll(() =>
@@ -418,6 +430,357 @@ test('sending a linked item again is in the menu, behind a confirm', async ({ se
     await review.getByTestId('tracker-confirm-send').click();
     await expect(first.getByTestId('tracker-link')).toHaveText('GitHub #2');
     expect(stub.repo('acme/web').issues).toHaveLength(2);
+  } finally {
+    await stub.close();
+  }
+});
+
+// ---- Linear, bulk send and the per-send destination picker (spec 01 Unit 2) ----
+
+const TEAMS = [
+  { id: 'team-web', key: 'WEB', name: 'Web' },
+  { id: 'team-ops', key: 'OPS', name: 'Operations' },
+];
+
+/** Points the extension at the stubs; each tracker given is also set up (key, notice seen, default destination). */
+async function configureTrackers(sw: Worker, set: { github?: GithubStub; linear?: LinearStub; team?: string }) {
+  await sw.evaluate(
+    async ({ github, linear, team, token, key }) => {
+      const stored = await chrome.storage.local.get(['devOverrides']);
+      await chrome.storage.local.set({
+        devOverrides: {
+          ...(stored.devOverrides ?? {}),
+          ...(github ? { githubBaseUrl: github } : {}),
+          ...(linear ? { linearBaseUrl: linear } : {}),
+        },
+        ...(github ? { githubToken: token, githubNoticeShown: true } : {}),
+        ...(linear ? { linearToken: key, linearNoticeShown: true } : {}),
+        trackerSettings: {
+          github: { repo: github ? 'acme/web' : '' },
+          ...(linear ? { linear: { team } } : {}),
+        },
+      });
+    },
+    {
+      github: set.github?.baseURL ?? null,
+      linear: set.linear?.baseURL ?? null,
+      team: set.team ?? 'team-web',
+      token: TOKEN,
+      key: LINEAR_KEY,
+    },
+  );
+}
+
+/** The part of a card that sends to one tracker. */
+const row = (review: Page, itemId: string, tracker: string) =>
+  card(review, itemId).locator(`[data-testid="send-to-tracker"][data-tracker="${tracker}"]`);
+
+/** Records every progress text the bulk bar shows, in order, in `window.__progress`. */
+async function recordProgress(review: Page) {
+  await review.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { __progress: string[] }).__progress = seen;
+    new MutationObserver(() => {
+      const text = document.querySelector('[data-testid="bulk-progress"]')?.textContent?.trim();
+      if (text && seen.at(-1) !== text) seen.push(text);
+    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
+}
+const progressSeen = (review: Page) =>
+  review.evaluate(() => (window as unknown as { __progress: string[] }).__progress);
+
+test('Linear settings: a masked key, a one-time notice, the teams the key sees, and a Test that says a rejected key does not work', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  const stub = await startLinearStub({ key: LINEAR_KEY, teams: TEAMS });
+  try {
+    await serviceWorker.evaluate(
+      (base) => chrome.storage.local.set({ devOverrides: { linearBaseUrl: base } }),
+      stub.baseURL,
+    );
+    const options = await openExtensionPage('options.html');
+    await options.getByTestId('linear-token').fill(LINEAR_KEY);
+    await options.getByTestId('save-linear-token').click();
+    const notice = options.getByTestId('linear-notice');
+    await expect(notice).toContainText('What goes to Linear');
+    await notice.getByRole('button', { name: 'Got it' }).click();
+    await expect(notice).toHaveCount(0);
+    await expect(options.getByTestId('linear-token')).toHaveValue('');
+    await expect(options.getByTestId('linear-token-saved')).toHaveText('Saved: lin_api…_key');
+    expect(await options.locator('body').innerText()).not.toContain(LINEAR_KEY);
+
+    // The default team is picked from what the key sees.
+    const team = options.getByTestId('linear-destination');
+    await expect(team.locator('option')).toHaveText(['Pick one', 'Web (WEB)', 'Operations (OPS)']);
+    await team.selectOption('team-web');
+    await expect
+      .poll(() =>
+        serviceWorker.evaluate(async () => (await chrome.storage.local.get('trackerSettings')).trackerSettings),
+      )
+      .toEqual({ github: { repo: '' }, linear: { team: 'team-web' } });
+    await options.getByTestId('test-linear').click();
+    const result = options.getByTestId('linear-test-result');
+    await expect(result.locator('[data-check="token"]')).toContainText('The key works');
+    await expect(result.locator('[data-check="team"]')).toHaveText('OK: Web is reachable.');
+    await expect(result.locator('[data-check="uploads"]')).toHaveText('OK: The key can store screenshots.');
+
+    // A key the stub rejects: plain words, and how to make a new one. The notice does not come back.
+    await options.getByTestId('linear-token').fill('lin_api_WRONG');
+    await options.getByTestId('save-linear-token').click();
+    await expect(options.locator('#trackers').getByRole('status')).toHaveText('Linear API key saved.');
+    await expect(options.getByTestId('linear-notice')).toHaveCount(0);
+    await options.getByTestId('test-linear').click();
+    await expect(options.getByTestId('linear-test-result')).toContainText("Linear didn't accept this key");
+    await expect(options.getByTestId('linear-test-result')).toContainText('Make a new personal API key');
+    // The GitHub block is unchanged beside it.
+    await expect(options.getByTestId('github-token')).toBeVisible();
+  } finally {
+    await stub.close();
+  }
+});
+
+test('Send to Linear uploads each screenshot, then creates the issue in the team with the asset URLs, and shows its workflow state', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(90_000);
+  const stub = await startLinearStub({ key: LINEAR_KEY, teams: TEAMS });
+  try {
+    await configureTrackers(serviceWorker, { linear: stub });
+    const review = await openReview(openExtensionPage);
+    const first = card(review, 'item_0001');
+    await expect(first.getByTestId('send-to-linear')).toHaveText('Send to Linear');
+    await first.getByTestId('send-to-linear').click();
+    await expect(first.getByTestId('tracker-link')).toHaveText('Linear WEB-1');
+    await expect(first.getByTestId('tracker-link')).toHaveAttribute('href', 'https://linear.app/acme/issue/WEB-1/stub');
+    await expect(first.getByTestId('tracker-status')).toHaveText('Todo');
+
+    // Three images (two screenshots and a crop): every fileUpload, then every PUT, then issueCreate.
+    expect(stub.requests.map((r) => r.operation).slice(0, 7)).toEqual([
+      'fileUpload',
+      'fileUpload',
+      'fileUpload',
+      'put',
+      'put',
+      'put',
+      'issueCreate',
+    ]);
+    for (const r of stub.requests.filter((x) => x.operation !== 'put'))
+      expect(r.headers.authorization, r.operation).toBe(LINEAR_KEY);
+    for (const r of stub.requests.filter((x) => x.operation === 'put'))
+      expect(r.headers.authorization, 'PUT to the signed URL').toBeUndefined();
+    expect(stub.uploads.map((u) => u.filename)).toEqual(['s-abc.png', 's-def.png', 's-abc.crop.png']);
+    expect(stub.uploads.every((u) => u.bytes && u.bytes.length === u.size)).toBe(true);
+    const input = stub.calls('issueCreate')[0]!.variables.input;
+    expect(input.teamId).toBe('team-web');
+    expect(input.title).toBe('Make the Get started button larger');
+    for (const u of stub.uploads) expect(input.description).toContain(u.assetUrl);
+    expect(input.description).toContain('Sent from InkUp · Pricing page review · item_0001');
+
+    // The workflow state's name is the badge.
+    for (const [state, badge] of [
+      [{ name: 'In Progress', type: 'started' }, 'In Progress'],
+      [{ name: 'Done', type: 'completed' }, 'Done'],
+      [{ name: 'Canceled', type: 'canceled' }, 'Canceled'],
+      [{ name: 'Todo', type: 'unstarted' }, 'Todo'],
+    ] as const) {
+      stub.setState('WEB-1', state);
+      await review.reload();
+      await expect(card(review, 'item_0001').getByTestId('tracker-line')).toHaveText(`Linear WEB-1 · ${badge}`);
+    }
+  } finally {
+    await stub.close();
+  }
+});
+
+test('each configured tracker gets its own send button and link, and the export lists one tracker_link per tracker', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(90_000);
+  const github = await startGithubStub({ token: TOKEN, repos: [{ full_name: 'acme/web' }] });
+  const linear = await startLinearStub({ key: LINEAR_KEY, teams: TEAMS });
+  try {
+    await configureTrackers(serviceWorker, { github, linear });
+    const review = await openReview(openExtensionPage);
+    const first = card(review, 'item_0001');
+    await expect(first.getByTestId('send-to-github')).toHaveText('Send to GitHub');
+    await expect(first.getByTestId('send-to-linear')).toHaveText('Send to Linear');
+
+    await first.getByTestId('send-to-github').click();
+    await expect(row(review, 'item_0001', 'github').getByTestId('tracker-link')).toHaveText('GitHub #1');
+    await expect(first.getByTestId('send-to-linear')).toBeVisible();
+    await first.getByTestId('send-to-linear').click();
+    await expect(row(review, 'item_0001', 'linear').getByTestId('tracker-link')).toHaveText('Linear WEB-1');
+    await expect(row(review, 'item_0001', 'github').getByTestId('tracker-link')).toHaveText('GitHub #1');
+    await expect(first.getByTestId('send-to-github')).toHaveCount(0);
+    await expect(first.getByTestId('send-to-linear')).toHaveCount(0);
+    // The other item has no link yet, and still offers both.
+    await expect(card(review, 'item_0002').getByTestId('send-to-linear')).toBeVisible();
+
+    const doc = await downloadSessionJson(review, serviceWorker);
+    const links = doc.change_items.find((i: { id: string }) => i.id === 'item_0001').tracker_links;
+    expect(links.map((l: { tracker: string }) => l.tracker).sort()).toEqual(['github', 'linear']);
+    expect(links.find((l: { tracker: string }) => l.tracker === 'linear')).toMatchObject({
+      destination: 'team-web',
+      key: 'WEB-1',
+      url: 'https://linear.app/acme/issue/WEB-1/stub',
+    });
+  } finally {
+    await github.close();
+    await linear.close();
+  }
+});
+
+test('the destination picker defaults to the saved team, lists the others, and applies to that send only', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(90_000);
+  const stub = await startLinearStub({ key: LINEAR_KEY, teams: TEAMS });
+  try {
+    await configureTrackers(serviceWorker, { linear: stub, team: 'team-web' });
+    const review = await openReview(openExtensionPage);
+    const first = card(review, 'item_0001');
+    await first.getByTestId('tracker-destination-toggle').click();
+    const picker = first.getByTestId('tracker-destination');
+    await expect(picker).toHaveValue('team-web');
+    await expect(picker.locator('option')).toHaveText(['Web (WEB)', 'Operations (OPS)']);
+    await picker.selectOption('team-ops');
+    await first.getByTestId('send-to-linear').click();
+    await expect(first.getByTestId('tracker-link')).toHaveText('Linear OPS-1');
+    expect(stub.calls('issueCreate')).toHaveLength(1);
+    expect(stub.calls('issueCreate')[0]!.variables.input.teamId).toBe('team-ops');
+
+    // The saved default is untouched, and the next item's picker opens on it.
+    const saved = await serviceWorker.evaluate(
+      async () => (await chrome.storage.local.get('trackerSettings')).trackerSettings,
+    );
+    expect(saved).toEqual({ github: { repo: '' }, linear: { team: 'team-web' } });
+    const second = card(review, 'item_0002');
+    await second.getByTestId('tracker-destination-toggle').click();
+    await expect(second.getByTestId('tracker-destination')).toHaveValue('team-web');
+    await second.getByTestId('send-to-linear').click();
+    await expect(second.getByTestId('tracker-link')).toHaveText('Linear WEB-1');
+    expect(stub.calls('issueCreate')[1]!.variables.input.teamId).toBe('team-web');
+  } finally {
+    await stub.close();
+  }
+});
+
+test('bulk send keeps going after a failure, never overlaps, and Retry sends the failed item', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(120_000);
+  const stub = await startLinearStub({ key: LINEAR_KEY, teams: TEAMS, issueCreateDelayMs: 300 });
+  try {
+    await configureTrackers(serviceWorker, { linear: stub });
+    const review = await openReview(openExtensionPage, 3);
+    stub.fail((req) =>
+      req.operation === 'issueCreate' && req.variables.input?.title === 'Tighten the pricing table'
+        ? { status: 400, body: { errors: [{ message: 'Boom', extensions: { code: 'INTERNAL' } }] } }
+        : undefined,
+    );
+    await recordProgress(review);
+
+    await review.getByTestId('bulk-send-linear').click();
+    const failed = review.getByTestId('bulk-failed');
+    await expect(failed).toBeVisible({ timeout: 30_000 });
+    await expect(review.getByTestId('bulk-progress')).toHaveText('Sent 2 of 3 to Linear. 1 failed.');
+    expect((await progressSeen(review)).filter((t) => t.startsWith('Sending'))).toEqual([
+      'Sending 1 of 3',
+      'Sending 2 of 3',
+      'Sending 3 of 3',
+    ]);
+    expect(stub.maxInFlightOf('issueCreate')).toBe(1);
+    expect(stub.issues.map((i) => i.title)).toEqual(['Make the Get started button larger', 'Align the footer links']);
+    await expect(card(review, 'item_0001').getByTestId('tracker-link')).toHaveText('Linear WEB-1');
+    await expect(card(review, 'item_0003').getByTestId('tracker-link')).toHaveText('Linear WEB-2');
+    await expect(failed.locator('li')).toHaveCount(1);
+    await expect(failed.locator('li[data-item-id="item_0002"]')).toContainText('Tighten the pricing table');
+    await expect(failed.getByTestId('bulk-retry')).toBeVisible();
+    await expect(card(review, 'item_0002').getByTestId('tracker-link')).toHaveCount(0);
+
+    stub.fail(null);
+    await failed.getByTestId('bulk-retry').click();
+    await expect(card(review, 'item_0002').getByTestId('tracker-link')).toHaveText('Linear WEB-3');
+    await expect(review.getByTestId('bulk-failed')).toHaveCount(0);
+    expect(stub.issues).toHaveLength(3);
+  } finally {
+    await stub.close();
+  }
+});
+
+test('bulk send skips deleted items and items already in that tracker, and counts only what it sends', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(120_000);
+  const github = await startGithubStub({ token: TOKEN, repos: [{ full_name: 'acme/web' }] });
+  const linear = await startLinearStub({ key: LINEAR_KEY, teams: TEAMS, issueCreateDelayMs: 300 });
+  try {
+    await configureTrackers(serviceWorker, { github, linear });
+    const review = await openReview(openExtensionPage, 4);
+    // item_0001 is in Linear, item_0002 only in GitHub, item_0003 is deleted, item_0004 is unsent.
+    await card(review, 'item_0001').getByTestId('send-to-linear').click();
+    await expect(row(review, 'item_0001', 'linear').getByTestId('tracker-link')).toHaveText('Linear WEB-1');
+    await card(review, 'item_0002').getByTestId('send-to-github').click();
+    await expect(row(review, 'item_0002', 'github').getByTestId('tracker-link')).toHaveText('GitHub #1');
+    await card(review, 'item_0003').getByTestId('delete-item').click();
+    await expect(review.getByTestId('change-item')).toHaveCount(3);
+
+    await recordProgress(review);
+    await review.getByTestId('bulk-send-linear').click();
+    await expect(review.getByTestId('bulk-progress')).toHaveText('Sent 2 of 2 to Linear', { timeout: 30_000 });
+    expect((await progressSeen(review)).filter((t) => t.startsWith('Sending'))).toEqual([
+      'Sending 1 of 2',
+      'Sending 2 of 2',
+    ]);
+    expect(linear.issues.map((i) => i.title)).toEqual([
+      'Make the Get started button larger',
+      'Tighten the pricing table',
+      'Rename the Pricing tab',
+    ]);
+    // item_0001 keeps its one Linear link, and item_0002 keeps its GitHub one beside the new Linear one.
+    await expect(row(review, 'item_0002', 'github').getByTestId('tracker-link')).toHaveText('GitHub #1');
+    await expect(row(review, 'item_0002', 'linear').getByTestId('tracker-link')).toHaveText('Linear WEB-2');
+    await expect(card(review, 'item_0001').getByTestId('tracker-link')).toHaveCount(1);
+    expect(github.repo('acme/web').issues).toHaveLength(1);
+    // Nothing is left unsent for Linear, so its bulk button is gone.
+    await expect(review.getByTestId('bulk-send-linear')).toHaveCount(0);
+  } finally {
+    await github.close();
+    await linear.close();
+  }
+});
+
+test('a rate-limited bulk send waits for retry-after and carries on, with no item failed', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(120_000);
+  const stub = await startLinearStub({ key: LINEAR_KEY, teams: TEAMS });
+  try {
+    await configureTrackers(serviceWorker, { linear: stub });
+    const review = await openReview(openExtensionPage, 3);
+    let creates = 0;
+    stub.fail((req) =>
+      req.operation === 'issueCreate' && ++creates === 2
+        ? { status: 429, body: {}, headers: { 'retry-after': '2' } }
+        : undefined,
+    );
+    await review.getByTestId('bulk-send-linear').click();
+    await expect(review.getByTestId('bulk-progress')).toContainText('asked to wait', { timeout: 30_000 });
+    await expect(review.getByTestId('bulk-progress')).toHaveText('Sent 3 of 3 to Linear', { timeout: 30_000 });
+    await expect(review.getByTestId('bulk-failed')).toHaveCount(0);
+    expect(stub.issues).toHaveLength(3);
+    // The second item was refused at the 429 and tried again about two seconds later.
+    const [, limited, retried] = stub.calls('issueCreate');
+    expect(retried!.at - limited!.at).toBeGreaterThanOrEqual(1800);
+    for (const id of ['item_0001', 'item_0002', 'item_0003'])
+      await expect(card(review, id).getByTestId('tracker-link')).toHaveCount(1);
   } finally {
     await stub.close();
   }

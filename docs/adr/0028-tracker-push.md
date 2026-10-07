@@ -79,6 +79,12 @@ so nothing stored can send a token anywhere but `https://api.github.com`.
 ## History
 
 - 2026-10-07: GitHub, end to end in the extension (spec 01, Unit 1).
+- 2026-10-07: Linear, bulk send and the per-send destination picker (spec 01, Unit 2). We thought each Client's UI
+  would name its trackers; now the trackers are data in `packages/core/src/trackers/registry.ts`, and the options
+  page, the send control and the bulk bar read it, so a new tracker adds an entry and no UI code. Linear uploads
+  images through `fileUpload`'s signed URL and records the team's id as the link's `destination`. A status can carry
+  the tracker's own state name, which the badge shows. A 403 or 429 with `retry-after` pauses a bulk send and retries
+  the same item.
 
 ## Sources
 

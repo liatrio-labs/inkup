@@ -8,7 +8,7 @@
 // where the extension points at it through the dev-only `linearBaseUrl` override.
 //
 // `fail` answers chosen requests with an error instead, until it is cleared. `issueCreateDelayMs` holds each
-// issueCreate open, so a test can see whether two overlapped (`maxInFlight`).
+// issueCreate open, so a test can see whether two overlapped (`maxInFlightOf`).
 import { createServer, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -25,6 +25,8 @@ export interface LinearStubRequest {
   variables: Record<string, any>;
   /** The upload's bytes (a PUT); empty otherwise. */
   bytes: Buffer;
+  /** When the stub received it (ms since the epoch). */
+  at: number;
 }
 
 export interface StubTeam {
@@ -77,8 +79,8 @@ export interface LinearStub {
   requests: LinearStubRequest[];
   issues: StubLinearIssue[];
   uploads: StubUpload[];
-  /** The most requests that were being answered at once. */
-  readonly maxInFlight: number;
+  /** The most requests of one operation that were being answered at once. */
+  maxInFlightOf(operation: LinearOperation): number;
   /** Moves an issue to a workflow state. */
   setState(identifier: string, state: StubWorkflowState): void;
   /** Answers the requests it matches with its reply instead; null clears it. */
@@ -117,8 +119,8 @@ export async function startLinearStub(options: LinearStubOptions = {}): Promise<
   const issues: StubLinearIssue[] = [];
   const uploads: StubUpload[] = [];
   let rule: ((req: LinearStubRequest) => StubReply | undefined) | null = null;
-  let inFlight = 0;
-  let maxInFlight = 0;
+  const inFlight = new Map<LinearOperation, number>();
+  const maxInFlight = new Map<LinearOperation, number>();
   let baseURL = '';
 
   const ok = (data: unknown): StubReply => ({ status: 200, body: { data } });
@@ -225,10 +227,12 @@ export async function startLinearStub(options: LinearStubOptions = {}): Promise<
         operation: operationOf(req.method ?? 'GET', path, query),
         variables,
         bytes: req.method === 'PUT' ? raw : Buffer.alloc(0),
+        at: Date.now(),
       };
       requests.push(entry);
-      inFlight++;
-      maxInFlight = Math.max(maxInFlight, inFlight);
+      const now = (inFlight.get(entry.operation) ?? 0) + 1;
+      inFlight.set(entry.operation, now);
+      maxInFlight.set(entry.operation, Math.max(maxInFlight.get(entry.operation) ?? 0, now));
       try {
         if (entry.operation === 'issueCreate' && options.issueCreateDelayMs)
           await new Promise((r) => setTimeout(r, options.issueCreateDelayMs));
@@ -237,7 +241,7 @@ export async function startLinearStub(options: LinearStubOptions = {}): Promise<
           .writeHead(reply.status, { 'content-type': 'application/json', ...CORS, ...(reply.headers ?? {}) })
           .end(reply.body === undefined ? '' : JSON.stringify(reply.body));
       } finally {
-        inFlight--;
+        inFlight.set(entry.operation, (inFlight.get(entry.operation) ?? 1) - 1);
       }
     });
   });
@@ -248,9 +252,7 @@ export async function startLinearStub(options: LinearStubOptions = {}): Promise<
     requests,
     issues,
     uploads,
-    get maxInFlight() {
-      return maxInFlight;
-    },
+    maxInFlightOf: (operation) => maxInFlight.get(operation) ?? 0,
     setState(identifier, state) {
       const issue = issues.find((i) => i.identifier === identifier);
       if (!issue) throw new Error(`stub has no issue ${identifier}`);
