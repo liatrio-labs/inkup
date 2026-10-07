@@ -70,7 +70,9 @@ interface Reply {
 }
 
 export function githubAdapter({ fetch: doFetch, baseUrl }: AdapterOptions): TrackerAdapter {
-  const base = baseUrl.replace(/\/+$/, '');
+  // Trailing slashes off, without a regex (`/\/+$/` backtracks on a long run of slashes).
+  let base = baseUrl;
+  while (base.endsWith('/')) base = base.slice(0, -1);
 
   async function call(credentials: TrackerCredentials, method: string, path: string, body?: unknown): Promise<Reply> {
     let res: Response;
