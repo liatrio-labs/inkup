@@ -40,7 +40,43 @@ fn actions() -> Vec<(&'static str, &'static str, Value)> {
         ("DELETE", "/api/host/tokens/agent-1", Value::Null),
         ("POST", "/api/host/network", json!({ "on": true })),
         ("POST", "/api/host/pairing/1", json!({ "decision": "deny" })),
+        ("GET", "/api/host/items/item-1", Value::Null),
+        ("GET", "/api/host/blobs/shot-1", Value::Null),
+        ("POST", "/api/host/items/item-1/tracker-links", tracker_link()),
     ]
+}
+
+/// The contract's fixture: GitHub issue #1 in acme/web.
+fn tracker_link() -> Value {
+    fixture("host-control/tracker-link.json")
+}
+
+/// A stored Session with the items fixture's first item, never sent: two Locations, and two screenshots stored as
+/// blobs. Answers its `item-<seq>` id and the first screenshot's bytes.
+fn stored_item(host: &Host) -> (String, Vec<u8>) {
+    let message = fixture("items.json");
+    let session = message["session_id"].as_str().unwrap();
+    let mut item = message["items"][0].clone();
+    item.as_object_mut().unwrap().remove("tracker_links");
+    item["evidence"]["screenshots"] = json!(["shot-1", "shot-2"]);
+    let seq = host.store.put_items(None, session, message["run_id"].as_str().unwrap(), &[item]).unwrap().added[0];
+    let mut first = Vec::new();
+    for (id, bytes) in [("shot-1", b"\x89PNG first".to_vec()), ("shot-2", b"\x89PNG second".to_vec())] {
+        let upload = host.store.blob_upload_path().unwrap();
+        std::fs::create_dir_all(upload.parent().unwrap()).unwrap();
+        std::fs::write(&upload, &bytes).unwrap();
+        host.store.commit_blob(id, Some(session), "image/png", upload).unwrap();
+        if first.is_empty() {
+            first = bytes;
+        }
+    }
+    (format!("item-{seq}"), first)
+}
+
+/// What the Host recorded for an item, apart from what its body carries.
+fn recorded_links(host: &Host, id: &str) -> usize {
+    let seq = id.trim_start_matches("item-").parse().unwrap();
+    host.store.item(seq).unwrap().unwrap().tracker_links.len()
 }
 
 async fn get(url: &str, token: Option<&str>) -> reqwest::Response {
@@ -158,6 +194,71 @@ async fn another_machine_is_refused_even_with_the_control_token() {
     }
     // Paths the router does not know are refused before routing too.
     assert_eq!(get(&host.url("/api/host/nothing-here"), Some(TOKEN)).await.status(), 403);
+}
+
+/// R4.3: the three tracker routes refuse another machine like the rest, and a refused write records nothing.
+#[tokio::test]
+async fn the_tracker_routes_refuse_another_machine_and_record_nothing() {
+    let host =
+        Host::start_with(Config { every_peer_is_remote: true, control: control(None), ..Config::default() }).await;
+    let (id, _) = stored_item(&host);
+    assert_eq!(get(&host.url(&format!("/api/host/items/{id}")), Some(TOKEN)).await.status(), 403);
+    assert_eq!(get(&host.url("/api/host/blobs/shot-1"), Some(TOKEN)).await.status(), 403);
+    let url = host.url(&format!("/api/host/items/{id}/tracker-links"));
+    assert_eq!(send_json("POST", &url, Some(TOKEN), tracker_link()).await.status(), 403);
+    assert_eq!(recorded_links(&host, &id), 0);
+}
+
+/// R4.3, R4.4: the full item with its Locations, evidence and (no) links, one of its screenshots, then a link
+/// recorded and read back, in the item and in the window's state. Each JSON answer decodes as the contract says.
+#[tokio::test]
+async fn a_full_item_its_screenshot_and_a_tracker_link_go_through_the_control_api() {
+    use inkup_protocol::control::FullItem;
+    let host = Host::start_with(Config { control: control(None), ..Config::default() }).await;
+    let (id, shot) = stored_item(&host);
+    let item_url = host.url(&format!("/api/host/items/{id}"));
+
+    let response = get(&item_url, Some(TOKEN)).await;
+    assert_eq!(response.status(), 200);
+    let full: Value = response.json().await.unwrap();
+    serde_json::from_value::<FullItem>(full.clone()).unwrap();
+    assert_eq!(full["id"], id);
+    assert_eq!(full["item"]["id"], "item_0001");
+    assert_eq!(full["item"]["locations"].as_array().unwrap().len(), 2);
+    assert_eq!(full["item"]["evidence"]["screenshots"], json!(["shot-1", "shot-2"]));
+    assert_eq!(full["item"]["tracker_links"], json!([]));
+    assert_eq!(full["withdrawn"], false);
+
+    let blob = get(&host.url("/api/host/blobs/shot-1"), Some(TOKEN)).await;
+    assert_eq!(blob.status(), 200);
+    assert_eq!(blob.headers()["content-type"], "image/png");
+    assert_eq!(blob.bytes().await.unwrap().to_vec(), shot);
+    assert_eq!(get(&host.url("/api/host/blobs/nope"), Some(TOKEN)).await.status(), 404);
+
+    let links = format!("{item_url}/tracker-links");
+    let recorded = send_json("POST", &links, Some(TOKEN), tracker_link()).await;
+    assert_eq!(recorded.status(), 200);
+    let answered: Value = recorded.json().await.unwrap();
+    assert_eq!(answered["item"]["tracker_links"], json!([tracker_link()]));
+    // Sent again with the same issue: still one link.
+    send_json("POST", &links, Some(TOKEN), tracker_link()).await;
+    let again: Value = get(&item_url, Some(TOKEN)).await.json().await.unwrap();
+    serde_json::from_value::<FullItem>(again.clone()).unwrap();
+    assert_eq!(again["item"]["tracker_links"], json!([tracker_link()]));
+    let state = state_of(&host).await;
+    assert_eq!(state["state"]["items"][0]["tracker_links"], json!([tracker_link()]));
+
+    // Refused: not a web page, a tracker InkUp does not know, an item that is not there.
+    let mut script = tracker_link();
+    script["url"] = json!("javascript:alert(1)");
+    assert_eq!(send_json("POST", &links, Some(TOKEN), script).await.status(), 400);
+    let mut unknown = tracker_link();
+    unknown["tracker"] = json!("trello");
+    assert_eq!(send_json("POST", &links, Some(TOKEN), unknown).await.status(), 400);
+    let missing = host.url("/api/host/items/item-999/tracker-links");
+    assert_eq!(send_json("POST", &missing, Some(TOKEN), tracker_link()).await.status(), 404);
+    assert_eq!(get(&host.url("/api/host/items/item-999"), Some(TOKEN)).await.status(), 404);
+    assert_eq!(recorded_links(&host, &id), 1);
 }
 
 #[tokio::test]

@@ -1,6 +1,7 @@
 // The window: what the TUI shows and does, from the host through the app's commands. The header (where the host
 // is, host or client mode, network mode, the menu bar and Dock), the banners (network warning, update, host lost),
-// the six views and the pairing prompt, and Install CLI on macOS. It refetches when the host changes (a long-poll), not on a timer.
+// the six views, Trackers (where Items sends Change Items) and the pairing prompt, and Install CLI on macOS. It
+// refetches when the host changes (a long-poll), not on a timer.
 // shadcn/ui and @inkup/ui components only (ADR 0029).
 
 import {
@@ -76,6 +77,7 @@ import {
   uninstallCli,
   VIEW_EVENT,
 } from './host';
+import { TrackersView } from './trackers';
 import { AgentsView, ClientsView, type Command, ItemsView, SessionsView, TimelineView, TokensView } from './Views';
 
 /** Changes close together make one refetch. */
@@ -83,7 +85,7 @@ const REFETCH_MS = 150;
 /** After the host did not answer, before asking again. */
 const RETRY_MS = 1000;
 
-export const TABS = ['clients', 'sessions', 'timeline', 'items', 'agents', 'tokens'] as const;
+export const TABS = ['clients', 'sessions', 'timeline', 'items', 'agents', 'tokens', 'trackers'] as const;
 type Tab = (typeof TABS)[number];
 
 export function App() {
@@ -244,6 +246,7 @@ export function App() {
     items: host?.state.items.length ?? null,
     agents: host?.state.watchers.length ?? null,
     tokens: host?.state.agent_tokens.length ?? null,
+    trackers: null,
   };
   const prompt = host?.pending_pairing.find((p) => !answered.includes(p.id));
 
@@ -353,6 +356,9 @@ export function App() {
               </TabsContent>
             </>
           )}
+          <TabsContent value="trackers">
+            <TrackersView />
+          </TabsContent>
         </Tabs>
 
         <AlertDialog open={asking !== null} onOpenChange={(open) => !open && setAsking(null)}>
@@ -397,6 +403,7 @@ const TAB_TITLE: Record<Tab, string> = {
   items: 'Items',
   agents: 'Agents',
   tokens: 'Tokens',
+  trackers: 'Trackers',
 };
 
 /** What a command did, once its Client said ok. */

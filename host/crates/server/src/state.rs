@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use inkup_store::fields::Fields;
-use inkup_store::{AgentToken, Item, ItemFilter, ItemStatus, SessionOverview, Store, StoreError};
+use inkup_store::{AgentToken, Item, ItemFilter, ItemStatus, SessionOverview, Store, StoreError, TrackerLink};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -75,6 +75,8 @@ pub struct ItemView {
     /// When the latest resolution was made (epoch ms): for In work, since when.
     pub since: Option<i64>,
     pub prompt: String,
+    /// The issues it was sent to (ADR 0028), oldest first.
+    pub tracker_links: Vec<TrackerLink>,
 }
 
 /// Reads the state. `timeline_session` picks the Session whose timeline to include.
@@ -127,6 +129,7 @@ pub(crate) fn item_view(item: &Item) -> ItemView {
         agent: item.resolution.as_ref().and_then(|r| r.agent.clone()),
         since: item.resolution.as_ref().map(|r| r.created_at),
         prompt: body.text("agent_prompt"),
+        tracker_links: item.tracker_links.clone(),
     }
 }
 

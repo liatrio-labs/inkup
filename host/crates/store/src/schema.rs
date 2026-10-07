@@ -127,6 +127,23 @@ const MIGRATIONS: &[&str] = &[
     r"
     ALTER TABLE clients ADD COLUMN protocol_version INTEGER;
     ",
+    // 6: tracker push (ADR 0028). A link the desktop app recorded after sending an item to a tracker, through the
+    // control API. Kept apart from the item's body, which the Client's next push replaces; the item reads both. One
+    // row per issue url, so recording a link twice keeps one.
+    r"
+    CREATE TABLE tracker_links (
+        seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_seq     INTEGER NOT NULL REFERENCES items(seq),
+        tracker      TEXT NOT NULL,
+        destination  TEXT NOT NULL,
+        key          TEXT NOT NULL,
+        url          TEXT NOT NULL,
+        created_at   TEXT NOT NULL,
+        recorded_at  INTEGER NOT NULL,
+        UNIQUE (item_seq, url)
+    );
+    CREATE INDEX tracker_links_by_item ON tracker_links(item_seq, seq);
+    ",
 ];
 
 pub(crate) fn known_version() -> i64 {

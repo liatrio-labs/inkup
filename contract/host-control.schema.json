@@ -438,6 +438,13 @@
         },
         "prompt": {
           "type": "string"
+        },
+        "tracker_links": {
+          "description": "the issues it was sent to, oldest first; absent from a Host that does not record them",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TrackerLink"
+          }
         }
       },
       "required": [
@@ -451,6 +458,142 @@
         "since",
         "prompt"
       ]
+    },
+    "TrackerLink": {
+      "type": "object",
+      "properties": {
+        "tracker": {
+          "type": "string",
+          "enum": [
+            "github",
+            "linear",
+            "jira"
+          ]
+        },
+        "destination": {
+          "type": "string",
+          "minLength": 1,
+          "description": "where the issue was created: owner/repo on GitHub"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "the tracker's short name for the issue, e.g. #142"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "the issue's web page: http or https"
+        },
+        "created_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "when it was sent, ISO 8601"
+        }
+      },
+      "required": [
+        "tracker",
+        "destination",
+        "key",
+        "url",
+        "created_at"
+      ],
+      "description": "an issue a Change Item was sent to (ADR 0028); the body of POST /api/host/items/{id}/tracker-links. Its status is read from the tracker, never stored"
+    },
+    "StoredItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "item_0001, …: its id within its Process run"
+        },
+        "title": {
+          "type": "string"
+        },
+        "locations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {}
+          },
+          "description": "where it is (packages/core change-item.ts Location)"
+        },
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "screenshots": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "ids of every screenshot that shows it"
+            }
+          },
+          "required": [
+            "screenshots"
+          ],
+          "additionalProperties": {},
+          "description": "its screenshots, element crops and video range"
+        },
+        "tracker_links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TrackerLink"
+          },
+          "description": "the issues it was sent to, oldest first: the links its Client sent and those recorded here"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "locations",
+        "evidence",
+        "tracker_links"
+      ],
+      "additionalProperties": {},
+      "description": "a Change Item as its Client sent it (packages/core change-item.ts), with every tracker link"
+    },
+    "FullItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "item-<seq>, as agents see it"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "session_name": {
+          "type": "string",
+          "description": "the Session's latest name, else its page title, else its url"
+        },
+        "run_id": {
+          "type": "string",
+          "description": "the Process run it comes from"
+        },
+        "status": {
+          "$ref": "#/definitions/ItemStatus"
+        },
+        "withdrawn": {
+          "type": "boolean",
+          "description": "no longer among its Session's current items"
+        },
+        "item": {
+          "$ref": "#/definitions/StoredItem"
+        }
+      },
+      "required": [
+        "id",
+        "session_id",
+        "session_name",
+        "run_id",
+        "status",
+        "withdrawn",
+        "item"
+      ],
+      "description": "GET /api/host/items/{id}, and the answer to POST /api/host/items/{id}/tracker-links"
     },
     "Watcher": {
       "type": "object",

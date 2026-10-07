@@ -1,149 +1,178 @@
-// Options: Trackers (ADR 0028). A GitHub fine-grained token, saved to storage.local only and shown back masked; the
-// default repo Change Items are sent to, picked from the repos the token sees; and a Test that checks the token, the
-// repo, its issues and that the token can store screenshots there, naming any permission it lacks. The first time a
-// token is saved, a notice says what goes to GitHub. Self-contained: options/App.tsx mounts it with one line.
-import type { Destination, TestResult } from '@inkup/core/trackers';
+// Options: Trackers (ADR 0028). For each tracker defined in core (TRACKERS), the credentials it needs, saved to
+// storage.local only and a secret shown back masked; the default destination (a repo, a team) picked from what the
+// credentials can see; and a Test that checks them against it, naming what is missing. The first time a tracker's
+// credentials are saved, a notice says what goes to it. Self-contained: options/App.tsx mounts it with one line. The
+// words and the fields come from core's registry, so a new tracker adds no code here.
+import type { Destination, TestResult, TrackerCredentials, TrackerField } from '@inkup/core/trackers';
 import { useEffect, useState } from 'react';
 import { TONE } from '@/components/tone';
 import { Button } from '@/components/ui/button';
-import { githubHere } from '@/lib/trackers';
+import {
+  KNOWN_TRACKERS,
+  saveDestination,
+  type TrackerStore,
+  trackerAdapter,
+  trackerCredentials,
+  watchTracker,
+} from '@/lib/trackers';
 import { useStorageItem } from '@/lib/use-storage-item';
 import { cn } from '@/lib/utils';
-import { githubNoticeShown, githubToken, trackerSettings } from '@/settings';
+import { devOverrides, trackerSettings } from '@/settings';
+import { JiraIssueType } from './jira-issue-type';
 
-const mask = (token: string) => (token.length > 12 ? `${token.slice(0, 7)}…${token.slice(-4)}` : 'saved');
+const mask = (secret: string) => (secret.length > 12 ? `${secret.slice(0, 7)}…${secret.slice(-4)}` : 'saved');
 
-/** The repo list: loaded, failed (type the repo instead), or not asked for (no token). */
-type Repos = Destination[] | 'loading' | { error: string } | null;
+/** The destination list: loaded, failed (type it instead), or not asked for (nothing saved yet). */
+type Destinations = Destination[] | 'loading' | { error: string } | null;
 type Test = TestResult | 'running' | { error: string } | null;
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+type Known = (typeof KNOWN_TRACKERS)[number];
+
 export function TrackersSection() {
-  const saved = useStorageItem(githubToken);
+  return (
+    <section aria-labelledby="trackers-heading" id="trackers" className="flex scroll-mt-4 flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h2 id="trackers-heading" className="text-base font-semibold">
+          Trackers
+        </h2>
+        <p className="text-muted-foreground">
+          Send a Change Item from the review page to your team's tracker as one issue, with its screenshots. What you
+          enter stays in this browser.
+        </p>
+      </div>
+      {KNOWN_TRACKERS.map((known) => (
+        <TrackerBlock key={known.def.tracker} known={known} />
+      ))}
+      <JiraIssueType />
+    </section>
+  );
+}
+
+/** The credentials saved for a tracker: `undefined` until read, null while a field is missing. */
+function useCredentials(tracker: Known['def']['tracker']): TrackerCredentials | null | undefined {
+  const [credentials, setCredentials] = useState<TrackerCredentials | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    const read = () => void trackerCredentials(tracker).then((c) => alive && setCredentials(c));
+    read();
+    const stop = watchTracker(tracker, read);
+    return () => {
+      alive = false;
+      stop();
+    };
+  }, [tracker]);
+  return credentials;
+}
+
+function TrackerBlock({ known: { def, store } }: { known: Known }) {
+  const id = def.tracker;
   const settings = useStorageItem(trackerSettings);
-  const [draft, setDraft] = useState('');
+  const credentials = useCredentials(id);
   const [notice, setNotice] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [repos, setRepos] = useState<Repos>(null);
+  const [destinations, setDestinations] = useState<Destinations>(null);
   const [test, setTest] = useState<Test>(null);
-  const token = saved?.trim() ?? '';
-  const repo = settings?.github.repo ?? '';
+  const destination = settings ? store.destination.get(settings) : '';
+  // The list is asked for again when the credentials change, not on every render.
+  const credentialKey = credentials ? JSON.stringify(credentials) : '';
 
-  // A saved token lists the repos it can see; a new or removed token asks again.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: credentialKey stands for the credentials
   useEffect(() => {
-    if (!token) {
-      setRepos(null);
+    if (!credentials) {
+      setDestinations(null);
       return;
     }
     let alive = true;
-    setRepos('loading');
-    void githubHere()
-      .then((github) => github.listDestinations({ token }))
+    setDestinations('loading');
+    void trackerAdapter(id)
+      .then((adapter) => adapter.listDestinations(credentials))
       .then(
-        (list) => alive && setRepos(list),
-        (e: unknown) => alive && setRepos({ error: errorText(e) }),
+        (list) => alive && setDestinations(list),
+        (e: unknown) => alive && setDestinations({ error: errorText(e) }),
       );
     return () => {
       alive = false;
     };
-  }, [token]);
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    const next = draft.trim();
-    if (!next) return;
-    await githubToken.setValue(next);
-    if (!(await githubNoticeShown.getValue())) {
-      setNotice(true);
-      await githubNoticeShown.setValue(true);
-    }
-    setDraft('');
-    setTest(null);
-    setStatus('GitHub token saved.');
-  }
-
-  async function remove() {
-    await githubToken.setValue('');
-    setTest(null);
-    setStatus('GitHub token removed.');
-  }
-
-  async function pickRepo(next: string) {
-    await trackerSettings.setValue({ ...(settings ?? { github: { repo: '' } }), github: { repo: next.trim() } });
-    setTest(null);
-  }
+  }, [id, credentialKey]);
 
   async function runTest() {
+    if (!credentials) return;
     setTest('running');
     try {
-      setTest(await (await githubHere()).test({ token }, repo));
+      setTest(await (await trackerAdapter(id)).test(credentials, destination));
     } catch (e) {
       setTest({ error: errorText(e) });
     }
   }
 
-  const listed = Array.isArray(repos) ? repos : null;
+  async function pick(next: string) {
+    await saveDestination(id, next);
+    setTest(null);
+  }
+
+  const listed = Array.isArray(destinations) ? destinations : null;
+  const inputId = `${id}-destination`;
   return (
-    <section aria-labelledby="trackers-heading" id="trackers" className="flex scroll-mt-4 flex-col gap-4">
-      <h2 id="trackers-heading" className="text-base font-semibold">
-        Trackers
-      </h2>
-      <p className="text-muted-foreground">
-        Send a Change Item from the review page to GitHub Issues as one issue, with its screenshots. Use a fine-grained
-        personal access token with Issues (read and write), Contents (read and write) and Metadata (read) on the repos
-        you send to. It stays in this browser.
-      </p>
+    <div className="flex flex-col gap-3" data-testid={`tracker-${id}`}>
+      <h3 className="font-medium">{def.label}</h3>
+      <p className="text-muted-foreground">{def.help}</p>
 
-      {notice && <GithubNotice onClose={() => setNotice(false)} />}
-
-      <form onSubmit={save} className="flex flex-col gap-1">
-        <label htmlFor="github-token-input" className="font-medium">
-          GitHub token
-        </label>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            id="github-token-input"
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            data-testid="github-token"
-            className="min-w-0 flex-1 rounded-md border px-3 py-2 font-mono"
-            placeholder={token ? `Saved (${mask(token)}). Paste a new token to replace it.` : 'github_pat_…'}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-          />
-          <Button type="submit" disabled={!draft.trim()} data-testid="save-github-token">
-            Save
-          </Button>
-          {token && (
-            <Button type="button" variant="ghost" onClick={remove} data-testid="remove-github-token">
-              Remove token
+      {notice && (
+        <div
+          role="alert"
+          data-testid={`${id}-notice`}
+          className={cn('flex flex-col gap-2 rounded-lg border p-4', TONE.noteBorder, TONE.note)}
+        >
+          <p className="font-medium">{def.notice.title}</p>
+          <p>{def.notice.body}</p>
+          <div>
+            <Button variant="outline" size="sm" onClick={() => setNotice(false)}>
+              Got it
             </Button>
-          )}
+          </div>
         </div>
-        {token && (
-          <span className="text-muted-foreground" data-testid="github-token-saved">
-            Saved: {mask(token)}
-          </span>
-        )}
-      </form>
+      )}
+
+      {def.fields.map((field) => (
+        <FieldForm
+          key={field.id}
+          tracker={id}
+          field={field}
+          store={store}
+          onSaved={async () => {
+            if (!(await store.noticeShown.getValue())) {
+              setNotice(true);
+              await store.noticeShown.setValue(true);
+            }
+            setTest(null);
+            setStatus(`${field.label} saved.`);
+          }}
+          onRemoved={() => {
+            setTest(null);
+            setStatus(`${field.label} removed.`);
+          }}
+        />
+      ))}
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="github-repo" className="font-medium">
-          Default repo
+        <label htmlFor={inputId} className="font-medium">
+          {def.destinationLabel}
         </label>
         <div className="flex flex-wrap items-center gap-2">
           {listed ? (
             <select
-              id="github-repo"
-              data-testid="github-repo"
+              id={inputId}
+              data-testid={inputId}
               className="min-w-0 flex-1 rounded-md border px-3 py-2 font-mono"
-              value={repo}
-              onChange={(e) => void pickRepo(e.target.value)}
+              value={destination}
+              onChange={(e) => void pick(e.target.value)}
             >
-              <option value="">Pick a repo</option>
-              {repo && !listed.some((d) => d.id === repo) && <option value={repo}>{repo}</option>}
+              <option value="">Pick one</option>
+              {destination && !listed.some((d) => d.id === destination) && (
+                <option value={destination}>{destination}</option>
+              )}
               {listed.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -152,52 +181,137 @@ export function TrackersSection() {
             </select>
           ) : (
             <input
-              id="github-repo"
-              data-testid="github-repo"
+              id={inputId}
+              data-testid={inputId}
               className="min-w-0 flex-1 rounded-md border px-3 py-2 font-mono"
-              placeholder="owner/repo"
-              disabled={!token}
-              defaultValue={repo}
-              key={repo}
-              onBlur={(e) => void pickRepo(e.target.value)}
+              placeholder={def.destinationPlaceholder}
+              disabled={!credentials}
+              defaultValue={destination}
+              key={destination}
+              onBlur={(e) => void pick(e.target.value)}
             />
           )}
           <Button
             type="button"
             variant="outline"
-            disabled={!token || !repo || test === 'running'}
+            disabled={!credentials || test === 'running'}
             onClick={runTest}
-            data-testid="test-github"
-            title="Checks the saved token against the default repo"
+            data-testid={`test-${id}`}
+            title={`Checks what you saved against ${def.label}`}
           >
             {test === 'running' ? 'Testing…' : 'Test'}
           </Button>
         </div>
         <span className="text-muted-foreground">
-          {!token
-            ? 'Save a token to pick from the repos it can see.'
-            : repos === 'loading'
-              ? 'Loading the repos this token can see…'
-              : repos && !Array.isArray(repos)
-                ? `Couldn't list the repos: ${repos.error} Type the repo as owner/repo instead.`
-                : 'Change Items you send go here. Screenshots are stored on its inkup-assets branch.'}
+          {!credentials
+            ? `Save your ${def.label} details to pick from what they can see.`
+            : destinations === 'loading'
+              ? `Loading what these ${def.label} details can see…`
+              : destinations && !Array.isArray(destinations)
+                ? `Couldn't load the list: ${destinations.error} You can type it instead.`
+                : 'Change Items you send go here, unless you pick another place when you send.'}
         </span>
-        {test && test !== 'running' && <TestLines test={test} />}
+        {test && test !== 'running' && <TestLines tracker={id} test={test} />}
       </div>
       {status && <p role="status">{status}</p>}
-    </section>
+    </div>
   );
 }
 
-function TestLines({ test }: { test: TestResult | { error: string } }) {
+/** One thing to enter: saved on its own, a secret shown back masked. */
+function FieldForm({
+  tracker,
+  field,
+  store,
+  onSaved,
+  onRemoved,
+}: {
+  tracker: string;
+  field: TrackerField;
+  store: TrackerStore;
+  onSaved: () => Promise<void>;
+  onRemoved: () => void;
+}) {
+  const item = store.fields[field.id]!;
+  const saved = (useStorageItem(item) ?? '').trim();
+  const [draft, setDraft] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
+  const inputId = `${tracker}-${field.id}-input`;
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const next = draft.trim();
+    if (!next) return;
+    // Some fields are checked first (Jira's site) and saved in their tidied form.
+    const prepared = store.prepare ? store.prepare(field.id, next, await devOverrides.getValue()) : { value: next };
+    if ('error' in prepared) {
+      setProblem(prepared.error);
+      return;
+    }
+    setProblem(null);
+    await item.setValue(prepared.value);
+    setDraft('');
+    await onSaved();
+  }
+
+  async function remove() {
+    await item.setValue('');
+    onRemoved();
+  }
+
+  const shown = field.secret ? mask(saved) : saved;
+  return (
+    <form onSubmit={save} className="flex flex-col gap-1">
+      <label htmlFor={inputId} className="font-medium">
+        {field.label}
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          id={inputId}
+          type={field.secret ? 'password' : 'text'}
+          autoComplete="off"
+          spellCheck={false}
+          data-testid={`${tracker}-${field.id}`}
+          className="min-w-0 flex-1 rounded-md border px-3 py-2 font-mono"
+          placeholder={saved ? `Saved (${shown}). Enter a new one to replace it.` : (field.placeholder ?? '')}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setProblem(null);
+          }}
+        />
+        <Button type="submit" disabled={!draft.trim()} data-testid={`save-${tracker}-${field.id}`}>
+          Save
+        </Button>
+        {saved && (
+          <Button type="button" variant="ghost" onClick={remove} data-testid={`remove-${tracker}-${field.id}`}>
+            Remove
+          </Button>
+        )}
+      </div>
+      {problem && (
+        <span role="alert" className="text-destructive" data-testid={`${tracker}-${field.id}-error`}>
+          {problem}
+        </span>
+      )}
+      {saved && (
+        <span className="text-muted-foreground" data-testid={`${tracker}-${field.id}-saved`}>
+          Saved: {shown}
+        </span>
+      )}
+    </form>
+  );
+}
+
+function TestLines({ tracker, test }: { tracker: string; test: TestResult | { error: string } }) {
   if ('error' in test)
     return (
-      <p className="text-destructive" data-testid="github-test-result">
+      <p className="text-destructive" data-testid={`${tracker}-test-result`}>
         {test.error}
       </p>
     );
   return (
-    <ul className="flex flex-col gap-0.5" data-testid="github-test-result" data-ok={test.ok}>
+    <ul className="flex flex-col gap-0.5" data-testid={`${tracker}-test-result`} data-ok={test.ok}>
       {test.checks.map((c) => (
         <li key={c.id} data-check={c.id} data-ok={c.ok} className={c.ok ? TONE.okText : 'text-destructive'}>
           {c.ok ? 'OK: ' : 'Problem: '}
@@ -205,28 +319,5 @@ function TestLines({ test }: { test: TestResult | { error: string } }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-function GithubNotice({ onClose }: { onClose: () => void }) {
-  return (
-    <div
-      role="alert"
-      data-testid="github-notice"
-      className={cn('flex flex-col gap-2 rounded-lg border p-4', TONE.noteBorder, TONE.note)}
-    >
-      <p className="font-medium">What goes to GitHub</p>
-      <p>
-        Nothing is sent until you press Send on a Change Item. Then its text (title, intent, where it is, what you said,
-        the agent prompt) goes to GitHub as a new issue in the repo you picked, and its screenshots and element
-        close-ups are committed to that repo's inkup-assets branch. Anyone who can read the repo can see those
-        screenshots, so pick a private repo for anything private.
-      </p>
-      <div>
-        <Button variant="outline" size="sm" onClick={onClose}>
-          Got it
-        </Button>
-      </div>
-    </div>
   );
 }

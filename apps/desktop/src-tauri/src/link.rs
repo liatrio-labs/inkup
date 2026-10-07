@@ -5,7 +5,8 @@
 use std::time::Duration;
 
 use inkup_protocol::control::{
-    Activated, Changes, CommandOutcome, CommandRequest, ControlState, NetworkSwitched, NewToken, PairingAnswer,
+    Activated, Changes, CommandOutcome, CommandRequest, ControlState, FullItem, NetworkSwitched, NewToken,
+    PairingAnswer, TrackerLink,
 };
 use inkup_store::instance::HostInfo;
 
@@ -18,6 +19,17 @@ pub enum LinkError {
     Unreachable(#[from] reqwest::Error),
     #[error("the InkUp host refused ({status}): {body}")]
     Refused { status: u16, body: String },
+    #[error("{0:?} is not an id the InkUp host gives out")]
+    BadId(String),
+}
+
+/// An id that goes into a path as it is: letters, digits, `.`, `_` and `-`, and never `.` or `..` alone.
+fn path_id(id: &str) -> Result<&str, LinkError> {
+    let plain = !id.is_empty()
+        && id != "."
+        && id != ".."
+        && id.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'));
+    if plain { Ok(id) } else { Err(LinkError::BadId(id.to_owned())) }
 }
 
 #[derive(Debug, Clone)]
@@ -127,6 +139,33 @@ impl HostLink {
         Ok(())
     }
 
+    /// `GET /api/host/items/{id}`: one stored Change Item in full, with its tracker links.
+    pub async fn item(&self, id: &str) -> Result<FullItem, LinkError> {
+        let request = self.http.get(self.url(&format!("/api/host/items/{}", path_id(id)?))).bearer_auth(&self.token);
+        Ok(checked(request.send().await?).await?.json().await?)
+    }
+
+    /// `GET /api/host/blobs/{id}`: a screenshot's bytes.
+    pub async fn blob(&self, id: &str) -> Result<Vec<u8>, LinkError> {
+        let request = self
+            .http
+            .get(self.url(&format!("/api/host/blobs/{}", path_id(id)?)))
+            .bearer_auth(&self.token)
+            // A large screenshot over loopback still takes a moment.
+            .timeout(Duration::from_secs(30));
+        Ok(checked(request.send().await?).await?.bytes().await?.to_vec())
+    }
+
+    /// `POST /api/host/items/{id}/tracker-links`: records the issue the item became, and answers the item.
+    pub async fn record_tracker_link(&self, id: &str, link: &TrackerLink) -> Result<FullItem, LinkError> {
+        let request = self
+            .http
+            .post(self.url(&format!("/api/host/items/{}/tracker-links", path_id(id)?)))
+            .bearer_auth(&self.token)
+            .json(link);
+        Ok(checked(request.send().await?).await?.json().await?)
+    }
+
     fn url(&self, path: &str) -> String {
         format!("http://127.0.0.1:{}{path}", self.port)
     }
@@ -139,4 +178,19 @@ async fn checked(response: reqwest::Response) -> Result<reqwest::Response, LinkE
     }
     let body = response.text().await.unwrap_or_default();
     Err(LinkError::Refused { status: status.as_u16(), body })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::path_id;
+
+    #[test]
+    fn ids_go_into_paths_only_when_plain() {
+        for id in ["item-12", "shot-1", "shot-1.crop", "3f6c1d2e-8a4b-4c7e-9f10-2b5d6e7a8c90"] {
+            assert_eq!(path_id(id).unwrap(), id);
+        }
+        for id in ["", ".", "..", "../state", "item-1/tracker-links", "a?b", "a b"] {
+            assert!(path_id(id).is_err(), "{id:?}");
+        }
+    }
 }

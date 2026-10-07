@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.13.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.12.0...inkup-v0.13.0) (2026-10-07)
+
+
+### Features
+
+* **desktop:** send Change Items to trackers from the desktop app ([#86](https://github.com/liatrio-labs/inkup/issues/86)) ([ffcca87](https://github.com/liatrio-labs/inkup/commit/ffcca8721e141a85be6cfbe81f4df83c26499521))
+
+## [0.12.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.11.0...inkup-v0.12.0) (2026-10-07)
+
+
+### Features
+
+* **trackers:** send a Change Item to Jira Cloud ([#85](https://github.com/liatrio-labs/inkup/issues/85)) ([e6daff9](https://github.com/liatrio-labs/inkup/commit/e6daff9e8d29326992c6db80fbe9653dede8dc12))
+
+## [0.11.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.10.0...inkup-v0.11.0) (2026-10-07)
+
+
+### Features
+
+* **ui:** add @inkup/ui with the DESIGN.md tokens and move both apps onto it ([#79](https://github.com/liatrio-labs/inkup/issues/79)) ([b9ad098](https://github.com/liatrio-labs/inkup/commit/b9ad0981870a1cf3e56095a1fd53bd06e3fec420))
+
+## [0.10.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.9.0...inkup-v0.10.0) (2026-10-07)
+
+
+### Features
+
+* **trackers:** send to Linear, in bulk, and to a chosen destination ([#84](https://github.com/liatrio-labs/inkup/issues/84)) ([d22f2d4](https://github.com/liatrio-labs/inkup/commit/d22f2d44a92c1c4cf54542e003120efc58eff78f))
+
 ## [0.9.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.8.0...inkup-v0.9.0) (2026-10-07)
 
 

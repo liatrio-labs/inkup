@@ -13,9 +13,14 @@
 // - `POST /api/host/tokens` (`NewTokenRequest` → `NewToken`), `DELETE /api/host/tokens/{id}`: agent tokens.
 // - `POST /api/host/network` (`NetworkRequest` → `NetworkSwitched`): network mode, where the Host can switch it here.
 // - `POST /api/host/pairing/{id}` (`PairingAnswer`): approve or deny a pairing request the Host asks about here.
+// - `GET /api/host/items/{id}` (`FullItem`): one stored Change Item in full, with its tracker links (ADR 0028).
+// - `GET /api/host/blobs/{id}`: one stored blob's bytes (a screenshot, `image/png`), to upload to a tracker.
+// - `POST /api/host/items/{id}/tracker-links` (`TrackerLink` → `FullItem`): records that the item was sent to a
+//   tracker. Recording the same issue url again changes nothing.
 //
 // Loopback only, with `Authorization: Bearer <control_token>`: a paired Client's token or an agent token is refused.
 // Nullable fields are always present, `null` when empty, as the Host serialises them.
+import { TrackerName } from '@inkup/core/timeline';
 import { z } from 'zod';
 
 /** Bump on a breaking change to the control API. */
@@ -82,6 +87,19 @@ export type Timeline = z.infer<typeof Timeline>;
 export const ItemStatus = z.enum(['open', 'in_progress', 'resolved', 'wont_fix', 'needs_info']);
 export type ItemStatus = z.infer<typeof ItemStatus>;
 
+export const TrackerLink = z
+  .object({
+    tracker: TrackerName,
+    destination: z.string().min(1).describe('where the issue was created: owner/repo on GitHub'),
+    key: z.string().min(1).describe("the tracker's short name for the issue, e.g. #142"),
+    url: z.string().min(1).describe("the issue's web page: http or https"),
+    created_at: z.string().min(1).describe('when it was sent, ISO 8601'),
+  })
+  .describe(
+    'an issue a Change Item was sent to (ADR 0028); the body of POST /api/host/items/{id}/tracker-links. Its status is read from the tracker, never stored',
+  );
+export type TrackerLink = z.infer<typeof TrackerLink>;
+
 export const ItemView = z.object({
   id: z.string().describe('item-<seq>, as agents see it'),
   session_id: z.string(),
@@ -92,6 +110,10 @@ export const ItemView = z.object({
   agent: z.string().nullable().describe('the agent behind the latest resolution'),
   since: EpochMs.nullable().describe('when the latest resolution was made'),
   prompt: z.string(),
+  tracker_links: z
+    .array(TrackerLink)
+    .optional()
+    .describe('the issues it was sent to, oldest first; absent from a Host that does not record them'),
 });
 export type ItemView = z.infer<typeof ItemView>;
 
@@ -226,6 +248,34 @@ export const PairingAnswer = z
   .describe('POST /api/host/pairing/{id}; a request from another machine can only be denied');
 export type PairingAnswer = z.infer<typeof PairingAnswer>;
 
+export const StoredItem = z
+  .looseObject({
+    id: z.string().min(1).describe('item_0001, …: its id within its Process run'),
+    title: z.string(),
+    locations: z.array(z.looseObject({})).describe('where it is (packages/core change-item.ts Location)'),
+    evidence: z
+      .looseObject({ screenshots: z.array(z.string()).describe('ids of every screenshot that shows it') })
+      .describe('its screenshots, element crops and video range'),
+    tracker_links: z
+      .array(TrackerLink)
+      .describe('the issues it was sent to, oldest first: the links its Client sent and those recorded here'),
+  })
+  .describe('a Change Item as its Client sent it (packages/core change-item.ts), with every tracker link');
+export type StoredItem = z.infer<typeof StoredItem>;
+
+export const FullItem = z
+  .object({
+    id: z.string().describe('item-<seq>, as agents see it'),
+    session_id: z.string(),
+    session_name: z.string().describe("the Session's latest name, else its page title, else its url"),
+    run_id: z.string().describe('the Process run it comes from'),
+    status: ItemStatus,
+    withdrawn: z.boolean().describe("no longer among its Session's current items"),
+    item: StoredItem,
+  })
+  .describe('GET /api/host/items/{id}, and the answer to POST /api/host/items/{id}/tracker-links');
+export type FullItem = z.infer<typeof FullItem>;
+
 /** Every schema in host-control.schema.json, by its definition name. */
 export const CONTROL_DEFINITIONS = {
   HostFile,
@@ -239,6 +289,9 @@ export const CONTROL_DEFINITIONS = {
   TimelineEntry,
   ItemStatus,
   ItemView,
+  TrackerLink,
+  StoredItem,
+  FullItem,
   Watcher,
   AgentToken,
   NetworkView,
