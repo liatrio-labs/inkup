@@ -4,7 +4,8 @@
 // the side panel does, holding the panel Port as a video owner that does not stop the Session: if its page navigates
 // away the video ends there and the Session goes on.
 
-import { FRAME_ERROR, FRAME_READY, FRAME_RECORDING } from '@inkup/ui/toolbar-state';
+import '@/assets/tailwind.css';
+import { FRAME_ERROR, FRAME_READY, FRAME_RECORDING, FRAME_THEME } from '@inkup/ui/toolbar-state';
 import { pickTabVideo, TabVideoRecorder } from '@/media/tab-video';
 import { holdVideo } from '@/media/video-owner';
 import { sendMessage } from '@/messaging';
@@ -60,6 +61,17 @@ button.addEventListener('click', async () => {
 // The page is going away: ask the recorder for what it has; the Port's disconnect then ends the video
 // (media/video-owner.ts).
 addEventListener('pagehide', () => recorder?.requestData());
+
+// The bar's theme, from the toolbar that holds this frame (only its parent window; any other sender is ignored). The
+// package theme follows `data-theme` on the root, and the system's scheme until the first message or while the bar
+// follows it (no `theme`).
+addEventListener('message', (e: MessageEvent) => {
+  if (e.source !== window.parent) return;
+  const data = e.data as { type?: unknown; theme?: unknown } | null;
+  if (data?.type !== FRAME_THEME) return;
+  if (data.theme === 'light' || data.theme === 'dark') document.documentElement.dataset.theme = data.theme;
+  else if (data.theme === undefined) delete document.documentElement.dataset.theme;
+});
 
 button.disabled = false;
 tell({ type: FRAME_READY });

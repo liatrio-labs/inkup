@@ -7,6 +7,8 @@ import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Toolbar, type ToolbarHandle } from '../src/toolbar';
 import {
+  FRAME_READY,
+  FRAME_THEME,
   START_TIMEOUT_MESSAGE,
   START_TIMEOUT_MS,
   type ToolbarActions,
@@ -443,6 +445,31 @@ describe('Toolbar: Start', () => {
     expect($('toolbar-start-frame')).toBe(frame);
     expect(frame.isConnected).toBe(true);
     expect(frame.hasAttribute('data-parked')).toBe(true);
+  });
+
+  it("Firefox: the Start frame is told the bar's theme when it is ready and again on each change", () => {
+    const origin = 'null'; // about:blank's, so nothing is fetched
+    const { handle } = mount(
+      { ...idle, start: { ok: true, video: 'frame_picker' } },
+      actions({ frameUrl: 'about:blank' }),
+    );
+    const frame = $('toolbar-start-frame') as HTMLIFrameElement;
+    const post = vi.spyOn(frame.contentWindow!, 'postMessage');
+    const theme = (t: string | undefined) => [{ type: FRAME_THEME, theme: t }, origin];
+    // Ready brings the current theme (a frame that reloads says ready again), whenever the theme was set.
+    act(() => handle().setTheme('dark', 'style', 'auto'));
+    post.mockClear();
+    act(() => {
+      window.dispatchEvent(new MessageEvent('message', { data: { type: FRAME_READY }, origin }));
+    });
+    expect(post.mock.calls).toEqual([theme('dark')]);
+    post.mockClear();
+    act(() => handle().setTheme('light', 'setting', 'light'));
+    expect(post.mock.calls).toEqual([theme('light')]);
+    // Nothing else reposts: the same theme again, or a state change.
+    post.mockClear();
+    act(() => handle().setTheme('light', 'setting', 'light'));
+    expect(post).not.toHaveBeenCalled();
   });
 
   it('Firefox: a frame that never says it is ready (the page refused it) falls back to a Start button', async () => {

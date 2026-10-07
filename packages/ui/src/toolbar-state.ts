@@ -117,6 +117,9 @@ export interface ToolbarActions {
 /** The Start frame posts this once it can take clicks; without it (a page's CSP refused the frame) Start is a button. */
 export const FRAME_READY = 'var-toolbar-start-ready';
 export const FRAME_ERROR = 'var-toolbar-start-error';
+/** The toolbar posts this to the frame (a document of its own, which cannot see the host's `data-theme`) with the theme
+ * the bar wears (`theme` is absent while the bar follows the system), on the frame's ready and on each change. */
+export const FRAME_THEME = 'var-toolbar-frame-theme';
 /** The frame posts this with `on` from the Start click until it stops recording the Session's video (or never started). */
 export const FRAME_RECORDING = 'var-toolbar-frame-recording';
 /** How long Start may wait for the service worker before the button comes back with an error. */
