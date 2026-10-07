@@ -1,27 +1,46 @@
-// Review page: send one Change Item to GitHub as an issue (ADR 0028). Self-contained, so a card mounts it with one
+// Review page: send one Change Item to a tracker as an issue (ADR 0028). Self-contained, so a card mounts it with one
 // line next to "Copy agent prompt": it reads the Session, its latest done run and its `tracker_link` events itself.
+// It knows no tracker by name: it shows one row for each tracker in core's registry that is set up, or that the item
+// is already linked to.
 //
-// - No token or no default repo: a link to the Trackers settings.
-// - Not sent yet: "Send to GitHub", then "Sending to GitHub…" while the images and the issue go up.
-// - Sent: the link ("GitHub #142") and the issue's status, read live from GitHub when the page opens (open, closed
-//   (completed), closed (not planned), or "status unavailable" when the read fails). Statuses are never stored or
-//   logged. Sending again is in the menu, behind a confirm, because it makes a second issue.
+// - No tracker set up: a link to the Trackers settings.
+// - Not sent to a tracker yet: "Send to GitHub" (or Linear, ...), then "Sending to GitHub…" while the images and the
+//   issue go up. The saved destination is used; the small arrow beside the button opens a picker with the others
+//   from listDestinations, and a choice there applies to that send only.
+// - Sent: the link ("GitHub #142") and the issue's status, read live from the tracker when the page opens (the
+//   tracker's own state name, or "open" / "closed (completed)" / "closed (not planned)", or "status unavailable" when
+//   the read fails). Statuses are never stored or logged. Sending again is in the menu, behind a confirm, because it
+//   makes a second issue.
+// - An item can hold one link per tracker.
 // - A failed send says what went wrong in plain words, with Retry.
 import type { ChangeItem } from '@inkup/core/process/change-item';
 import { latestLinks, sessionName, trackerLinksFor } from '@inkup/core/review-edits';
 import { sortTimeline } from '@inkup/core/timeline';
-import { type IssueStatus, statusLabel, type TrackerLink } from '@inkup/core/trackers';
+import {
+  type Destination,
+  type IssueStatus,
+  statusLabel,
+  type TrackerDefinition,
+  type TrackerLink,
+  type TrackerName,
+} from '@inkup/core/trackers';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { MoreHorizontal } from 'lucide-react';
+import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TONE } from '@/components/tone';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { db } from '@/db';
-import { githubHere, sendToGithub } from '@/lib/trackers';
-import { useStorageItem } from '@/lib/use-storage-item';
+import {
+  destinationsFor,
+  KNOWN_TRACKERS,
+  sendToTracker,
+  type TrackerSetup,
+  trackerAdapter,
+  trackerCredentials,
+  useTrackerSetups,
+} from '@/lib/trackers';
 import { cn } from '@/lib/utils';
-import { githubToken, trackerSettings } from '@/settings';
 
 const sessionId = new URLSearchParams(location.search).get('session') ?? '';
 
@@ -31,37 +50,35 @@ function readStatus(link: TrackerLink): Promise<IssueStatus> {
   let status = statuses.get(link.url);
   if (!status) {
     status = (async () => {
-      const token = (await githubToken.getValue()).trim();
-      if (!token) throw new Error('no token');
-      return (await githubHere()).getStatus({ token }, link);
+      const credentials = await trackerCredentials(link.tracker);
+      if (!credentials) throw new Error('not set up');
+      return (await trackerAdapter(link.tracker)).getStatus(credentials, link);
     })();
     statuses.set(link.url, status);
   }
   return status;
 }
 
-const BADGE: Record<string, string> = {
-  open: TONE.vetCheckedBadge,
-  'closed (completed)': 'bg-muted',
-  'closed (not planned)': 'bg-muted',
-  closed: 'bg-muted',
-  'status unavailable': 'bg-muted text-muted-foreground',
-};
+/** What a badge shows, and whether the issue is still open. */
+interface Badge {
+  label: string;
+  open: boolean;
+}
 
 function StatusBadge({ link }: { link: TrackerLink }) {
-  const [label, setLabel] = useState<string | null>(null);
+  const [badge, setBadge] = useState<Badge | null>(null);
   useEffect(() => {
     let alive = true;
-    setLabel(null);
+    setBadge(null);
     readStatus(link).then(
-      (s) => alive && setLabel(statusLabel(s)),
-      () => alive && setLabel('status unavailable'),
+      (s) => alive && setBadge({ label: statusLabel(s), open: s.state === 'open' }),
+      () => alive && setBadge({ label: 'status unavailable', open: false }),
     );
     return () => {
       alive = false;
     };
   }, [link]);
-  if (label === null)
+  if (badge === null)
     return (
       <span className="text-xs text-muted-foreground" data-testid="tracker-status" data-state="loading">
         checking…
@@ -69,66 +86,109 @@ function StatusBadge({ link }: { link: TrackerLink }) {
     );
   return (
     <span
-      className={cn('rounded-full px-2 py-0.5 text-xs', BADGE[label] ?? 'bg-muted')}
+      className={cn(
+        'rounded-full px-2 py-0.5 text-xs',
+        badge.open ? TONE.vetCheckedBadge : 'bg-muted',
+        badge.label === 'status unavailable' && 'text-muted-foreground',
+      )}
       data-testid="tracker-status"
-      data-state={label}
+      data-state={badge.label}
     >
-      {label}
+      {badge.label}
     </span>
   );
 }
 
-export function SendToTracker({ item }: { item: ChangeItem }) {
-  const token = useStorageItem(githubToken);
-  const settings = useStorageItem(trackerSettings);
-  const session = useLiveQuery(() => db.sessions.get(sessionId), []);
-  const run = useLiveQuery(() => db.latestRun(sessionId, 'done'), []);
-  const linkRows = useLiveQuery(() => db.eventsOfType(sessionId, 'tracker_link').toArray(), []);
-  const renames = useLiveQuery(() => db.eventsOfType(sessionId, 'session_rename').toArray(), []);
+/** What the picker offers: the saved destination first, then the others the credentials can see. */
+type Choices = Destination[] | 'loading' | { error: string };
+
+function DestinationPicker({
+  tracker,
+  setup,
+  value,
+  onChange,
+}: {
+  tracker: TrackerName;
+  setup: TrackerSetup;
+  value: string;
+  onChange: (destination: string) => void;
+}) {
+  const [choices, setChoices] = useState<Choices>('loading');
+  useEffect(() => {
+    let alive = true;
+    destinationsFor(tracker, setup.credentials).then(
+      (list) => alive && setChoices(list),
+      (e: unknown) => alive && setChoices({ error: e instanceof Error ? e.message : String(e) }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [tracker, setup.credentials]);
+  if (choices === 'loading') return <span className="text-xs text-muted-foreground">Loading…</span>;
+  if ('error' in choices)
+    return (
+      <span role="alert" className="text-xs text-destructive" data-testid="tracker-destination-error">
+        {choices.error}
+      </span>
+    );
+  const known = choices.some((d) => d.id === setup.destination);
+  return (
+    <select
+      aria-label="Send to"
+      className="max-w-48 rounded-md border bg-background px-2 py-1 text-xs"
+      data-testid="tracker-destination"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {!known && <option value={setup.destination}>{setup.destination}</option>}
+      {choices.map((d) => (
+        <option key={d.id} value={d.id}>
+          {d.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function TrackerRow({
+  def,
+  setup,
+  link,
+  send,
+}: {
+  def: TrackerDefinition;
+  /** Null when the tracker is not set up (the item is linked to it from before). */
+  setup: TrackerSetup | null;
+  link: TrackerLink | undefined;
+  send: (tracker: TrackerName, destination?: string) => Promise<void>;
+}) {
+  const id = def.tracker;
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [picking, setPicking] = useState(false);
+  // A destination chosen in the picker: for the next send only.
+  const [chosen, setChosen] = useState<string | null>(null);
 
-  if (token === undefined || settings === undefined || !run || !linkRows || !session) return null;
-  const link = latestLinks(trackerLinksFor(linkRows, run.id).get(item.id)).find((l) => l.tracker === 'github');
-  const repo = settings.github.repo.trim();
-  const configured = !!token.trim() && !!repo;
-
-  async function send() {
-    if (!session || !run) return;
+  async function go(destination?: string) {
     setSending(true);
     setError(null);
     setMenu(false);
     try {
-      await sendToGithub({
-        sessionId,
-        sessionName: sessionName(session, sortTimeline(renames ?? [])),
-        runId: run.id,
-        item,
-      });
+      await send(id, destination);
+      setChosen(null);
+      setPicking(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
     }
   }
-
-  if (!configured && !link)
-    return (
-      <a
-        href="/options.html#trackers"
-        target="_blank"
-        rel="noreferrer"
-        className="self-center text-xs text-primary underline"
-        data-testid="tracker-settings-link"
-      >
-        Set up GitHub to send this item
-      </a>
-    );
+  const sendChosen = () => go(chosen ?? undefined);
 
   return (
-    <div className="flex flex-wrap items-center gap-2" data-testid="send-to-tracker">
+    <div className="flex flex-wrap items-center gap-2" data-testid="send-to-tracker" data-tracker={id}>
       {link ? (
         <>
           <span className="flex items-center gap-1.5 text-xs" data-testid="tracker-line">
@@ -138,26 +198,26 @@ export function SendToTracker({ item }: { item: ChangeItem }) {
               rel="noreferrer"
               className="font-medium text-primary underline"
               data-testid="tracker-link"
-              title={`${link.destination}${link.key}`}
+              title={link.url}
             >
-              GitHub {link.key}
+              {def.label} {link.key}
             </a>
             <span aria-hidden="true"> · </span>
             <StatusBadge link={link} />
           </span>
-          {configured && (
+          {setup && (
             <span className="relative">
               <Button
                 variant="ghost"
                 size="sm"
-                aria-label="More GitHub actions"
+                aria-label={`More ${def.label} actions`}
                 aria-haspopup="menu"
                 aria-expanded={menu}
                 onClick={() => setMenu((m) => !m)}
                 disabled={sending}
                 data-testid="tracker-menu"
               >
-                {sending ? 'Sending to GitHub…' : <MoreHorizontal aria-hidden="true" />}
+                {sending ? `Sending to ${def.label}…` : <MoreHorizontal aria-hidden="true" />}
               </Button>
               {menu && (
                 <div
@@ -182,25 +242,43 @@ export function SendToTracker({ item }: { item: ChangeItem }) {
           )}
         </>
       ) : (
-        <Button variant="outline" size="sm" onClick={send} disabled={sending} data-testid="send-to-github">
-          {sending ? 'Sending to GitHub…' : 'Send to GitHub'}
-        </Button>
+        setup && (
+          <>
+            <Button variant="outline" size="sm" onClick={sendChosen} disabled={sending} data-testid={`send-to-${id}`}>
+              {sending ? `Sending to ${def.label}…` : `Send to ${def.label}`}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Choose where in ${def.label} to send`}
+              aria-expanded={picking}
+              onClick={() => setPicking((p) => !p)}
+              disabled={sending}
+              data-testid="tracker-destination-toggle"
+            >
+              <ChevronDown aria-hidden="true" />
+            </Button>
+            {picking && (
+              <DestinationPicker tracker={id} setup={setup} value={chosen ?? setup.destination} onChange={setChosen} />
+            )}
+          </>
+        )
       )}
       {error && !sending && (
         <span className="flex basis-full flex-wrap items-center gap-2">
           <span role="alert" className="text-destructive" data-testid="tracker-error">
             {error}
           </span>
-          <Button variant="outline" size="sm" onClick={send} data-testid="tracker-retry">
+          <Button variant="outline" size="sm" onClick={sendChosen} data-testid="tracker-retry">
             Retry
           </Button>
         </span>
       )}
       <Dialog open={confirm} onOpenChange={setConfirm}>
         <DialogContent data-testid="tracker-confirm">
-          <DialogTitle>Send this item to GitHub again?</DialogTitle>
+          <DialogTitle>Send this item to {def.label} again?</DialogTitle>
           <DialogDescription>
-            It is already GitHub {link?.key} in {link?.destination}. Sending again makes a second issue in {repo}.
+            It is already {def.label} {link?.key}. Sending again makes a second issue.
           </DialogDescription>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setConfirm(false)} data-testid="tracker-confirm-cancel">
@@ -209,7 +287,7 @@ export function SendToTracker({ item }: { item: ChangeItem }) {
             <Button
               onClick={() => {
                 setConfirm(false);
-                void send();
+                void go();
               }}
               data-testid="tracker-confirm-send"
             >
@@ -218,6 +296,52 @@ export function SendToTracker({ item }: { item: ChangeItem }) {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+export function SendToTracker({ item }: { item: ChangeItem }) {
+  const setups = useTrackerSetups();
+  const session = useLiveQuery(() => db.sessions.get(sessionId), []);
+  const run = useLiveQuery(() => db.latestRun(sessionId, 'done'), []);
+  const linkRows = useLiveQuery(() => db.eventsOfType(sessionId, 'tracker_link').toArray(), []);
+  const renames = useLiveQuery(() => db.eventsOfType(sessionId, 'session_rename').toArray(), []);
+
+  if (!setups || !run || !linkRows || !session) return null;
+  const links = latestLinks(trackerLinksFor(linkRows, run.id).get(item.id));
+  const rows = KNOWN_TRACKERS.flatMap(({ def }) => {
+    const setup = setups.get(def.tracker) ?? null;
+    const link = links.find((l) => l.tracker === def.tracker);
+    return setup || link ? [{ def, setup, link }] : [];
+  });
+
+  if (!rows.length)
+    return (
+      <a
+        href="/options.html#trackers"
+        target="_blank"
+        rel="noreferrer"
+        className="self-center text-xs text-primary underline"
+        data-testid="tracker-settings-link"
+      >
+        Set up a tracker to send this item
+      </a>
+    );
+
+  async function send(tracker: TrackerName, destination?: string) {
+    if (!session || !run) return;
+    await sendToTracker(
+      tracker,
+      { sessionId, sessionName: sessionName(session, sortTimeline(renames ?? [])), runId: run.id, item },
+      destination,
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1" data-testid="send-to-trackers">
+      {rows.map(({ def, setup, link }) => (
+        <TrackerRow key={def.tracker} def={def} setup={setup} link={link} send={send} />
+      ))}
     </div>
   );
 }

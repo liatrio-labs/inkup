@@ -185,10 +185,17 @@ export const gatewayNoticeShown = storage.defineItem<boolean>('local:gatewayNoti
  */
 export const githubToken = storage.defineItem<string>('local:githubToken', { fallback: '' });
 
+/**
+ * The reviewer's Linear personal API key (ADR 0028): the same rules as `githubToken`. Empty string: no key.
+ */
+export const linearToken = storage.defineItem<string>('local:linearToken', { fallback: '' });
+
 /** Tracker settings that are not secret: where an item goes when the reviewer presses Send (ADR 0028). */
 export interface TrackerSettings {
   /** GitHub's default repo, `owner/repo`; empty until one is picked. */
   github: { repo: string };
+  /** Linear's default team, by id; absent or empty until one is picked. */
+  linear?: { team: string };
 }
 export const trackerSettings = storage.defineItem<TrackerSettings>('local:trackerSettings', {
   fallback: { github: { repo: '' } },
@@ -196,6 +203,8 @@ export const trackerSettings = storage.defineItem<TrackerSettings>('local:tracke
 
 /** The "what goes to GitHub" notice is shown once, the first time a GitHub token is saved. */
 export const githubNoticeShown = storage.defineItem<boolean>('local:githubNoticeShown', { fallback: false });
+/** The same notice for Linear, the first time a Linear key is saved. */
+export const linearNoticeShown = storage.defineItem<boolean>('local:linearNoticeShown', { fallback: false });
 
 /**
  * Transcription tier (PRD P0-7, P0-14). Free runs on this machine: on-device Web Speech (default) or local
@@ -258,6 +267,8 @@ export interface ScriptedTranscript {
  *   and `sttRetryBaseMs` shortens their reconnect backoff (tests/e2e/stt-tiers.spec.ts).
  * - `githubBaseUrl` points tracker push at tests/support/github-stub.ts (tests/e2e/trackers.spec.ts). A release
  *   build ignores it (githubApiBase), so nothing stored can send a GitHub token anywhere but GitHub.
+ * - `linearBaseUrl` does the same for Linear (tests/support/linear-stub.ts), ignored by a release build
+ *   (linearApiBase).
  */
 export interface DevOverrides {
   transcription?: 'scripted';
@@ -284,6 +295,8 @@ export interface DevOverrides {
   hangAnnotationShots?: boolean;
   /** GitHub's REST API base for tracker push. Ignored by a release build. */
   githubBaseUrl?: string;
+  /** Linear's API base for tracker push. Ignored by a release build. */
+  linearBaseUrl?: string;
 }
 export const devOverrides = storage.defineItem<DevOverrides | null>('local:devOverrides', { fallback: null });
 
@@ -292,6 +305,13 @@ export const GITHUB_API_BASE = 'https://api.github.com';
 /** Where tracker push calls GitHub: the dev override in a development build, else GitHub's API. */
 export function githubApiBase(dev: DevOverrides | null | undefined, release: boolean = RELEASE_BUILD): string {
   return !release && dev?.githubBaseUrl ? dev.githubBaseUrl : GITHUB_API_BASE;
+}
+
+export const LINEAR_API_BASE = 'https://api.linear.app';
+
+/** Where tracker push calls Linear: the dev override in a development build, else Linear's API. */
+export function linearApiBase(dev: DevOverrides | null | undefined, release: boolean = RELEASE_BUILD): string {
+  return !release && dev?.linearBaseUrl ? dev.linearBaseUrl : LINEAR_API_BASE;
 }
 
 /** Why a Session has no video (P0-1: the picker was cancelled → "video off"). */

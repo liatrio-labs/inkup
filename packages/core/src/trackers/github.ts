@@ -13,6 +13,7 @@ import {
   type Destination,
   type ImageUpload,
   type IssueStatus,
+  retryAfterMs,
   type TestCheck,
   type TrackerAdapter,
   type TrackerCredentials,
@@ -117,6 +118,7 @@ export function githubAdapter({ fetch: doFetch, baseUrl }: AdapterOptions): Trac
         'rate_limit',
         'GitHub is limiting requests from this token. Wait a minute, then try again.',
         r.status,
+        retryAfterMs(r.headers.get('retry-after')),
       );
     if (r.status === 409 && /empty/i.test(said))
       return new TrackerError(
