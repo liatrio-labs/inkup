@@ -85,8 +85,14 @@ so nothing stored can send a token anywhere but `https://api.github.com`.
   images through `fileUpload`'s signed URL and records the team's id as the link's `destination`. A status can carry
   the tracker's own state name, which the badge shows. A 403 or 429 with `retry-after` pauses a bulk send and retries
   the same item.
+- 2026-10-07: Jira Cloud (spec 01, Unit 3). We expected every tracker to take its images before the issue exists; Jira
+  takes an attachment only on an existing issue, so its adapter sends the whole item itself (`sendItem`: create, attach,
+  update the description) and writes the body as Atlassian Document Format (`adf.ts`), not Markdown. It signs in with
+  the account's email and an API token (Basic auth) on a `https://<site>.atlassian.net` site, which the settings check
+  unless a development build points at a stub.
 
 ## Sources
 
 - docs/PRD.md P1-4.
 - GitHub REST API: Git Database (blobs, trees, commits, references) and Issues.
+- Jira Cloud REST API v3 (issues, attachments, projects) and Atlassian Document Format.

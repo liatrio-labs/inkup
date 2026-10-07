@@ -196,6 +196,8 @@ export interface TrackerSettings {
   github: { repo: string };
   /** Linear's default team, by id; absent or empty until one is picked. */
   linear?: { team: string };
+  /** Jira's default project key and the issue type picked for it (empty: Task, or Bug for a bug when the project has it). */
+  jira?: { project: string; issueType: string };
 }
 export const trackerSettings = storage.defineItem<TrackerSettings>('local:trackerSettings', {
   fallback: { github: { repo: '' } },
@@ -205,6 +207,16 @@ export const trackerSettings = storage.defineItem<TrackerSettings>('local:tracke
 export const githubNoticeShown = storage.defineItem<boolean>('local:githubNoticeShown', { fallback: false });
 /** The same notice for Linear, the first time a Linear key is saved. */
 export const linearNoticeShown = storage.defineItem<boolean>('local:linearNoticeShown', { fallback: false });
+
+/**
+ * Jira Cloud (ADR 0028): the API token is a secret like `githubToken`; the site (https://<site>.atlassian.net) and the
+ * Atlassian account's email are not, but each has its own key so the token's key holds only the token.
+ */
+export const jiraToken = storage.defineItem<string>('local:jiraToken', { fallback: '' });
+export const jiraSite = storage.defineItem<string>('local:jiraSite', { fallback: '' });
+export const jiraEmail = storage.defineItem<string>('local:jiraEmail', { fallback: '' });
+/** The "what goes to Jira" notice is shown once, the first time a Jira token is saved. */
+export const jiraNoticeShown = storage.defineItem<boolean>('local:jiraNoticeShown', { fallback: false });
 
 /**
  * Transcription tier (PRD P0-7, P0-14). Free runs on this machine: on-device Web Speech (default) or local
@@ -269,6 +281,8 @@ export interface ScriptedTranscript {
  *   build ignores it (githubApiBase), so nothing stored can send a GitHub token anywhere but GitHub.
  * - `linearBaseUrl` does the same for Linear (tests/support/linear-stub.ts), ignored by a release build
  *   (linearApiBase).
+ * - `jiraBaseUrl` points tracker push at tests/support/jira-stub.ts instead of the saved Jira site, which is then not
+ *   checked to be an Atlassian Cloud site. A release build ignores it (jiraApiBase) and refuses any other site.
  */
 export interface DevOverrides {
   transcription?: 'scripted';
@@ -297,6 +311,8 @@ export interface DevOverrides {
   githubBaseUrl?: string;
   /** Linear's API base for tracker push. Ignored by a release build. */
   linearBaseUrl?: string;
+  /** Jira's base for tracker push (http[s]://host:port). Ignored by a release build. */
+  jiraBaseUrl?: string;
 }
 export const devOverrides = storage.defineItem<DevOverrides | null>('local:devOverrides', { fallback: null });
 
@@ -312,6 +328,11 @@ export const LINEAR_API_BASE = 'https://api.linear.app';
 /** Where tracker push calls Linear: the dev override in a development build, else Linear's API. */
 export function linearApiBase(dev: DevOverrides | null | undefined, release: boolean = RELEASE_BUILD): string {
   return !release && dev?.linearBaseUrl ? dev.linearBaseUrl : LINEAR_API_BASE;
+}
+
+/** The dev override for Jira's API base, or '' (use the saved site). A release build always answers ''. */
+export function jiraApiBase(dev: DevOverrides | null | undefined, release: boolean = RELEASE_BUILD): string {
+  return !release && dev?.jiraBaseUrl ? dev.jiraBaseUrl : '';
 }
 
 /** Why a Session has no video (P0-1: the picker was cancelled → "video off"). */

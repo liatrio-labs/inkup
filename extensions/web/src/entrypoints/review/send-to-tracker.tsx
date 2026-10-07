@@ -63,7 +63,16 @@ function readStatus(link: TrackerLink): Promise<IssueStatus> {
 interface Badge {
   label: string;
   open: boolean;
+  /** Jira's status category, which sets the colour: to do (new), in progress (indeterminate), done. */
+  category?: IssueStatus['category'];
 }
+
+/** A Jira status category's badge colour; the others colour by open or closed. */
+const CATEGORY_TONE = {
+  new: 'bg-muted',
+  indeterminate: 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200',
+  done: TONE.vetCheckedBadge,
+} as const;
 
 function StatusBadge({ link }: { link: TrackerLink }) {
   const [badge, setBadge] = useState<Badge | null>(null);
@@ -71,7 +80,7 @@ function StatusBadge({ link }: { link: TrackerLink }) {
     let alive = true;
     setBadge(null);
     readStatus(link).then(
-      (s) => alive && setBadge({ label: statusLabel(s), open: s.state === 'open' }),
+      (s) => alive && setBadge({ label: statusLabel(s), open: s.state === 'open', category: s.category }),
       () => alive && setBadge({ label: 'status unavailable', open: false }),
     );
     return () => {
@@ -88,11 +97,12 @@ function StatusBadge({ link }: { link: TrackerLink }) {
     <span
       className={cn(
         'rounded-full px-2 py-0.5 text-xs',
-        badge.open ? TONE.vetCheckedBadge : 'bg-muted',
+        badge.category ? CATEGORY_TONE[badge.category] : badge.open ? TONE.vetCheckedBadge : 'bg-muted',
         badge.label === 'status unavailable' && 'text-muted-foreground',
       )}
       data-testid="tracker-status"
       data-state={badge.label}
+      data-category={badge.category}
     >
       {badge.label}
     </span>

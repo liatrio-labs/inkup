@@ -17,7 +17,8 @@ import {
 } from '@/lib/trackers';
 import { useStorageItem } from '@/lib/use-storage-item';
 import { cn } from '@/lib/utils';
-import { trackerSettings } from '@/settings';
+import { devOverrides, trackerSettings } from '@/settings';
+import { JiraIssueType } from './jira-issue-type';
 
 const mask = (secret: string) => (secret.length > 12 ? `${secret.slice(0, 7)}…${secret.slice(-4)}` : 'saved');
 
@@ -44,6 +45,7 @@ export function TrackersSection() {
       {KNOWN_TRACKERS.map((known) => (
         <TrackerBlock key={known.def.tracker} known={known} />
       ))}
+      <JiraIssueType />
     </section>
   );
 }
@@ -233,13 +235,21 @@ function FieldForm({
   const item = store.fields[field.id]!;
   const saved = (useStorageItem(item) ?? '').trim();
   const [draft, setDraft] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
   const inputId = `${tracker}-${field.id}-input`;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     const next = draft.trim();
     if (!next) return;
-    await item.setValue(next);
+    // Some fields are checked first (Jira's site) and saved in their tidied form.
+    const prepared = store.prepare ? store.prepare(field.id, next, await devOverrides.getValue()) : { value: next };
+    if ('error' in prepared) {
+      setProblem(prepared.error);
+      return;
+    }
+    setProblem(null);
+    await item.setValue(prepared.value);
     setDraft('');
     await onSaved();
   }
@@ -265,7 +275,10 @@ function FieldForm({
           className="min-w-0 flex-1 rounded-md border px-3 py-2 font-mono"
           placeholder={saved ? `Saved (${shown}). Enter a new one to replace it.` : (field.placeholder ?? '')}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setProblem(null);
+          }}
         />
         <Button type="submit" disabled={!draft.trim()} data-testid={`save-${tracker}-${field.id}`}>
           Save
@@ -276,6 +289,11 @@ function FieldForm({
           </Button>
         )}
       </div>
+      {problem && (
+        <span role="alert" className="text-destructive" data-testid={`${tracker}-${field.id}-error`}>
+          {problem}
+        </span>
+      )}
       {saved && (
         <span className="text-muted-foreground" data-testid={`${tracker}-${field.id}-saved`}>
           Saved: {shown}

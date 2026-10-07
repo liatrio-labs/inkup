@@ -4,6 +4,7 @@
 //
 // Errors are TrackerError, with a message written for the reviewer: what went wrong in plain words, then what to do.
 import type { TrackerLink, TrackerName } from '../timeline.ts';
+import type { IssueItem, IssueSession } from './issue.ts';
 
 export type { TrackerLink, TrackerName } from '../timeline.ts';
 
@@ -37,11 +38,13 @@ export interface ImageUpload {
 
 /**
  * The issue's state as the tracker reports it now. Read live, never stored (ADR 0028). `name` is the tracker's own
- * word for it ("In Progress"), shown on the badge in place of "open" or "closed" when the tracker has one.
+ * word for it ("In Progress"), shown on the badge in place of "open" or "closed" when the tracker has one. `category`
+ * is Jira's status category, which colours the badge.
  */
-export type IssueStatus =
-  | { state: 'open'; name?: string }
-  | { state: 'closed'; reason: 'completed' | 'not_planned' | null; name?: string };
+export type IssueStatus = ({ state: 'open' } | { state: 'closed'; reason: 'completed' | 'not_planned' | null }) & {
+  name?: string;
+  category?: 'new' | 'indeterminate' | 'done';
+};
 
 /** One line of a Test: what was checked, and whether it passed. A failed line says what to do. */
 export interface TestCheck {
@@ -79,6 +82,16 @@ export interface TrackerAdapter {
     issue: IssueDraft,
   ): Promise<Omit<TrackerLink, 'created_at'>>;
   getStatus(credentials: TrackerCredentials, link: Pick<TrackerLink, 'destination' | 'key'>): Promise<IssueStatus>;
+  /**
+   * For a tracker that can only take images once the issue exists (Jira: create, attach, then update the description)
+   * and writes its own body format: sends the whole item and answers its link. pushItem uses it instead of
+   * uploadImages then createIssue.
+   */
+  sendItem?(
+    credentials: TrackerCredentials,
+    destination: string,
+    input: { item: IssueItem; session: IssueSession & { id: string }; images: readonly ImageUpload[] },
+  ): Promise<Omit<TrackerLink, 'created_at'>>;
 }
 
 export interface AdapterOptions {
