@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   GITHUB_API_BASE,
   githubApiBase,
+  jiraApiBase,
   LINEAR_API_BASE,
   linearApiBase,
   normalizeProcessingSettings,
@@ -86,5 +87,16 @@ describe('linearApiBase', () => {
   it("is Linear's API without an override", () => {
     expect(linearApiBase(null, false)).toBe(LINEAR_API_BASE);
     expect(linearApiBase({}, false)).toBe(LINEAR_API_BASE);
+  });
+});
+
+describe('jiraApiBase', () => {
+  const dev = { jiraBaseUrl: 'http://127.0.0.1:4569' };
+
+  it('is the dev override in a development build, and empty (the saved site) in a release build', () => {
+    expect(jiraApiBase(dev, false)).toBe('http://127.0.0.1:4569');
+    expect(jiraApiBase(dev, true)).toBe('');
+    expect(jiraApiBase(null, false)).toBe('');
+    expect(jiraApiBase({}, false)).toBe('');
   });
 });

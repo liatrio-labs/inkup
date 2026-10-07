@@ -6,8 +6,17 @@ import type { ImageUpload, TrackerAdapter, TrackerCredentials } from './adapter.
 import { buildIssue, type IssueItem, type IssueSession } from './issue.ts';
 
 export * from './adapter.ts';
+export { ADF_TRUNCATED_NOTE, type AdfDoc, type AdfNode, adfText, buildIssueAdf, MAX_ADF_CHARS } from './adf.ts';
 export { ASSETS_BRANCH, assetPath, assetUrl, GITHUB_API, githubAdapter } from './github.ts';
 export * from './issue.ts';
+export {
+  chooseIssueType,
+  JIRA_MAX_SUMMARY,
+  type JiraAdapter,
+  type JiraOptions,
+  jiraAdapter,
+  parseJiraSite,
+} from './jira.ts';
 export { LINEAR_API, linearAdapter } from './linear.ts';
 export * from './registry.ts';
 
@@ -27,10 +36,15 @@ export interface PushInput {
   now?: () => Date;
 }
 
-/** Uploads the item's images, then creates its issue. Answers the link to record. */
+/** Uploads the item's images, then creates its issue (Jira: create, attach, update). Answers the link to record. */
 export async function pushItem(input: PushInput): Promise<TrackerLink> {
   const { adapter, credentials, destination, item, session } = input;
-  const urls = await adapter.uploadImages(credentials, destination, session.id, input.images);
-  const created = await adapter.createIssue(credentials, destination, buildIssue(item, session, urls));
+  const created = adapter.sendItem
+    ? await adapter.sendItem(credentials, destination, { item, session, images: input.images })
+    : await adapter.createIssue(
+        credentials,
+        destination,
+        buildIssue(item, session, await adapter.uploadImages(credentials, destination, session.id, input.images)),
+      );
   return { ...created, created_at: (input.now?.() ?? new Date()).toISOString() };
 }

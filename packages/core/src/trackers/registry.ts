@@ -3,8 +3,15 @@
 // send control and bulk bar, and the desktop app's views all read this list, so a new tracker is one entry here and
 // nothing per-tracker in a Client's UI. Where a value is stored (the extension's storage.local, the desktop app's
 // keychain) is the Client's business; this file never touches storage or the DOM.
-import type { AdapterOptions, TrackerAdapter, TrackerCredentials, TrackerName } from './adapter.ts';
+import {
+  type AdapterOptions,
+  type TrackerAdapter,
+  type TrackerCredentials,
+  TrackerError,
+  type TrackerName,
+} from './adapter.ts';
 import { GITHUB_API, githubAdapter } from './github.ts';
+import { jiraAdapter, parseJiraSite } from './jira.ts';
 import { LINEAR_API, linearAdapter } from './linear.ts';
 
 /** One thing the reviewer enters for a tracker: a token, an email, a site. */
@@ -71,6 +78,40 @@ export const TRACKERS: TrackerDefinition[] = [
       body: 'Nothing is sent until you press Send on a Change Item. Then its text (title, intent, where it is, what you said, the agent prompt) goes to Linear as a new issue in the team you picked, and its screenshots and element close-ups are uploaded to Linear. They are visible to the people who can see that issue.',
     },
     adapter: (fetch, v) => linearAdapter({ fetch, baseUrl: v.baseUrl || LINEAR_API }),
+    credentials: (v) => ({ token: (v.token ?? '').trim() }),
+  },
+  {
+    tracker: 'jira',
+    label: 'Jira',
+    destinationLabel: 'Default project',
+    destinationPlaceholder: 'Project key, such as ABC',
+    fields: [
+      { id: 'site', label: 'Jira site', secret: false, placeholder: 'https://your-team.atlassian.net' },
+      { id: 'email', label: 'Atlassian email', secret: false, placeholder: 'you@example.com' },
+      { id: 'token', label: 'Jira API token', secret: true, placeholder: 'Paste an API token' },
+    ],
+    help: 'Jira Cloud: one issue per Change Item, in a project, with its screenshots attached. Use the email of your Atlassian account and an API token made at id.atlassian.com (Security, API tokens). The account must be able to create issues and attachments in the project.',
+    notice: {
+      title: 'What goes to Jira',
+      body: 'Nothing is sent until you press Send on a Change Item. Then its text (title, intent, where it is, what you said, the agent prompt) goes to Jira as a new issue in the project you picked, and its screenshots and element close-ups are attached to that issue. Everyone who can see the issue can see them.',
+    },
+    adapter(fetch, v) {
+      // `baseUrl` is only ever set by a development build, to point at a stub; the saved site is then not checked.
+      const site = parseJiraSite(v.site ?? '');
+      const baseUrl = v.baseUrl || site;
+      if (!baseUrl)
+        throw new TrackerError(
+          'other',
+          'Enter your Jira site as https://<your-team>.atlassian.net in Trackers settings, then try again.',
+        );
+      return jiraAdapter({
+        fetch,
+        baseUrl,
+        email: v.email ?? '',
+        issueType: v.issueType || null,
+        siteUrl: site ?? (v.site ?? '').trim(),
+      });
+    },
     credentials: (v) => ({ token: (v.token ?? '').trim() }),
   },
 ];

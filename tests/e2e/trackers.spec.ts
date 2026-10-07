@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page, Worker } from '@playwright/test';
 import { type GithubStub, startGithubStub } from '../support/github-stub';
+import { type JiraStub, startJiraStub } from '../support/jira-stub';
 import { type LinearStub, startLinearStub } from '../support/linear-stub';
 import { expect, test } from './fixtures';
 import { exportAndUnzip } from './helpers/export';
@@ -781,6 +782,175 @@ test('a rate-limited bulk send waits for retry-after and carries on, with no ite
     expect(retried!.at - limited!.at).toBeGreaterThanOrEqual(1800);
     for (const id of ['item_0001', 'item_0002', 'item_0003'])
       await expect(card(review, id).getByTestId('tracker-link')).toHaveCount(1);
+  } finally {
+    await stub.close();
+  }
+});
+
+// ---- Jira Cloud (spec 01 Unit 3): the same Trackers section and send control, against tests/support/jira-stub.ts through
+// the dev-only `jiraBaseUrl` override.
+
+const JIRA = { site: 'https://acme.atlassian.net', email: 'reviewer@example.com', token: 'jira-e2e-token-0123456789' };
+const JIRA_BASIC = `Basic ${Buffer.from(`${JIRA.email}:${JIRA.token}`).toString('base64')}`;
+
+/** Points the extension at the stub; with `saved`, also saves the site, email, token and ABC as the default project. */
+async function configureJira(sw: Worker, stub: JiraStub, saved = true) {
+  await sw.evaluate(
+    async ({ base, jira }) => {
+      const { devOverrides } = await chrome.storage.local.get('devOverrides');
+      await chrome.storage.local.set({
+        devOverrides: { ...(devOverrides ?? {}), jiraBaseUrl: base },
+        ...(jira
+          ? {
+              jiraSite: jira.site,
+              jiraEmail: jira.email,
+              jiraToken: jira.token,
+              jiraNoticeShown: true,
+              trackerSettings: { github: { repo: '' }, jira: { project: 'ABC', issueType: '' } },
+            }
+          : {}),
+      });
+    },
+    { base: stub.baseURL, jira: saved ? JIRA : null },
+  );
+}
+
+const jiraRow = (review: Page, id: string) =>
+  card(review, id).locator('[data-testid="send-to-tracker"][data-tracker="jira"]');
+
+test('Jira settings save a masked token, test it, and pick a project and issue type', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  const stub = await startJiraStub({
+    email: JIRA.email,
+    token: JIRA.token,
+    projects: [{ key: 'ABC', name: 'Alpha', can_create: false }, { key: 'DEV' }],
+  });
+  try {
+    await configureJira(serviceWorker, stub, false);
+    const options = await openExtensionPage('options.html');
+    await options.getByTestId('jira-site').fill(JIRA.site);
+    await options.getByTestId('save-jira-site').click();
+    const notice = options.getByTestId('jira-notice');
+    await expect(notice).toContainText('What goes to Jira');
+    await notice.getByRole('button', { name: 'Got it' }).click();
+    await options.getByTestId('jira-email').fill(JIRA.email);
+    await options.getByTestId('save-jira-email').click();
+    await expect(options.getByTestId('jira-email-saved')).toHaveText(`Saved: ${JIRA.email}`);
+    await options.getByTestId('jira-token').fill(JIRA.token);
+    await options.getByTestId('save-jira-token').click();
+    await expect(options.getByTestId('jira-notice')).toHaveCount(0);
+    await expect(options.getByTestId('jira-token')).toHaveValue('');
+    await expect(options.getByTestId('jira-token-saved')).toHaveText('Saved: jira-e2…6789');
+    expect(await options.locator('body').innerText()).not.toContain(JIRA.token);
+    expect(stub.requests.every((r) => r.headers.authorization === JIRA_BASIC)).toBe(true);
+
+    // The project is picked from what the account can see; the issue type list is that project's, with Task first.
+    const project = options.getByTestId('jira-destination');
+    await expect(project.locator('option')).toHaveText(['Pick one', 'Alpha (ABC)', 'DEV (DEV)']);
+    await project.selectOption('ABC');
+    const type = options.getByTestId('jira-issue-type');
+    await expect(type.locator('option')).toHaveText(['Task (Bug for a bug)', 'Bug', 'Story']);
+    await expect(type).toHaveValue('');
+    await type.selectOption('Story');
+    await expect
+      .poll(() =>
+        serviceWorker.evaluate(async () => (await chrome.storage.local.get('trackerSettings')).trackerSettings),
+      )
+      .toEqual({ github: { repo: '' }, jira: { project: 'ABC', issueType: 'Story' } });
+    // A different project drops the type picked for the first.
+    await project.selectOption('DEV');
+    await expect(type).toHaveValue('');
+
+    // An account that cannot create issues in ABC: the check says so in plain words.
+    await project.selectOption('ABC');
+    await options.getByTestId('test-jira').click();
+    const result = options.getByTestId('jira-test-result');
+    await expect(result.locator('[data-check="token"]')).toContainText('The token works');
+    await expect(result.locator('[data-check="project"]')).toHaveText('OK: ABC is reachable.');
+    await expect(result.locator('[data-check="create"]')).toContainText('This account can\'t create issues in "ABC".');
+  } finally {
+    await stub.close();
+  }
+});
+
+test('Send to Jira creates the issue, attaches the screenshots, then links them, and shows the status name', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(90_000);
+  const stub = await startJiraStub({ email: JIRA.email, token: JIRA.token });
+  try {
+    await configureJira(serviceWorker, stub);
+    const review = await openReview(openExtensionPage);
+    const first = jiraRow(review, 'item_0001');
+
+    // An account that cannot create issues: the error in plain words, and Retry; nothing is linked.
+    stub.fail((req) =>
+      req.method === 'POST' && req.path === '/rest/api/3/issue'
+        ? { status: 403, body: { errorMessages: ['No permission'] } }
+        : undefined,
+    );
+    await first.getByTestId('send-to-jira').click();
+    await expect(first.getByTestId('tracker-error')).toContainText('This account can\'t create issues in "ABC".');
+    await expect(first.getByTestId('tracker-retry')).toBeVisible();
+    stub.fail(null);
+    expect(stub.issues).toHaveLength(0);
+
+    await first.getByTestId('tracker-retry').click();
+    await expect(first.getByTestId('tracker-line')).toHaveText('Jira ABC-1 · To Do');
+    await expect(first.getByTestId('tracker-link')).toHaveAttribute('href', 'https://acme.atlassian.net/browse/ABC-1');
+    await expect(first.getByTestId('tracker-status')).toHaveAttribute('data-category', 'new');
+
+    // In order: the issue is created, each of the three images attached, then the description updated.
+    expect(stub.sequence().filter((r) => !r.startsWith('GET'))).toEqual([
+      'POST /issue',
+      'POST /issue',
+      'POST /issue/ABC-1/attachments',
+      'POST /issue/ABC-1/attachments',
+      'POST /issue/ABC-1/attachments',
+      'PUT /issue/ABC-1',
+    ]);
+    for (const r of stub.requests) expect(r.headers.authorization).toBe(JIRA_BASIC);
+    for (const r of stub.calls('POST', /\/attachments$/)) expect(r.headers['x-atlassian-token']).toBe('no-check');
+    const issue = stub.issues[0]!;
+    expect(issue.summary).toBe('Make the Get started button larger');
+    expect(issue.issuetype).toBe('Task');
+    expect(issue.attachments.map((a) => a.filename)).toEqual(['s-abc.png', 's-def.png', 's-abc.crop.png']);
+    const description = JSON.stringify(issue.description);
+    for (const a of issue.attachments) expect(description).toContain(`/attachment/content/${a.id}`);
+    expect(description).toContain('Sent from InkUp · Pricing page review · item_0001');
+    expect(description).not.toContain('screenshots/s-abc.png');
+    expect(JSON.stringify(issue.description.content.find((n: { type: string }) => n.type === 'expand'))).toContain(
+      'Fix it.',
+    );
+
+    // The link is in session.json with no status.
+    await review.reload();
+    await expect(jiraRow(review, 'item_0001').getByTestId('tracker-line')).toHaveText('Jira ABC-1 · To Do');
+    const doc = await downloadSessionJson(review, serviceWorker);
+    expect(doc.change_items.find((i: { id: string }) => i.id === 'item_0001').tracker_links).toEqual([
+      {
+        tracker: 'jira',
+        destination: 'ABC',
+        key: 'ABC-1',
+        url: 'https://acme.atlassian.net/browse/ABC-1',
+        created_at: expect.any(String),
+      },
+    ]);
+    expect(JSON.stringify(doc)).not.toContain(JIRA.token);
+
+    // Live status from the status name and its category.
+    Object.assign(issue.status, { name: 'In Progress', category: 'indeterminate' });
+    await review.reload();
+    const status = jiraRow(review, 'item_0001').getByTestId('tracker-status');
+    await expect(status).toHaveText('In Progress');
+    await expect(status).toHaveAttribute('data-category', 'indeterminate');
+    Object.assign(issue.status, { name: 'Done', category: 'done' });
+    await review.reload();
+    await expect(jiraRow(review, 'item_0001').getByTestId('tracker-status')).toHaveText('Done');
+    await expect(jiraRow(review, 'item_0001').getByTestId('tracker-status')).toHaveAttribute('data-category', 'done');
   } finally {
     await stub.close();
   }

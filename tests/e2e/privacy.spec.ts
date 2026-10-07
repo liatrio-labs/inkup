@@ -9,8 +9,9 @@
 // - Better tier: only the Deepgram stub is contacted besides the fixture site.
 // - Local Whisper: huggingface.co is contacted only after Download is clicked in options (routed to a stub reply).
 // - Keys for every vendor never appear in session.json, the export zip, any console, or the stored rows. That
-//   includes the GitHub token and the Linear key (ADR 0028), each used for a real send to its stub in tests/support:
-//   it is in no storage.local row but its own (`githubToken`, `linearToken`), and in no storage.sync row. The Host's
+//   includes the GitHub token, the Linear key and the Jira API token (ADR 0028), each used for a real send to its stub
+//   in tests/support: it is in no storage.local row but its own (`githubToken`, `linearToken`, `jiraToken`), and in no
+//   storage.sync row. The Host's
 //   `items` message is built
 //   from the stored run and events (db/review.ts currentChangeItems), which are among the rows checked.
 //
@@ -25,6 +26,7 @@ import { join } from 'node:path';
 import type { BrowserContext, Page, Worker } from '@playwright/test';
 import { type AnthropicStub, messageReply, startAnthropicStub } from '../support/anthropic-stub';
 import { type GithubStub, startGithubStub } from '../support/github-stub';
+import { type JiraStub, startJiraStub } from '../support/jira-stub';
 import { type LinearStub, startLinearStub } from '../support/linear-stub';
 import { type SttStub, startDeepgramStub } from '../support/stt-stubs';
 import { expect, grantMic, test } from './fixtures';
@@ -329,12 +331,14 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     gateway: 'vck-PRIVACY-gateway-key-0123456789',
     github: 'github_pat_PRIVACYCANARY',
     linear: 'lin_api_PRIVACYCANARY',
+    jira: 'jira_api_PRIVACYCANARY',
   };
   const consoleLines: string[] = [];
   context.on('console', (m) => consoleLines.push(m.text()));
   const dg: SttStub = await startDeepgramStub({ key: KEYS.deepgram, script: 'this button should go in the header' });
   const github: GithubStub = await startGithubStub({ token: KEYS.github, repos: [{ full_name: 'acme/web' }] });
   const linear: LinearStub = await startLinearStub({ key: KEYS.linear });
+  const jira: JiraStub = await startJiraStub({ email: 'reviewer@example.com', token: KEYS.jira });
   const anthropic: AnthropicStub = await startAnthropicStub({
     onMessage: (req) => {
       const shot = /screenshot (s\d+)/.exec(JSON.stringify(req.body))?.[1] ?? 's1';
@@ -371,7 +375,7 @@ test('stored keys for every vendor never reach session.json, the export zip, any
   });
   try {
     await serviceWorker.evaluate(
-      async ({ keys, dgBase, anthropicBase, githubBase, linearBase }) => {
+      async ({ keys, dgBase, anthropicBase, githubBase, linearBase, jiraBase }) => {
         await chrome.storage.local.set({
           anthropicKey: keys.anthropic,
           gatewayKey: keys.gateway,
@@ -379,10 +383,18 @@ test('stored keys for every vendor never reach session.json, the export zip, any
           elevenlabsKey: keys.elevenlabs,
           githubToken: keys.github,
           linearToken: keys.linear,
+          jiraToken: keys.jira,
+          jiraSite: 'https://acme.atlassian.net',
+          jiraEmail: 'reviewer@example.com',
           anthropicNoticeShown: true,
           githubNoticeShown: true,
           linearNoticeShown: true,
-          trackerSettings: { github: { repo: 'acme/web' }, linear: { team: 'team-web' } },
+          jiraNoticeShown: true,
+          trackerSettings: {
+            github: { repo: 'acme/web' },
+            linear: { team: 'team-web' },
+            jira: { project: 'ABC', issueType: '' },
+          },
           vendorNoticeShown: { deepgram: true, elevenlabs: true },
           transcriptionSettings: { tier: 'better', freeEngine: 'webspeech', whisperModel: 'base' },
           devOverrides: {
@@ -391,6 +403,7 @@ test('stored keys for every vendor never reach session.json, the export zip, any
             gatewayBaseUrl: anthropicBase,
             githubBaseUrl: githubBase,
             linearBaseUrl: linearBase,
+            jiraBaseUrl: jiraBase,
           },
         });
       },
@@ -400,6 +413,7 @@ test('stored keys for every vendor never reach session.json, the export zip, any
         anthropicBase: anthropic.baseURL,
         githubBase: github.baseURL,
         linearBase: linear.baseURL,
+        jiraBase: jira.baseURL,
       },
     );
     await grantMic(openExtensionPage);
@@ -410,7 +424,7 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     await review.getByTestId('process-button').click();
     await review.getByTestId('process-confirm').click();
     await expect(review.getByTestId('change-item')).toHaveCount(1, { timeout: 30_000 });
-    // Send the item to GitHub and to Linear, so both secrets are really used, and their statuses are read.
+    // Send the item to GitHub, Linear and Jira, so all three secrets are really used, and their statuses are read.
     const row = (tracker: string) => review.locator(`[data-testid="send-to-tracker"][data-tracker="${tracker}"]`);
     await review.getByTestId('send-to-github').click();
     await expect(row('github').getByTestId('tracker-link')).toHaveText('GitHub #1');
@@ -418,6 +432,9 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     await review.getByTestId('send-to-linear').click();
     await expect(row('linear').getByTestId('tracker-link')).toHaveText('Linear WEB-1');
     await expect(row('linear').getByTestId('tracker-status')).toHaveText('Todo');
+    await review.getByTestId('send-to-jira').click();
+    await expect(row('jira').getByTestId('tracker-link')).toHaveText('Jira ABC-1');
+    await expect(row('jira').getByTestId('tracker-status')).toHaveText('To Do');
     // The Gateway key's Test call (the same stub stands in for the Gateway).
     const options = await openExtensionPage('options.html');
     await options.getByTestId('test-gateway').click();
@@ -434,6 +451,8 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     expect(github.repo('acme/web').issues).toHaveLength(1);
     expect(linear.requests.some((r) => r.headers.authorization === KEYS.linear)).toBe(true);
     expect(linear.issues).toHaveLength(1);
+    expect(jira.requests.some((r) => r.headers.authorization?.startsWith('Basic '))).toBe(true);
+    expect(jira.issues).toHaveLength(1);
 
     const zipped = readdirSync(dir, { recursive: true, withFileTypes: true })
       .filter((d) => d.isFile())
@@ -458,6 +477,7 @@ test('stored keys for every vendor never reach session.json, the export zip, any
     for (const [secret, own] of [
       [KEYS.github, 'githubToken'],
       [KEYS.linear, 'linearToken'],
+      [KEYS.jira, 'jiraToken'],
     ] as const) {
       expect(local[own]).toBe(secret);
       for (const [key, value] of Object.entries(local))
@@ -470,11 +490,12 @@ test('stored keys for every vendor never reach session.json, the export zip, any
       JSON.parse(sessionJson)
         .change_items[0].tracker_links.map((l: { tracker: string }) => l.tracker)
         .sort(),
-    ).toEqual(['github', 'linear']);
+    ).toEqual(['github', 'jira', 'linear']);
   } finally {
     await dg.close();
     await anthropic.close();
     await github.close();
     await linear.close();
+    await jira.close();
   }
 });

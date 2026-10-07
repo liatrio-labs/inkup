@@ -2,6 +2,7 @@
 // build its adapter from what was entered (against a stub), and say what leaves the machine.
 import { afterEach, describe, expect, it } from 'vitest';
 import { startGithubStub } from '../../../../tests/support/github-stub';
+import { startJiraStub } from '../../../../tests/support/jira-stub';
 import { startLinearStub } from '../../../../tests/support/linear-stub';
 import { TRACKERS, trackerDefinition } from '../../src/trackers';
 
@@ -11,8 +12,8 @@ afterEach(async () => {
 });
 
 describe('TRACKERS', () => {
-  it('lists GitHub then Linear, each with a secret token field, its words and a notice', () => {
-    expect(TRACKERS.map((t) => t.tracker)).toEqual(['github', 'linear']);
+  it('lists GitHub, Linear then Jira, each with a secret token field, its words and a notice', () => {
+    expect(TRACKERS.map((t) => t.tracker)).toEqual(['github', 'linear', 'jira']);
     for (const t of TRACKERS) {
       expect(trackerDefinition(t.tracker)).toBe(t);
       expect(t.fields.find((f) => f.id === 'token')).toMatchObject({ secret: true });
@@ -40,6 +41,26 @@ describe('TRACKERS', () => {
       .adapter(fetch, { token: 'lin-key', destination: '', baseUrl: linear.baseURL })
       .listDestinations(lin.credentials({ token: 'lin-key' }));
     expect(teams.map((t) => t.id)).toEqual(['team-web']);
+  });
+
+  it("builds Jira's adapter from the site, email and issue type, and refuses a site that is not Atlassian Cloud", async () => {
+    const jira = await startJiraStub({ email: 'me@example.com', token: 'jira-token' });
+    closers.push(jira.close);
+    const def = trackerDefinition('jira')!;
+    expect(def.fields.map((f) => [f.id, f.secret])).toEqual([
+      ['site', false],
+      ['email', false],
+      ['token', true],
+    ]);
+    const values = { site: 'https://acme.atlassian.net', email: 'me@example.com', token: ' jira-token ' };
+    expect(def.credentials(values)).toEqual({ token: 'jira-token' });
+    // The dev override (baseUrl) stands in for the site; without it the site is used, and must be Atlassian's.
+    const projects = await def
+      .adapter(fetch, { ...values, baseUrl: jira.baseURL })
+      .listDestinations(def.credentials(values));
+    expect(projects.map((p) => p.id)).toEqual(['ABC']);
+    expect(() => def.adapter(fetch, { ...values, site: 'https://jira.example.com' })).toThrow('atlassian.net');
+    expect(() => def.adapter(fetch, values)).not.toThrow();
   });
 });
 

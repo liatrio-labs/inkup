@@ -11,6 +11,7 @@ import type { ChangeItem } from '@inkup/core/process/change-item';
 import {
   type Destination,
   itemImageIds,
+  parseJiraSite,
   pushItem,
   TRACKERS,
   type TrackerAdapter,
@@ -31,6 +32,11 @@ import {
   githubApiBase,
   githubNoticeShown,
   githubToken,
+  jiraApiBase,
+  jiraEmail,
+  jiraNoticeShown,
+  jiraSite,
+  jiraToken,
   linearApiBase,
   linearNoticeShown,
   linearToken,
@@ -53,6 +59,13 @@ export interface TrackerStore {
   };
   /** The tracker's API base: its own API, or the dev override outside a release build. */
   apiBase(dev: DevOverrides | null): string;
+  /** Values beyond the fields and the destination that the adapter reads (Jira's issue type). */
+  values?(settings: TrackerSettings): Record<string, string>;
+  /**
+   * Checks and tidies a field before it is saved: the value to store, or what to tell the reviewer is wrong with it.
+   * Jira's site must be an Atlassian Cloud site unless a development build points at a stub.
+   */
+  prepare?(fieldId: string, value: string, dev: DevOverrides | null): { value: string } | { error: string };
 }
 
 export const STORES: Partial<Record<TrackerName, TrackerStore>> = {
@@ -73,6 +86,31 @@ export const STORES: Partial<Record<TrackerName, TrackerStore>> = {
       set: (s, team) => ({ ...s, linear: { team } }),
     },
     apiBase: (dev) => linearApiBase(dev),
+  },
+  jira: {
+    fields: { site: jiraSite, email: jiraEmail, token: jiraToken },
+    noticeShown: jiraNoticeShown,
+    destination: {
+      get: (s) => s.jira?.project ?? '',
+      // A new project has its own issue types, so the type picked for the old one is dropped.
+      set: (s, project) => ({
+        ...s,
+        jira: { project, issueType: s.jira?.project === project ? (s.jira?.issueType ?? '') : '' },
+      }),
+    },
+    // '' here means the saved site is used; a development build points at a stub instead.
+    apiBase: (dev) => jiraApiBase(dev),
+    values: (s) => ({ issueType: s.jira?.issueType ?? '' }),
+    prepare(fieldId, value, dev) {
+      if (fieldId !== 'site') return { value };
+      const site = parseJiraSite(value);
+      if (site) return { value: site };
+      // A development build with a stub set does not check the site (the stub stands in for it).
+      if (jiraApiBase(dev)) return { value: value.trim() };
+      return {
+        error: 'The site must look like https://<your-team>.atlassian.net. Check the address in your Jira URL.',
+      };
+    },
   },
 };
 
@@ -100,7 +138,9 @@ export async function trackerValues(tracker: TrackerName): Promise<TrackerValues
   const { store } = known(tracker);
   const values: TrackerValues = {};
   for (const [id, item] of Object.entries(store.fields)) values[id] = ((await item.getValue()) ?? '').trim();
-  values.destination = store.destination.get(await trackerSettings.getValue()).trim();
+  const settings = await trackerSettings.getValue();
+  values.destination = store.destination.get(settings).trim();
+  Object.assign(values, store.values?.(settings));
   return values;
 }
 
