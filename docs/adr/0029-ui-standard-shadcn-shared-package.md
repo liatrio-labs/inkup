@@ -55,8 +55,9 @@ the desktop app, bundled from Fontsource (`fonts.css`), never from a network.
 
 ## Consequences
 
-- The content script carries React for its surfaces, so the extension grows; the zip budget (under 200 KB over the
-  pre-migration build) is checked when a surface moves.
+- The content script carries React for its surfaces, so the extension grows; the zip budget (under 300 KB over the
+  pre-migration build, because the fonts and React are one-time costs of this standard) is checked when a surface
+  moves.
 - Each app's Tailwind scans `packages/ui/src` as well as its own source (`@source` in its `tailwind.css`), still scoped
   to source so the AMO sources zip rebuilds the same CSS. The Firefox sources zip includes `packages/ui`.
 - A change to `packages/ui` runs both the extension and the desktop checks in CI (`scripts/ci-changes.ts` already
@@ -69,6 +70,9 @@ the desktop app, bundled from Fontsource (`fonts.css`), never from a network.
 - 2026-10-07: first written, with the package, the theme, `mountInShadow` and both apps' primitives moved into it
   (spec 01, Unit 1). ADR 0025's "shadcn/ui only" rule was refined to "shadcn/ui and `@inkup/ui` components" the same
   day.
+- 2026-10-07: we thought the extension zip would stay under 200 KB over the pre-migration build; now 300 KB, because
+  the bundled fonts (108 KiB) and React (82 KiB) are one-time costs of the shadcn standard, not growth that recurs
+  per surface. Spec 01's first measurement was +204,793 B in the Chrome zip over 0.8.0.
 
 ## Sources
 
