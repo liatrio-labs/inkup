@@ -1,7 +1,7 @@
 {
   "source": "scripts/store-assets.ts",
   "captures": "apps/site/src/assets/captures",
-  "extensionVersion": "0.8.0",
+  "extensionVersion": "0.13.1",
   "assets": [
     {
       "file": "screenshot-1-talk-and-draw.png",
