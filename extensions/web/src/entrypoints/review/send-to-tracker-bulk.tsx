@@ -7,18 +7,21 @@
 // - Items go one at a time, in review order, each with its images and its own issue. Progress reads "Sending 4 of 12",
 //   counting only the items that will be sent.
 // - A failure does not stop the rest. When the list is done, the failed items are listed with the tracker's message
-//   and a Retry for each.
+//   and a Retry for each, or Open issue when the issue was made before the send failed (it is recorded, and sending
+//   again would make a second issue).
+// - Before each item the links are read again, and an item sent meanwhile (by hand from its card, or still being sent
+//   from it) is skipped and left out of the count. The cards and this share one in-flight set (lib/trackers.ts).
 // - A rate limit (a 403 or 429 with a retry-after) pauses the send for that long and tries the same item again,
 //   rather than failing it.
 import type { ChangeItem } from '@inkup/core/process/change-item';
 import { latestLinks, sessionName, trackerLinksFor } from '@inkup/core/review-edits';
 import { sortTimeline } from '@inkup/core/timeline';
 import type { TrackerError, TrackerName } from '@inkup/core/trackers';
+import { Button } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { db } from '@/db';
-import { KNOWN_TRACKERS, sendToTracker, useTrackerSetups } from '@/lib/trackers';
+import { IssueMadeError, KNOWN_TRACKERS, sendToTracker, useTrackerSetups } from '@/lib/trackers';
 
 const sessionId = new URLSearchParams(location.search).get('session') ?? '';
 
@@ -29,7 +32,15 @@ const MAX_PAUSES = 3;
 interface Failure {
   item: ChangeItem;
   error: string;
+  /** The issue, when it was made before the send failed: open it rather than send again. */
+  url?: string;
 }
+
+const failureOf = (item: ChangeItem, e: unknown): Failure => ({
+  item,
+  error: e instanceof Error ? e.message : String(e),
+  ...(e instanceof IssueMadeError ? { url: e.url } : {}),
+});
 
 /** The send in progress, or the last one's result. */
 interface Run {
@@ -71,18 +82,19 @@ export function SendToTrackerBulk({ items }: { items: readonly ChangeItem[] }) {
     items.filter((i) => !latestLinks(links.get(i.id)).some((l) => l.tracker === tracker));
   const running = progress?.running === true;
 
-  /** Sends one item, waiting out a rate limit the tracker says how long to wait for. */
+  /**
+   * Sends one item unless it is already sent or being sent, waiting out a rate limit the tracker says how long to wait
+   * for. Answers the link, or null when the item was skipped.
+   */
   async function sendOne(tracker: TrackerName, item: ChangeItem, onWait: (seconds: number | null) => void) {
-    if (!session || !run) return;
+    if (!session || !run) return null;
     for (let pauses = 0; ; pauses++) {
       try {
-        await sendToTracker(tracker, {
-          sessionId,
-          sessionName: sessionName(session, sortTimeline(renames ?? [])),
-          runId: run.id,
-          item,
-        });
-        return;
+        return await sendToTracker(
+          tracker,
+          { sessionId, sessionName: sessionName(session, sortTimeline(renames ?? [])), runId: run.id, item },
+          { unlessSent: true },
+        );
       } catch (e) {
         const wait = isRateLimit(e) ? e.retryAfterMs : null;
         if (wait === null || wait > MAX_WAIT_MS || pauses >= MAX_PAUSES || !alive.current) throw e;
@@ -100,6 +112,8 @@ export function SendToTrackerBulk({ items }: { items: readonly ChangeItem[] }) {
     if (!todo.length) return;
     const failures: Failure[] = [];
     let sent = 0;
+    // Items found already sent, or being sent from their card, when their turn came: not counted.
+    let skipped = 0;
     setFailed([]);
     setFailedTracker(tracker);
     const update = (patch: Partial<Run>) =>
@@ -107,16 +121,16 @@ export function SendToTrackerBulk({ items }: { items: readonly ChangeItem[] }) {
       setProgress((p) => ({ tracker, total: todo.length, at: 1, waiting: null, running: true, sent, ...p, ...patch }));
     setProgress({ tracker, total: todo.length, at: 1, waiting: null, running: true, sent: 0 });
     for (const [index, item] of todo.entries()) {
-      update({ at: index + 1, waiting: null, sent });
+      update({ at: index + 1 - skipped, total: todo.length - skipped, waiting: null, sent });
       try {
-        await sendOne(tracker, item, (waiting) => update({ waiting }));
-        sent++;
+        if (await sendOne(tracker, item, (waiting) => update({ waiting }))) sent++;
+        else skipped++;
       } catch (e) {
-        failures.push({ item, error: e instanceof Error ? e.message : String(e) });
+        failures.push(failureOf(item, e));
       }
     }
     if (!alive.current) return;
-    update({ running: false, waiting: null, sent });
+    update({ running: false, waiting: null, sent, total: todo.length - skipped });
     setFailed(failures);
   }
 
@@ -125,13 +139,12 @@ export function SendToTrackerBulk({ items }: { items: readonly ChangeItem[] }) {
     const id = failure.item.id;
     setRetrying((s) => new Set(s).add(id));
     try {
-      await sendOne(failedTracker, failure.item, () => {});
+      // Null: it was sent meanwhile (from its card), so it is done, and not counted as this send's.
+      const link = await sendOne(failedTracker, failure.item, () => {});
       setFailed((f) => f.filter((x) => x.item.id !== id));
-      setProgress((p) => (p ? { ...p, sent: p.sent + 1 } : p));
+      setProgress((p) => (p ? (link ? { ...p, sent: p.sent + 1 } : { ...p, total: p.total - 1 }) : p));
     } catch (e) {
-      setFailed((f) =>
-        f.map((x) => (x.item.id === id ? { ...x, error: e instanceof Error ? e.message : String(e) } : x)),
-      );
+      setFailed((f) => f.map((x) => (x.item.id === id ? failureOf(x.item, e) : x)));
     } finally {
       setRetrying((s) => {
         const next = new Set(s);
@@ -182,15 +195,23 @@ export function SendToTrackerBulk({ items }: { items: readonly ChangeItem[] }) {
                 <li key={f.item.id} className="flex flex-wrap items-center gap-2" data-item-id={f.item.id}>
                   <span className="font-medium">{f.item.title}</span>
                   <span className="text-destructive">{f.error}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={retrying.has(f.item.id)}
-                    onClick={() => void retryOne(f)}
-                    data-testid="bulk-retry"
-                  >
-                    {retrying.has(f.item.id) ? 'Retrying…' : 'Retry'}
-                  </Button>
+                  {f.url ? (
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={f.url} target="_blank" rel="noreferrer" data-testid="bulk-open-issue">
+                        Open issue
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={retrying.has(f.item.id)}
+                      onClick={() => void retryOne(f)}
+                      data-testid="bulk-retry"
+                    >
+                      {retrying.has(f.item.id) ? 'Retrying…' : 'Retry'}
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>

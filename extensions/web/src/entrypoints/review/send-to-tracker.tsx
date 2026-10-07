@@ -12,7 +12,11 @@
 //   the read fails). Statuses are never stored or logged. Sending again is in the menu, behind a confirm, because it
 //   makes a second issue.
 // - An item can hold one link per tracker.
-// - A failed send says what went wrong in plain words, with Retry.
+// - A failed send says what went wrong in plain words, with Retry. When the issue was made before the send failed
+//   (Jira, when a screenshot didn't go on), the link is recorded and the row offers Open issue instead of Retry,
+//   because sending again would make a second issue.
+// - While the item is being sent to a tracker, from this card or by "Send all", its row shows it sending and can't
+//   send it again.
 import type { ChangeItem } from '@inkup/core/process/change-item';
 import { latestLinks, sessionName, trackerLinksFor } from '@inkup/core/review-edits';
 import { sortTimeline } from '@inkup/core/timeline';
@@ -24,23 +28,24 @@ import {
   type TrackerLink,
   type TrackerName,
 } from '@inkup/core/trackers';
+import { Button, cn, Dialog, DialogContent, DialogDescription, DialogTitle } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { TONE } from '@/components/tone';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { db } from '@/db';
 import {
   destinationsFor,
+  IssueMadeError,
   KNOWN_TRACKERS,
+  sendKey,
   sendToTracker,
   type TrackerSetup,
   trackerAdapter,
   trackerCredentials,
+  useSendsInFlight,
   useTrackerSetups,
 } from '@/lib/trackers';
-import { cn } from '@/lib/utils';
 
 const sessionId = new URLSearchParams(location.search).get('session') ?? '';
 
@@ -164,17 +169,22 @@ function TrackerRow({
   def,
   setup,
   link,
+  inFlight,
   send,
 }: {
   def: TrackerDefinition;
   /** Null when the tracker is not set up (the item is linked to it from before). */
   setup: TrackerSetup | null;
   link: TrackerLink | undefined;
+  /** Whether the item is being sent to this tracker now, from here or by a bulk send. */
+  inFlight: boolean;
   send: (tracker: TrackerName, destination?: string) => Promise<void>;
 }) {
   const id = def.tracker;
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [mine, setSending] = useState(false);
+  const sending = mine || inFlight;
+  // `url` when the issue was made before the send failed: open it, rather than send again.
+  const [error, setError] = useState<{ message: string; url?: string } | null>(null);
   const [menu, setMenu] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -190,7 +200,10 @@ function TrackerRow({
       setChosen(null);
       setPicking(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError({
+        message: e instanceof Error ? e.message : String(e),
+        ...(e instanceof IssueMadeError ? { url: e.url } : {}),
+      });
     } finally {
       setSending(false);
     }
@@ -277,11 +290,19 @@ function TrackerRow({
       {error && !sending && (
         <span className="flex basis-full flex-wrap items-center gap-2">
           <span role="alert" className="text-destructive" data-testid="tracker-error">
-            {error}
+            {error.message}
           </span>
-          <Button variant="outline" size="sm" onClick={sendChosen} data-testid="tracker-retry">
-            Retry
-          </Button>
+          {error.url ? (
+            <Button variant="outline" size="sm" asChild>
+              <a href={error.url} target="_blank" rel="noreferrer" data-testid="tracker-open-issue">
+                Open issue
+              </a>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={sendChosen} data-testid="tracker-retry">
+              Retry
+            </Button>
+          )}
         </span>
       )}
       <Dialog open={confirm} onOpenChange={setConfirm}>
@@ -312,6 +333,7 @@ function TrackerRow({
 
 export function SendToTracker({ item }: { item: ChangeItem }) {
   const setups = useTrackerSetups();
+  const inFlight = useSendsInFlight();
   const session = useLiveQuery(() => db.sessions.get(sessionId), []);
   const run = useLiveQuery(() => db.latestRun(sessionId, 'done'), []);
   const linkRows = useLiveQuery(() => db.eventsOfType(sessionId, 'tracker_link').toArray(), []);
@@ -343,14 +365,21 @@ export function SendToTracker({ item }: { item: ChangeItem }) {
     await sendToTracker(
       tracker,
       { sessionId, sessionName: sessionName(session, sortTimeline(renames ?? [])), runId: run.id, item },
-      destination,
+      { destination },
     );
   }
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1" data-testid="send-to-trackers">
       {rows.map(({ def, setup, link }) => (
-        <TrackerRow key={def.tracker} def={def} setup={setup} link={link} send={send} />
+        <TrackerRow
+          key={def.tracker}
+          def={def}
+          setup={setup}
+          link={link}
+          inFlight={inFlight.has(sendKey(run.id, item.id, def.tracker))}
+          send={send}
+        />
       ))}
     </div>
   );

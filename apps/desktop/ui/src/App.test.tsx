@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { type ImageUpload, type IssueDraft, TRACKERS, type TrackerDefinition } from '@inkup/core/trackers';
 import { ControlState, type FullItem, type ItemView, type TrackerLink } from '@inkup/protocol/host-control';
 import { clearMocks, mockIPC } from '@tauri-apps/api/mocks';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, TABS } from './App';
@@ -594,6 +595,44 @@ describe('tracker push', () => {
     expect(screen.queryByTestId('tracker-error')).toBeNull();
   });
 
+  it('makes one issue for an item sent by hand during a bulk send, whether still sending or sent', async () => {
+    const host = rows(['One'], ['Two'], ['Three'], ['Four']);
+    const calls = app(HOST, host, { ...githubReady(), ...hostSide(host) });
+    stub.hold = true;
+    await screen.findByText('Pricing Fixture');
+    openTab(/^Items/);
+    const sendRow = (title: string) =>
+      within(screen.getByText(title).closest('tr') as HTMLElement).getByRole('button', { name: 'Send to GitHub' });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Send 4 unsent to GitHub' }));
+    await waitFor(() => expect(stub.waiting).toHaveLength(1));
+    // While One is going out in bulk, Three and Four are sent from their rows.
+    fireEvent.click(sendRow('Three'));
+    await waitFor(() => expect(stub.waiting).toHaveLength(2));
+    fireEvent.click(sendRow('Four'));
+    await waitFor(() => expect(stub.waiting).toHaveLength(3));
+    const [one, three, four] = stub.waiting.splice(0) as [() => void, () => void, () => void];
+    stub.hold = false;
+    // Four is sent and recorded before the bulk send reaches it; Three is still sending when it does.
+    await act(async () => four());
+    await waitFor(() => expect(stub.issues.map((i) => i.title)).toEqual(['Four']));
+    await act(async () => one());
+    await waitFor(() => expect(screen.queryByTestId('bulk-progress')).toBeNull());
+    expect(stub.issues.map((i) => i.title)).toEqual(['Four', 'One', 'Two']);
+    await act(async () => three());
+    await waitFor(() => expect(stub.issues.map((i) => i.title)).toEqual(['Four', 'One', 'Two', 'Three']));
+
+    for (const title of ['One', 'Two', 'Three', 'Four'])
+      await waitFor(() =>
+        expect(
+          within(screen.getByText(title).closest('tr') as HTMLElement).getAllByTestId('tracker-link'),
+        ).toHaveLength(1),
+      );
+    expect(calls.filter((c) => c.cmd === 'record_tracker_link')).toHaveLength(4);
+    expect(screen.queryByTestId('bulk-failed')).toBeNull();
+    expect(screen.queryByTestId('tracker-error')).toBeNull();
+  });
+
   it('tests a saved token in Trackers and says which permission it lacks', async () => {
     stub.contentsWrite = false;
     app(HOST, state({ pending_pairing: [] }), githubReady());
@@ -645,7 +684,7 @@ describe('tracker push', () => {
     });
 
     /** Jira, as its REST API answers: one project with a Task type, issue ABC-1, an attachment url per upload. */
-    function jiraSite() {
+    function jiraSite({ canAttach = true } = {}) {
       const requests: { method: string; path: string; auth: string | null; noCheck: string | null; body: unknown }[] =
         [];
       pluginFetch.mockImplementation(async (input: string, init?: RequestInit) => {
@@ -665,6 +704,8 @@ describe('tracker push', () => {
         if (method === 'GET' && path === '/project/ABC')
           return json({ key: 'ABC', issueTypes: [{ name: 'Task', subtask: false }] });
         if (method === 'POST' && path === '/issue') return json({ id: '10001', key: 'ABC-1' }, 201);
+        if (method === 'POST' && path === '/issue/ABC-1/attachments' && !canAttach)
+          return json({ errorMessages: ['You do not have permission to create attachments.'] }, 403);
         if (method === 'POST' && path === '/issue/ABC-1/attachments') {
           const n = requests.filter((r) => r.path === path).length;
           return json([{ content: `${SITE}/rest/api/3/attachment/content/${n}` }]);
@@ -725,6 +766,34 @@ describe('tracker push', () => {
       expect(created.fields.summary).toBe('Make the Get started button bigger');
       expect(created.fields.issuetype).toEqual({ name: 'Task' });
       expect(JSON.stringify(requests[4]?.body)).toContain(`${SITE}/rest/api/3/attachment/content/1`);
+    });
+
+    it('records a Jira issue whose screenshots failed after it was made, and offers Open issue, not Retry', async () => {
+      const requests = jiraSite({ canAttach: false });
+      localStorage.setItem(
+        'inkup.trackers',
+        JSON.stringify({ jira: { site: SITE, email: 'me@example.com', destination: 'ABC' } }),
+      );
+      const host = rows(['Make the Get started button bigger']);
+      const calls = app(HOST, host, {
+        tracker_secret: ({ tracker, field }: { tracker: string; field: string }) =>
+          tracker === 'jira' && field === 'token' ? JIRA_TOKEN : null,
+        ...hostSide(host),
+      });
+      await screen.findByText('Pricing Fixture');
+      openTab(/^Items/);
+      fireEvent.click(await screen.findByRole('button', { name: 'Send to Jira' }));
+
+      expect((await screen.findByTestId('tracker-error')).textContent).toContain('ABC-1 was created in Jira');
+      expect((await screen.findByTestId('tracker-link')).textContent).toBe('Jira ABC-1');
+      expect(screen.queryByTestId('tracker-retry')).toBeNull();
+      expect(calls).toContainEqual({
+        cmd: 'record_tracker_link',
+        args: { id: 'item-1', link: expect.objectContaining({ tracker: 'jira', key: 'ABC-1' }) },
+      });
+      fireEvent.click(screen.getByTestId('tracker-open-issue'));
+      expect(vi.mocked(openUrl)).toHaveBeenCalledWith(`${SITE}/browse/ABC-1`);
+      expect(requests.filter((r) => r.method === 'POST' && r.path === '/issue')).toHaveLength(1);
     });
 
     it('lists GitHub, Linear and Jira in Trackers, and refuses a Jira site that is not Atlassian Cloud', async () => {

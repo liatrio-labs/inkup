@@ -145,7 +145,7 @@ act on it and open its Evidence.
 _Avoid_: Task prompt, instruction
 
 **Tracker**:
-The issue tracker a team plans its work in (GitHub Issues today; Linear and Jira next), which a reviewer can send a
+The issue tracker a team plans its work in (GitHub Issues, Linear or Jira), which a reviewer can send a
 Change Item to as one issue, with its screenshots, using their own token. What lands there is an issue; the Change Item
 itself is still never called a ticket.
 _Avoid_: Ticketing system, integration, ticket
