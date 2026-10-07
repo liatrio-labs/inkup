@@ -2,11 +2,9 @@
 // to the shadow root and its host, with nothing added to the host document (ADR 0011, ADR 0012, ADR 0029).
 import shadowCss from './styles/shadow.css?inline';
 
-/** `:root(...)` with attribute or `:not()` parts, which become `:host(...)`. */
-const ROOT_WITH_PARTS = /:root((?:\[[^\]]*\]|:not\((?:[^()]|\([^()]*\))*\))+)/g;
-
 const isSpace = (ch: string | undefined) => ch !== undefined && /\s/.test(ch);
 const isNameChar = (ch: string | undefined) => ch !== undefined && /[\w-]/.test(ch);
+const isWordChar = (ch: string | undefined) => ch !== undefined && /\w/.test(ch);
 
 /** Index of the first non-space character at or after `i`. */
 function skipSpace(text: string, i: number): number {
@@ -66,6 +64,72 @@ function stripPropertyRules(css: string, onRule: (name: string, body: string) =>
   return out + css.slice(copied);
 }
 
+/** For each `(` in `text`, the index just past its matching `)`, or -1 when it never closes: one pass with a stack. */
+function matchParens(text: string): Int32Array {
+  const match = new Int32Array(text.length).fill(-1);
+  const open: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '(') open.push(i);
+    else if (text[i] === ')' && open.length > 0) match[open.pop() as number] = i + 1;
+  }
+  return match;
+}
+
+/** `text` with every `:root` that no word character follows replaced by `:host` (what `/:root\b/g` would match). */
+function bareRootToHost(text: string): string {
+  let out = '';
+  let copied = 0;
+  let at = text.indexOf(':root');
+  while (at !== -1) {
+    const after = at + ':root'.length;
+    if (!isWordChar(text[after])) {
+      out += `${text.slice(copied, at)}:host`;
+      copied = after;
+    }
+    at = text.indexOf(':root', after);
+  }
+  return out + text.slice(copied);
+}
+
+/**
+ * Rewrites each `:root` selector to `:host` with one forward scan (no backtracking, so no crafted input can blow up).
+ * The attribute and `:not()` parts that follow `:root` go inside the parens: `:root[data-theme="dark"]:not(.x)` →
+ * `:host([data-theme="dark"]:not(.x))`. A part that never closes ends the parts there. A bare `:root` becomes `:host`
+ * unless a word character follows it (`:rootx` stays as it is), and so does any `:root` inside the parts.
+ */
+function rootToHost(css: string): string {
+  let parens: Int32Array | undefined; // built on the first `:not(`
+  let bracket = -2; // the last `]` found, -1 once none is left, -2 before the first search
+  let out = '';
+  let copied = 0;
+  let at = css.indexOf(':root');
+  while (at !== -1) {
+    const partsStart = at + ':root'.length;
+    let i = partsStart;
+    for (;;) {
+      let end = -1;
+      if (css[i] === '[') {
+        if (bracket !== -1 && bracket <= i) bracket = css.indexOf(']', i + 1);
+        if (bracket !== -1) end = bracket + 1;
+      } else if (css.startsWith(':not(', i)) {
+        parens ??= matchParens(css);
+        end = parens[i + ':not'.length] as number;
+      }
+      if (end === -1) break;
+      i = end;
+    }
+    if (i > partsStart) {
+      out += `${css.slice(copied, at)}:host(${bareRootToHost(css.slice(partsStart, i))})`;
+      copied = i;
+    } else if (!isWordChar(css[partsStart])) {
+      out += `${css.slice(copied, at)}:host`;
+      copied = partsStart;
+    }
+    at = css.indexOf(':root', Math.max(copied, partsStart));
+  }
+  return out + css.slice(copied);
+}
+
 /**
  * The page stylesheet as a shadow root needs it. `:root` matches nothing in a shadow tree, so the theme's variables
  * and its `data-theme` switches move to `:host` (`:root[data-theme="dark"]` → `:host([data-theme="dark"])`). And
@@ -78,7 +142,7 @@ export function toShadowCss(css: string): string {
     const initial = initialValue(body);
     if (initial !== undefined) initials.push(`${name}:${initial}`);
   });
-  const scoped = withoutProperties.replace(ROOT_WITH_PARTS, ':host($1)').replace(/:root\b/g, ':host');
+  const scoped = rootToHost(withoutProperties);
   if (initials.length === 0) return scoped;
   return `@layer properties{:host,*,::before,::after,::backdrop{${initials.join(';')}}}\n${scoped}`;
 }
