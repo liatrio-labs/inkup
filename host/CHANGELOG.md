@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.10.0...inkup-v0.11.0) (2026-10-07)
+
+
+### Features
+
+* **ui:** add @inkup/ui with the DESIGN.md tokens and move both apps onto it ([#79](https://github.com/liatrio-labs/inkup/issues/79)) ([b9ad098](https://github.com/liatrio-labs/inkup/commit/b9ad0981870a1cf3e56095a1fd53bd06e3fec420))
+
 ## [0.10.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.9.0...inkup-v0.10.0) (2026-10-07)
 
 
