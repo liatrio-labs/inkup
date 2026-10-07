@@ -44,6 +44,7 @@ import { useStorageItem } from '@/lib/use-storage-item';
 import { cn } from '@/lib/utils';
 import { sendMessage } from '@/messaging';
 import { normalizeProcessingSettings, processingSettings } from '@/settings';
+import { SendToTracker } from './send-to-tracker';
 
 type Phase =
   | { kind: 'idle' }
@@ -755,6 +756,7 @@ function ChangeItemCard({
         <Button variant="outline" size="sm" onClick={copy} data-testid="copy-prompt">
           {copied === 'ok' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy agent prompt'}
         </Button>
+        <SendToTracker item={item} />
         {!editing && (
           <Button
             variant="ghost"

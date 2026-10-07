@@ -137,7 +137,7 @@ is proven.
 
 **The UI is shadcn/ui and `@inkup/ui` components.** The window (`apps/desktop/ui`) is built from shadcn/ui
 primitives and the components built from them, all imported from the shared `@inkup/ui` package (`packages/ui`, ADR
-0028), where the shadcn CLI adds them. It has no components of its own and no `components/ui` directory. It follows
+0029), where the shadcn CLI adds them. It has no components of its own and no `components/ui` directory. It follows
 the TUI's views and words, so the two stay recognisably the same product.
 
 ## Considered options
@@ -216,7 +216,7 @@ the TUI's views and words, so the two stay recognisably the same product.
   PATH" says. It still never runs it: the sidecar option stays rejected.
 - 2026-10-07: the window was "shadcn/ui only, no custom components", with its own copy of the primitives in
   `ui/src/components/ui`. Now it is "shadcn/ui and `@inkup/ui` components": the primitives live in the shared package
-  (ADR 0028), so the desktop's toolbar and Review view (native capture, Phase 1) import the extension's components
+  (ADR 0029), so the desktop's toolbar and Review view (native capture, Phase 1) import the extension's components
   instead of copying them.
 
 ## Sources

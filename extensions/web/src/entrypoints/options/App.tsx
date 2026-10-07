@@ -3,6 +3,7 @@
 import { DictationSection } from './dictation';
 import { HostSection } from './host';
 import { ProcessingSection } from './processing';
+import { TrackersSection } from './trackers';
 import { TranscriptionSection } from './transcription';
 
 export function App() {
@@ -21,6 +22,8 @@ export function App() {
       <ProcessingSection />
 
       <HostSection />
+
+      <TrackersSection />
     </main>
   );
 }

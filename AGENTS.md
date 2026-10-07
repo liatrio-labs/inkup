@@ -11,6 +11,9 @@ Guidance for coding agents (Claude Code, Codex and others) working in this repos
   work. Once it has been stopped, a follow-up goes to a fresh worker.
 - Each worker runs in its own git worktree and builds the host into that worktree's own `host/target`. Don't share
   `CARGO_TARGET_DIR` between workers.
+- Run e2e locally only through `pnpm test:e2e:docker` and `pnpm test:e2e:firefox:docker` (extra arguments go to
+  Playwright), never the raw `pnpm test:e2e`, `pnpm test:e2e:firefox` or `playwright test` on macOS: there, every
+  capture triggers a macOS screen-recording prompt, and `network-host.spec.ts` fails on local-network permissions.
 - Workers don't merge PRs, change repository settings or rulesets, or skip or disable tests.
 - **Tests that run git clear every `GIT_*` variable.** Hooks export `GIT_DIR` (and friends), so a test's
   `git init`/`config`/`commit` otherwise lands on the shared repo, which has twice reconfigured it as bare. Run git in

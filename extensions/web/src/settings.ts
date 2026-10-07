@@ -12,6 +12,7 @@ import { storage } from '@wxt-dev/storage';
 import type { z } from 'zod';
 import type { ModelList } from '@/adapters/llm/models';
 import type { Effort } from '@/adapters/llm/types';
+import { RELEASE_BUILD } from '@/lib/dev-stripes';
 
 export type TranscriptionInfo = z.infer<typeof TranscriptionInfoSchema>;
 
@@ -179,6 +180,24 @@ export const anthropicNoticeShown = storage.defineItem<boolean>('local:anthropic
 export const gatewayNoticeShown = storage.defineItem<boolean>('local:gatewayNoticeShown', { fallback: false });
 
 /**
+ * The reviewer's GitHub fine-grained personal access token, for sending Change Items as issues (ADR 0028): the same
+ * rules as `anthropicKey` (storage.local only, never sync, never logged, never exported). Empty string: no token.
+ */
+export const githubToken = storage.defineItem<string>('local:githubToken', { fallback: '' });
+
+/** Tracker settings that are not secret: where an item goes when the reviewer presses Send (ADR 0028). */
+export interface TrackerSettings {
+  /** GitHub's default repo, `owner/repo`; empty until one is picked. */
+  github: { repo: string };
+}
+export const trackerSettings = storage.defineItem<TrackerSettings>('local:trackerSettings', {
+  fallback: { github: { repo: '' } },
+});
+
+/** The "what goes to GitHub" notice is shown once, the first time a GitHub token is saved. */
+export const githubNoticeShown = storage.defineItem<boolean>('local:githubNoticeShown', { fallback: false });
+
+/**
  * Transcription tier (PRD P0-7, P0-14). Free runs on this machine: on-device Web Speech (default) or local
  * Whisper. Better streams to Deepgram and Best to ElevenLabs, with the reviewer's own key.
  */
@@ -237,6 +256,8 @@ export interface ScriptedTranscript {
  *   a video-grounded Process sends (tests/e2e/video-process.spec.ts).
  * - `deepgramBaseUrl`, `elevenlabsBaseUrl` point the paid tiers at local stub servers (tests/support/stt-stubs.ts),
  *   and `sttRetryBaseMs` shortens their reconnect backoff (tests/e2e/stt-tiers.spec.ts).
+ * - `githubBaseUrl` points tracker push at tests/support/github-stub.ts (tests/e2e/trackers.spec.ts). A release
+ *   build ignores it (githubApiBase), so nothing stored can send a GitHub token anywhere but GitHub.
  */
 export interface DevOverrides {
   transcription?: 'scripted';
@@ -261,8 +282,17 @@ export interface DevOverrides {
   maxOverlayMs?: number;
   /** The Annotation screenshot the page asks for never answers (e2e: a hung capture must not leave ink up). */
   hangAnnotationShots?: boolean;
+  /** GitHub's REST API base for tracker push. Ignored by a release build. */
+  githubBaseUrl?: string;
 }
 export const devOverrides = storage.defineItem<DevOverrides | null>('local:devOverrides', { fallback: null });
+
+export const GITHUB_API_BASE = 'https://api.github.com';
+
+/** Where tracker push calls GitHub: the dev override in a development build, else GitHub's API. */
+export function githubApiBase(dev: DevOverrides | null | undefined, release: boolean = RELEASE_BUILD): string {
+  return !release && dev?.githubBaseUrl ? dev.githubBaseUrl : GITHUB_API_BASE;
+}
 
 /** Why a Session has no video (P0-1: the picker was cancelled → "video off"). */
 export type VideoOffReason = 'picker_cancelled' | 'unavailable' | 'failed';

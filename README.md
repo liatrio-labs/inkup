@@ -156,13 +156,14 @@ its own, use `pnpm -C packages/core test` or `pnpm -C extensions/web test`.
 | `pnpm test` | Vitest unit and adapter tests across `packages/core`, `extensions/web`, the desktop app's UI and the repo, with stand-in models and stub servers |
 | `pnpm test:e2e` | Builds, then Playwright in headless Chromium with the extension loaded, fake media and local stubs for every vendor |
 | `pnpm test:e2e:firefox` | Builds the Firefox add-on and runs `tests/e2e-firefox` in Playwright's Firefox (the add-on is installed over Firefox's remote debugging protocol) |
+| `pnpm test:e2e:docker`, `pnpm test:e2e:firefox:docker` | The same two suites in Linux Docker, as CI runs them; recommended on macOS ([tests/e2e/README.md](tests/e2e/README.md#running-in-docker)) |
 | `pnpm test:e2e:whisper` | The local Whisper e2e, which downloads a real model from Hugging Face |
 | `pnpm eval` | The live Process eval against the Anthropic API |
 | `pnpm eval:stt` | The live transcription eval against Deepgram and ElevenLabs |
 
 `pnpm test` and `pnpm test:e2e` need no keys and make no calls outside the machine. Each eval skips cleanly when
 its key is missing. To run e2e in two checkouts at once, give one of them another port range with
-`E2E_PORT_BASE=5401` (the default is 4401).
+`E2E_PORT_BASE=5401` (the default is 4401). Docker runs each get their own network, so they need none.
 
 ### Keys for the evals
 

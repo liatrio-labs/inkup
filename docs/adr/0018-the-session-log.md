@@ -53,3 +53,6 @@ step (as v12→13 mapped `inspect_pick` to `object_select`). Schema changes are 
 - 2026-09-23 (U1): the upgrade shim and restore from a file.
 - 2026-09-23 (E12): Combine's answer became an `edit` op with `origin: 'combine'`; there was no Undo on the review page.
   2026-09-23 (F5): `undo` and `redo` ops (schema v19).
+- 2026-10-07 (ADR 0028): `tracker_link` (an item was sent to an issue tracker) is appended after the Session like a
+  review edit, but it is not an `item_edit` op, so Undo and Redo never take it back. Folding puts it on the item as
+  `tracker_links` (schema v21).

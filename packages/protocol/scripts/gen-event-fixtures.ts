@@ -654,6 +654,22 @@ export const SAMPLES: Samples = {
       },
     },
   ],
+  tracker_link: [
+    {
+      event: {
+        id: 'e1a4c1d2-0b6f-4d52-9d64-5e3a2f1b0c3c',
+        type: 'tracker_link',
+        t: 30000,
+        item_id: 'item_0001',
+        run_id: '5a1c9e2b-8d4f-4b7a-a3c6-2f9e0d1b7c44',
+        tracker: 'github',
+        destination: 'acme/web',
+        key: '#142',
+        url: 'https://github.com/acme/web/issues/142',
+        created_at: '2026-09-23T10:15:00.000Z',
+      },
+    },
+  ],
 };
 
 /** A Change Item with every optional field filled: the `items` push. */
@@ -691,6 +707,15 @@ export const ITEM: ChangeItem = {
   ],
   source: 'reviewer',
   vetting: { verdict: 'corrected', reason: 'The footage shows the circle around the link, not the heading.' },
+  tracker_links: [
+    {
+      tracker: 'github',
+      destination: 'acme/web',
+      key: '#142',
+      url: 'https://github.com/acme/web/issues/142',
+      created_at: '2026-09-23T10:15:00.000Z',
+    },
+  ],
 };
 
 /** File name → message, in a stable order. */

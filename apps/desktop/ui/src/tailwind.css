@@ -1,5 +1,5 @@
 /* Scan ui/src and @inkup/ui's source only. The theme and fonts are @inkup/ui's, so the app and the extension match
-   (ADR 0028). */
+   (ADR 0029). */
 @import "tailwindcss" source("./");
 @import "tw-animate-css";
 

@@ -1,6 +1,6 @@
 // Processing settings: every saved shape reads as per-role provider, model and effort.
 import { describe, expect, it } from 'vitest';
-import { normalizeProcessingSettings } from '@/settings';
+import { GITHUB_API_BASE, githubApiBase, normalizeProcessingSettings } from '@/settings';
 
 describe('normalizeProcessingSettings', () => {
   it('reads nothing saved as the Anthropic defaults, with no effort', () => {
@@ -50,5 +50,20 @@ describe('normalizeProcessingSettings', () => {
     // Values from an older or hand-edited storage.
     for (const v of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, '0.5'])
       expect(normalizeProcessingSettings({ autoRunBelowUsd: v as number })).not.toHaveProperty('autoRunBelowUsd');
+  });
+});
+
+describe('githubApiBase', () => {
+  const dev = { githubBaseUrl: 'http://127.0.0.1:4567' };
+
+  it('honours the dev override only outside a release build', () => {
+    expect(githubApiBase(dev, false)).toBe('http://127.0.0.1:4567');
+    expect(githubApiBase(dev, true)).toBe(GITHUB_API_BASE);
+    expect(GITHUB_API_BASE).toBe('https://api.github.com');
+  });
+
+  it("is GitHub's API without an override", () => {
+    expect(githubApiBase(null, false)).toBe(GITHUB_API_BASE);
+    expect(githubApiBase({}, false)).toBe(GITHUB_API_BASE);
   });
 });

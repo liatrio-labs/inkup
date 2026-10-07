@@ -1,7 +1,7 @@
 // The window: what the TUI shows and does, from the host through the app's commands. The header (where the host
 // is, host or client mode, network mode, the menu bar and Dock), the banners (network warning, update, host lost),
 // the six views and the pairing prompt, and Install CLI on macOS. It refetches when the host changes (a long-poll), not on a timer.
-// shadcn/ui and @inkup/ui components only (ADR 0028).
+// shadcn/ui and @inkup/ui components only (ADR 0029).
 
 import {
   Alert,

@@ -1,6 +1,6 @@
 # @inkup/ui (packages/ui)
 
-The shared UI of the extension and the desktop app (ADR 0028): the shadcn/ui primitives, the `cn` helper, the
+The shared UI of the extension and the desktop app (ADR 0029): the shadcn/ui primitives, the `cn` helper, the
 DESIGN.md theme and `mountInShadow`. Like `@inkup/core` it ships TypeScript source with no build step; each app's Vite
 compiles it. `pnpm -C packages/ui test` runs its tests.
 
