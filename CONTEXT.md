@@ -144,6 +144,23 @@ A self-contained instruction attached to a Change Item, written so a coding agen
 act on it and open its Evidence.
 _Avoid_: Task prompt, instruction
 
+**Tracker**:
+The issue tracker a team plans its work in (GitHub Issues today; Linear and Jira next), which a reviewer can send a
+Change Item to as one issue, with its screenshots, using their own token. What lands there is an issue; the Change Item
+itself is still never called a ticket.
+_Avoid_: Ticketing system, integration, ticket
+
+**Tracker Link**:
+The record that a Change Item was sent to a Tracker: which Tracker, the Destination, the issue's key (`#142`) and URL,
+and when. It is logged as a `tracker_link` event, Undo never takes it back, and it travels with the item as
+`tracker_links`. The issue's status (open, closed) is read live from the Tracker and never stored.
+_Avoid_: Ticket link, sync, mapping
+
+**Destination**:
+Where in a Tracker an issue is created: a GitHub repo (`owner/repo`). Each Tracker has a default Destination, picked in
+the Trackers settings.
+_Avoid_: Target, project (except for Jira's own projects)
+
 ### Host and clients
 
 **Host**:
