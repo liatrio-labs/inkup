@@ -3,9 +3,10 @@
 //
 // The microphone is optional (E11): skipped, a Session records ink, picks, typed comments and screenshots. "Turn on
 // voice" in a running Session opens this page with `?voice=1`; the grant turns that Session's voice on.
+
+import { Button } from '@inkup/ui';
 import { useState } from 'react';
 import { TONE } from '@/components/tone';
-import { Button } from '@/components/ui/button';
 import { getUserMediaWithRetry } from '@/lib/get-user-media';
 import { useSpeechPack } from '@/lib/speech-pack';
 import { useStorageItem } from '@/lib/use-storage-item';

@@ -4,17 +4,9 @@
 
 import { sessionName } from '@inkup/core/review-edits';
 import { readSessionFile, type SessionFile, SessionFileError } from '@inkup/core/session-file';
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@inkup/ui';
 import { useRef, useState } from 'react';
 import { ReviewLink } from '@/components/review-link';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { db } from '@/db';
 import { queueSessionForHost } from '@/db/outbox';
 import { restoreSession, SessionClashError } from '@/db/session-import';

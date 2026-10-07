@@ -7,11 +7,10 @@
 import { formatElapsed } from '@inkup/core/clock';
 import { type ReviewEntry, reviewTimeline } from '@inkup/core/review-timeline';
 import { type EventOf, isObjectSelectPick, type TimelineEvent } from '@inkup/core/timeline';
+import { cn, Textarea } from '@inkup/ui';
 import { useMemo, useState } from 'react';
 import { EvidenceShot, type ShotIndex, strokesOf } from '@/components/evidence-shot';
-import { Textarea } from '@/components/ui/textarea';
 import { appendReviewEvent } from '@/db/review';
-import { cn } from '@/lib/utils';
 
 export function Timeline({
   sessionId,

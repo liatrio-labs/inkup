@@ -2,8 +2,9 @@
 // screen picker here, since a click on the page's own toolbar cannot open it. A click in this window can, like one in
 // the side panel. The stream belongs to this document, so the window records the video itself and stays open until
 // the Session ends; the reviewer goes back to the page meanwhile. Closing it ends the video, not the Session.
+
+import { Button } from '@inkup/ui';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { useStorageItem } from '@/lib/use-storage-item';
 import { pickTabVideo, TabVideoRecorder } from '@/media/tab-video';
 import { holdVideo } from '@/media/video-owner';

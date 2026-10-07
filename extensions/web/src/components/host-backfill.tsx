@@ -1,9 +1,10 @@
 // "Upload N earlier Sessions": Sessions recorded before this browser paired with its Host (or while it was paired with
 // another one) never streamed, so the Host lacks them. The options page's Host section offers them while there are
 // any; the Sessions page and the side panel show the offer once per pairing, until the reviewer uploads or says Not now.
+
+import { Button } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import { useStorageItem } from '@/lib/use-storage-item';
 import { sendMessage } from '@/messaging';

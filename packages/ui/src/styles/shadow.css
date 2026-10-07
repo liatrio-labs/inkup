@@ -1,0 +1,12 @@
+/* What mountInShadow() adopts into a shadow root: Tailwind (preflight and the utilities the package's own components
+   use) and the theme, with no fonts: in a reviewed page the type is the system's. Compiled by the consumer's Vite
+   through `?inline`; mount-in-shadow.ts rewrites `:root` to `:host`. */
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@import "./theme.css";
+
+@source "../";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+}

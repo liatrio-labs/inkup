@@ -1,7 +1,8 @@
 // The Undo for a cancelled Session (E10), shown by the panel and the Sessions page until its deadline, like the
 // toolbar's toast. The service worker deletes the Session at the deadline; Undo keeps it as a stopped Session.
+
+import { Button } from '@inkup/ui';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { useNow, useStorageItem } from '@/lib/use-storage-item';
 import { sendMessage } from '@/messaging';
 import { discardPending } from '@/settings';

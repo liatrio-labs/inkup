@@ -3,6 +3,7 @@
 // delete with a confirmation; restore from an export file; and total storage against the quota, with a warning at 80%.
 
 import { formatBytes, groupByOrigin } from '@inkup/core/session-list';
+import { cn } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DiscardUndo } from '@/components/discard-undo';
 import { HostBackfill } from '@/components/host-backfill';
@@ -14,7 +15,6 @@ import { sessionSummaries } from '@/db/sessions';
 import { useOriginLabel } from '@/lib/use-origin-label';
 import { useStorageEstimate } from '@/lib/use-storage-estimate';
 import { useStorageItem } from '@/lib/use-storage-item';
-import { cn } from '@/lib/utils';
 import { activeSession } from '@/session-state';
 
 export function App() {

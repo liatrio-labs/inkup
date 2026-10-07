@@ -9,10 +9,10 @@ import { strokeIdsForShot } from '@inkup/core/evidence-strokes';
 import type { Location } from '@inkup/core/process/change-item';
 import { HALO_EXTRA, strokeOutlinePath } from '@inkup/core/stroke-path';
 import type { EventOf, TimelineEvent } from '@inkup/core/timeline';
+import { cn } from '@inkup/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { TONE } from '@/components/tone';
 import { useBlobUrl } from '@/lib/use-blob-url';
-import { cn } from '@/lib/utils';
 
 export interface ShotIndex {
   shots: ReadonlyMap<string, EventOf<'screenshot'>>;

@@ -6,9 +6,9 @@
 import { exportFileName, planExport } from '@inkup/core/export/bundle';
 import { allPrompts } from '@inkup/core/export/prompts';
 import type { ChangeItem } from '@inkup/core/process/change-item';
+import { Button } from '@inkup/ui';
 import { downloadZip } from 'client-zip';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import { deleteSessionMedia } from '@/db/review';
 import { loadSessionDocument } from '@/db/session-export';

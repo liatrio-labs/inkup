@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "\\s*ui-sans-serif",
+        "createdAt": "2026-10-07T19:55:40.866Z",
+        "reason": "spec 01 R1.4: in-page shadow-root surfaces use the system stack ui-sans-serif, system-ui (DESIGN.md lists it as the fallback of every family); the test asserts it"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "var\\(--default-font-family/)",
+        "createdAt": "2026-10-07T19:56:30.205Z",
+        "reason": "agent triage: a regex in packages/ui/tests/mount-in-shadow.test.ts asserting Tailwind preflight's font-family on html,:host, not a font choice"
+      }
+    ]
+  }
+}

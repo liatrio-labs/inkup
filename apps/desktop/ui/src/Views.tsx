@@ -1,7 +1,6 @@
 // The six views, as the TUI has them (host/crates/tui/src/ui.rs): Clients, Sessions, Timeline, Items, Agents,
-// Tokens. Each is a table of the host's state; the actions are the TUI's keys as buttons. Off-the-shelf shadcn only.
-import { Copy, KeyRound, Pause, Pencil, Play, Plus, Square, Trash2 } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+// Tokens. Each is a table of the host's state; the actions are the TUI's keys as buttons. shadcn/ui and @inkup/ui only.
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,10 +11,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
+  Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -23,11 +20,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+  Input,
+  Label,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@inkup/ui';
+import { Copy, KeyRound, Pause, Pencil, Play, Plus, Square, Trash2 } from 'lucide-react';
+import { type ReactNode, useState } from 'react';
 import {
   ago,
   type ClientView,

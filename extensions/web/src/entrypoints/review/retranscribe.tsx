@@ -7,10 +7,10 @@
 import { pauseGaps } from '@inkup/core/media-time';
 import type { TimelineEvent } from '@inkup/core/timeline';
 import type { RunSummary } from '@inkup/core/transcription-runs';
+import { Button } from '@inkup/ui';
 import { useState } from 'react';
 import { type BatchEngine, transcribeFile } from '@/adapters/transcription/batch';
 import { WHISPER_MODELS } from '@/adapters/transcription/whisper-model';
-import { Button } from '@/components/ui/button';
 import { db, type SessionRow } from '@/db';
 import { appendTranscriptionRun, selectTranscriptRun } from '@/db/review';
 import { useStorageItem } from '@/lib/use-storage-item';

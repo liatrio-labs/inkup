@@ -2,14 +2,14 @@
 // Whisper with a model picker and an explicit Download); Better (Deepgram) and Best (ElevenLabs) take the
 // reviewer's own key, stored in storage.local only and shown back masked. Test makes a real token-mint call. The
 // first time a paid tier is chosen, a notice says audio streams to that vendor while recording.
+
+import { Button, cn } from '@inkup/ui';
 import { useEffect, useState } from 'react';
 import { mintDeepgramToken } from '@/adapters/transcription/deepgram';
 import { mintScribeToken } from '@/adapters/transcription/elevenlabs';
 import { hasWebGpu, loadWhisper, WHISPER_MODELS } from '@/adapters/transcription/whisper-model';
 import { TONE } from '@/components/tone';
-import { Button } from '@/components/ui/button';
 import { useStorageItem } from '@/lib/use-storage-item';
-import { cn } from '@/lib/utils';
 import { platform } from '@/platform';
 import {
   deepgramKey,

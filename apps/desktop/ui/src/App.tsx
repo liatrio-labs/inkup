@@ -1,13 +1,11 @@
 // The window: what the TUI shows and does, from the host through the app's commands. The header (where the host
 // is, host or client mode, network mode, the menu bar and Dock), the banners (network warning, update, host lost),
 // the six views and the pairing prompt, and Install CLI on macOS. It refetches when the host changes (a long-poll), not on a timer.
-// Off-the-shelf shadcn components only.
-import { listen } from '@tauri-apps/api/event';
-import { Server, SquareTerminal, TriangleAlert } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+// shadcn/ui and @inkup/ui components only (ADR 0029).
+
 import {
+  Alert,
+  AlertDescription,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -16,11 +14,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
+  AlertTitle,
+  Badge,
+  Button,
+  Card,
+  CardAction,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -28,12 +29,22 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Toaster } from '@/components/ui/sonner';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+  Label,
+  Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Toaster,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@inkup/ui';
+import { listen } from '@tauri-apps/api/event';
+import { Server, SquareTerminal, TriangleAlert } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import {
   answerPairing,
   type ClientView,

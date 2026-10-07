@@ -1,0 +1,176 @@
+/* The InkUp theme for shadcn/ui: DESIGN.md's palette and radii on shadcn's CSS variables, light and dark.
+   An app's own stylesheet imports Tailwind first, then this file, then fonts.css (pages and the desktop app only):
+     @import "tailwindcss" source("./");
+     @import "tw-animate-css";
+     @import "@inkup/ui/theme.css";
+     @import "@inkup/ui/fonts.css";
+     @source "<path to>/packages/ui/src";
+   In a shadow root, mountInShadow() adopts the same rules with `:root` rewritten to `:host`, so `data-theme` on the
+   mount host decides the scheme there (ADR 0011). tests/theme.test.ts holds every value here to DESIGN.md and every
+   text pair to 4.5:1. */
+
+/* Dark follows the system (prefers-color-scheme), live and with no script, unless `data-theme` is set on the root
+   (or, in a shadow root, the host): `data-theme="dark"` forces dark and `data-theme="light"` forces light. `:where()`
+   keeps `dark:` utilities at the specificity of the utility alone. */
+@custom-variant dark {
+  &:where(:root[data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
+:root {
+  /* Native controls, scrollbars and the page canvas follow the same scheme. */
+  color-scheme: light;
+
+  /* DESIGN.md colours, light. */
+  --ink: #1f2a44;
+  --ink-2: #3a4663;
+  --ink-muted: #566077;
+  --paper: #ffffff;
+  --paper-2: #f4f6fa;
+  --paper-3: #e9edf4;
+  --hairline: rgb(31 42 68 / 0.16);
+  --guide: rgb(31 42 68 / 0.24);
+  --pen: #e5484d;
+  --pen-ink: #c8323a;
+  --on-ink: #ffffff;
+  --done: #1f7a4d;
+  --working: #9a5b00;
+  --box-content: rgb(140 182 192 / 0.2);
+
+  /* DESIGN.md `rounded.m`: buttons, cards, inputs. radius-sm is `rounded.s` and radius-xl `rounded.l`. */
+  --radius: 10px;
+
+  /* shadcn's variables. */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--on-ink);
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-2);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--paper-2);
+  --accent-foreground: var(--ink);
+  /* `pen-ink`, not `pen`: destructive is also error text, and pen is 3.9:1 on paper (DESIGN.md "Red Pen, as text"). */
+  --destructive: var(--pen-ink);
+  --border: var(--hairline);
+  --input: var(--guide);
+  /* DESIGN.md: the keyboard focus ring is ink. */
+  --ring: var(--ink);
+}
+
+/* The dark block is written twice, once per way in: keep the two identical (tests/theme.test.ts checks). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ink: #e7ebf3;
+    --ink-2: #c3cadb;
+    --ink-muted: #9aa4ba;
+    --paper: #141b2d;
+    --paper-2: #1a2238;
+    --paper-3: #232d47;
+    --hairline: rgb(231 235 243 / 0.14);
+    --guide: rgb(231 235 243 / 0.24);
+    --pen: #ff6b70;
+    --pen-ink: #ff8a8e;
+    --on-ink: #141b2d;
+    --done: #5cc98f;
+    --working: #f0b35a;
+  --box-content: rgb(140 182 192 / 0.14);
+    --card: var(--paper-2);
+    --popover: var(--paper-2);
+    --secondary: var(--paper-3);
+    --muted: var(--paper-3);
+    --accent: var(--paper-3);
+    --destructive: var(--pen);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e7ebf3;
+  --ink-2: #c3cadb;
+  --ink-muted: #9aa4ba;
+  --paper: #141b2d;
+  --paper-2: #1a2238;
+  --paper-3: #232d47;
+  --hairline: rgb(231 235 243 / 0.14);
+  --guide: rgb(231 235 243 / 0.24);
+  --pen: #ff6b70;
+  --pen-ink: #ff8a8e;
+  --on-ink: #141b2d;
+  --done: #5cc98f;
+  --working: #f0b35a;
+  --box-content: rgb(140 182 192 / 0.14);
+  --card: var(--paper-2);
+  --popover: var(--paper-2);
+  --secondary: var(--paper-3);
+  --muted: var(--paper-3);
+  --accent: var(--paper-3);
+  --destructive: var(--pen);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-tag: 4px;
+  --radius-pill: 999px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  /* DESIGN.md's own names, for what shadcn has no slot for. */
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-hairline: var(--hairline);
+  --color-guide: var(--guide);
+  --color-pen: var(--pen);
+  --color-pen-ink: var(--pen-ink);
+  --color-on-ink: var(--on-ink);
+  --color-done: var(--done);
+  --color-working: var(--working);
+  --color-box-content: var(--box-content);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  /* DESIGN.md: the inspector's content tint marks selected text, as on the site. The text keeps its own colour, so a
+     selection inside an ink button stays readable. */
+  ::selection {
+    background-color: var(--box-content);
+  }
+}

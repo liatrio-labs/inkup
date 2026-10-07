@@ -4,15 +4,15 @@
 // an address or as the `inkup://pair` link its TUI shows (pasted, or scanned as its QR code); it pairs with
 // the 6-digit code it shows. Paired, this shows the connection, what is waiting to be sent, the Sessions recorded
 // before pairing (Upload), and Forget, which has the Host revoke this browser's token first.
+
+import { Button, cn } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
 import { type FoundHost, isLoopbackUrl, normalizeAddress, parsePairLink } from '@/adapters/host';
 import { HostBackfill } from '@/components/host-backfill';
 import { TONE } from '@/components/tone';
-import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import { useStorageItem } from '@/lib/use-storage-item';
-import { cn } from '@/lib/utils';
 import { sendMessage } from '@/messaging';
 import { platform } from '@/platform';
 import { hostStatus } from '@/session-state';

@@ -1,8 +1,8 @@
 # Building InkUp for Firefox from source
 
 This is the source for the InkUp Firefox add-on, as uploaded to addons.mozilla.org. It is a pnpm workspace: the
-extension is `extensions/web`, and it imports the workspace packages `packages/core` (`@inkup/core`) and
-`packages/protocol` (`@inkup/protocol`).
+extension is `extensions/web`, and it imports the workspace packages `packages/core` (`@inkup/core`),
+`packages/protocol` (`@inkup/protocol`) and `packages/ui` (`@inkup/ui`).
 
 Requirements: Node.js 26 and pnpm 12 (`corepack enable pnpm`, or `npm install -g pnpm@12`), on macOS or Linux.
 

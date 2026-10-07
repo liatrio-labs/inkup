@@ -1,0 +1,44 @@
+/* DESIGN.md's two faces, bundled from the Fontsource packages apps/site uses. For the extension's own pages and the
+   desktop app only: never import this into a stylesheet that reaches a reviewed page. In a shadow root the system
+   stack stays (mountInShadow adopts shadow.css, never this file), so no @font-face enters a host document. */
+
+/* Schibsted Grotesk Variable: latin and latin-ext, woff2 (the package's own index). */
+@import "@fontsource-variable/schibsted-grotesk";
+
+/* Fragment Mono 400, latin and latin-ext, woff2 only: the package's index adds cyrillic and a woff copy of each, which
+   every browser InkUp supports can do without (about 30 KB of the extension). Ranges as the package's index.css. The
+   URLs go through this package's own node_modules link, because Vite does not resolve a package name in url(). */
+@font-face {
+  font-family: "Fragment Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../../node_modules/@fontsource/fragment-mono/files/fragment-mono-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Fragment Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../../node_modules/@fontsource/fragment-mono/files/fragment-mono-latin-400-normal.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+    U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme {
+  --font-sans: "Schibsted Grotesk Variable", "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fragment Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Stylistic set 01, as DESIGN.md's type scale sets it. */
+  --default-font-feature-settings: "ss01";
+}
+
+/* Chromium styles an extension page's body with a font of its own (the system UI face), in an unlayered sheet that
+   beats every Tailwind layer, so this rule is unlayered too and one step more specific. */
+:root body {
+  font-family: var(--font-sans);
+}
