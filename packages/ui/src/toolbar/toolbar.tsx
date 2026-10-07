@@ -40,6 +40,7 @@ import {
   FRAME_ERROR,
   FRAME_READY,
   FRAME_RECORDING,
+  FRAME_THEME,
   START_TIMEOUT_MESSAGE,
   START_TIMEOUT_MS,
   type ToolbarActions,
@@ -181,6 +182,13 @@ export function Toolbar({ state, actions, ref }: ToolbarProps) {
   const [frameReady, setFrameReady] = useState<boolean | null>(null);
   const [frameRecording, setFrameRecording] = useState<boolean | null>(null);
   const frameRecordingRef = useRef(false);
+  /** The theme the bar wears, for the frame: it cannot see the host's `data-theme`, so it is told. */
+  const themeRef = useRef<ToolbarTheme | undefined>(undefined);
+  themeRef.current = theme.theme;
+  const tellFrameTheme = useCallback((url: string | null) => {
+    if (!url) return;
+    frame.current?.contentWindow?.postMessage({ type: FRAME_THEME, theme: themeRef.current }, new URL(url).origin);
+  }, []);
 
   const session = state.session;
   const here = session?.here ?? false;
@@ -335,12 +343,19 @@ export function Toolbar({ state, actions, ref }: ToolbarProps) {
       if (data?.type === FRAME_RECORDING) {
         frameRecordingRef.current = !!data.on;
         setFrameRecording(!!data.on);
-      } else if (data?.type === FRAME_READY) setFrameReady(true);
-      else if (data?.type === FRAME_ERROR && data.error) fail(data.error);
+      } else if (data?.type === FRAME_READY) {
+        setFrameReady(true);
+        tellFrameTheme(url);
+      } else if (data?.type === FRAME_ERROR && data.error) fail(data.error);
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [actions.frameUrl, fail]);
+  }, [actions.frameUrl, fail, tellFrameTheme]);
+
+  // The bar's theme changed (the page behind it, or the reviewer's setting): the frame's Start follows. The frame's
+  // ready (above) covers its first load and any reload.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `theme.theme` is the trigger; the value goes by themeRef.
+  useEffect(() => tellFrameTheme(actions.frameUrl), [theme.theme, actions.frameUrl, tellFrameTheme]);
 
   // ---- the handle ----
 
