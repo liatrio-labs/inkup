@@ -87,6 +87,8 @@ export const UPGRADES: Record<number, (doc: RawDocument) => RawDocument> = {
   18: (doc) => doc,
   // v20: the `session_rename` event is new.
   19: (doc) => doc,
+  // v21: the `tracker_link` event and a Change Item's `tracker_links` are new.
+  20: (doc) => doc,
 };
 
 /** Brings a parsed session.json of any supported version to SCHEMA_VERSION and validates it. */

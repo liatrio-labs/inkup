@@ -366,7 +366,9 @@ both recorded (`MediaRecorder`, WebM/Opus) and transcribed live. Three configura
 - **P1-2 Additional transcription adapters**: OpenAI `whisper-1` (batch, word timestamps; `gpt-4o-transcribe` returns no
   timestamps and is unusable here), AssemblyAI Universal-3.5 Realtime, Speechmatics.
 - **P1-3 Additional LLM adapters**: OpenAI-compatible endpoint (covers OpenAI, OpenRouter, Ollama, LM Studio).
-- **P1-4 Push exports**: post items to GitHub Issues or Linear via the user's token.
+- **P1-4 Push exports**: post items to GitHub Issues or Linear via the user's token. GitHub Issues is built (one issue
+  per Change Item, sent from the review page); the decisions are in
+  [ADR 0028](adr/0028-tracker-push.md).
 - **P1-5 `chrome.tabCapture` path** started from the toolbar icon: deterministic tab targeting with no picker, and the
   fallback if Chrome enforces user activation for `getDisplayMedia` (see D1).
 - **P1-6 Per-locale demonstrative and noun tables** beyond English.

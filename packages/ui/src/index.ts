@@ -1,4 +1,4 @@
-// @inkup/ui: the shadcn/ui primitives both apps use, the cn helper and mountInShadow (ADR 0028). Add a primitive
+// @inkup/ui: the shadcn/ui primitives both apps use, the cn helper and mountInShadow (ADR 0029). Add a primitive
 // with the shadcn CLI from packages/ui (components.json), then export it here.
 export * from './components/alert';
 export * from './components/alert-dialog';

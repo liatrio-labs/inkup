@@ -1,5 +1,5 @@
 // Styles for @inkup/ui inside a shadow root (the extension's in-page surfaces): the compiled Tailwind + theme, scoped
-// to the shadow root and its host, with nothing added to the host document (ADR 0011, ADR 0012, ADR 0028).
+// to the shadow root and its host, with nothing added to the host document (ADR 0011, ADR 0012, ADR 0029).
 import shadowCss from './styles/shadow.css?inline';
 
 /** `:root(...)` with attribute or `:not()` parts, which become `:host(...)`. */

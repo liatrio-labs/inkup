@@ -2,6 +2,7 @@
 // Headless Chromium has no on-device speech pack (available() → 'downloadable'), which is exactly the case
 // under test. The adapter-level proof that no recognizer is constructed is in
 // tests/unit/adapters/transcription.test.ts; this checks the product behavior end to end.
+// The first test stubs available() to 'downloadable', because arm64 Linux Chromium reports 'unavailable'.
 import type { Page } from '@playwright/test';
 import { expect, grantMic, test } from './fixtures';
 
@@ -29,6 +30,13 @@ test('without on-device speech and without the opt-in, a Session records with ca
   site,
   openExtensionPage,
 }) => {
+  await context.addInitScript(() => {
+    const SR = (
+      globalThis as { SpeechRecognition?: { available?: (o: { processLocally?: boolean }) => Promise<string> } }
+    ).SpeechRecognition;
+    const available = SR?.available?.bind(SR);
+    if (SR && available) SR.available = (o) => (o?.processLocally ? Promise.resolve('downloadable') : available(o));
+  });
   await grantMic(openExtensionPage);
   const pricing = await context.newPage();
   await pricing.goto(`${site.primaryOrigin}/pricing.html`);

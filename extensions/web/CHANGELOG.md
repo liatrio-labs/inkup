@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.8.0...inkup-extension-v0.9.0) (2026-10-07)
+
+
+### Features
+
+* **trackers:** send a Change Item to GitHub Issues from the review page ([#77](https://github.com/liatrio-labs/inkup/issues/77)) ([55de35a](https://github.com/liatrio-labs/inkup/commit/55de35aaf8d36728043e0e9d87a13c1b737a9774))
+
 ## [0.8.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.7.0...inkup-extension-v0.8.0) (2026-10-02)
 
 

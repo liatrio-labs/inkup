@@ -4,7 +4,7 @@
 @import "tw-animate-css";
 
 /* The DESIGN.md theme on shadcn's variables, light and dark by the system (prefers-color-scheme), and the product's
-   two faces, bundled. Both live in @inkup/ui (ADR 0028); there is no in-app toggle. */
+   two faces, bundled. Both live in @inkup/ui (ADR 0029); there is no in-app toggle. */
 @import "@inkup/ui/theme.css";
 @import "@inkup/ui/fonts.css";
 

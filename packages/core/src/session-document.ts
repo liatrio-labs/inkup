@@ -3,7 +3,7 @@
 // the extension's IndexedDB `blobs` table (src/db) and the export zip (packages/core/src/export) carries them.
 import { z } from 'zod';
 import { type ChangeItem, ChangeItemSchema } from './process/change-item.ts';
-import { acceptanceRate, applyItemEdits, itemEditsFor } from './review-edits.ts';
+import { acceptanceRate, applyItemEdits, itemEditsFor, trackerLinksFor } from './review-edits.ts';
 import {
   SCHEMA_VERSION,
   sortTimeline,
@@ -97,7 +97,7 @@ export const SessionDocumentSchema = z
       .array(ChangeItemSchema)
       .optional()
       .describe(
-        'the Change Items as reviewed: the latest successful Process with the review edits (item_edit events) applied, in review order; absent until Process ran',
+        'the Change Items as reviewed: the latest successful Process with the review edits (item_edit events) applied and its tracker_link events as tracker_links, in review order; absent until Process ran',
       ),
     process_run: z
       .object({
@@ -282,7 +282,7 @@ export function buildSessionDocument(input: BuildSessionDocumentInput): SessionD
     events,
     ...(run
       ? {
-          change_items: applyItemEdits(run.items, edits).items,
+          change_items: applyItemEdits(run.items, edits, trackerLinksFor(events, run.id)).items,
           process_run: {
             id: run.id,
             model: run.model,

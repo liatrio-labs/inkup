@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:inkup:session:v20",
-  "title": "InkUp session.json (schema_version 20)",
+  "$id": "urn:inkup:session:v21",
+  "title": "InkUp session.json (schema_version 21)",
   "description": "One recorded review Session: the full event timeline on one clock (t = ms since t0), plus references to screenshots and media. Generated from packages/core/src/session-document.ts by `pnpm schema`; do not edit by hand.",
   "type": "object",
   "properties": {
     "schema_version": {
       "type": "number",
-      "const": 20
+      "const": 21
     },
     "generated_at": {
       "type": "string",
@@ -3375,12 +3375,82 @@
               "edited_at"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "const": "tracker_link"
+              },
+              "t": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "ms since the Session t0"
+              },
+              "item_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the Change Item that was sent"
+              },
+              "run_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the Process run whose Change Items it belongs to"
+              },
+              "tracker": {
+                "type": "string",
+                "enum": [
+                  "github",
+                  "linear",
+                  "jira"
+                ]
+              },
+              "destination": {
+                "type": "string",
+                "minLength": 1,
+                "description": "where the issue was created: owner/repo on GitHub"
+              },
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the tracker's short name for the issue, e.g. #142"
+              },
+              "url": {
+                "type": "string",
+                "minLength": 1,
+                "description": "the issue's web page"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "t",
+              "item_id",
+              "run_id",
+              "tracker",
+              "destination",
+              "key",
+              "url",
+              "created_at"
+            ],
+            "additionalProperties": false
           }
         ]
       }
     },
     "change_items": {
-      "description": "the Change Items as reviewed: the latest successful Process with the review edits (item_edit events) applied, in review order; absent until Process ran",
+      "description": "the Change Items as reviewed: the latest successful Process with the review edits (item_edit events) applied and its tracker_link events as tracker_links, in review order; absent until Process ran",
       "type": "array",
       "items": {
         "type": "object",
@@ -3674,6 +3744,51 @@
               "reason"
             ],
             "additionalProperties": false
+          },
+          "tracker_links": {
+            "description": "the issues this item was sent to, oldest first; absent: never sent",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tracker": {
+                  "type": "string",
+                  "enum": [
+                    "github",
+                    "linear",
+                    "jira"
+                  ]
+                },
+                "destination": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "where the issue was created: owner/repo on GitHub"
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "the tracker's short name for the issue, e.g. #142"
+                },
+                "url": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "the issue's web page"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "tracker",
+                "destination",
+                "key",
+                "url",
+                "created_at"
+              ],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
@@ -3996,6 +4111,51 @@
                   "reason"
                 ],
                 "additionalProperties": false
+              },
+              "tracker_links": {
+                "description": "the issues this item was sent to, oldest first; absent: never sent",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "tracker": {
+                      "type": "string",
+                      "enum": [
+                        "github",
+                        "linear",
+                        "jira"
+                      ]
+                    },
+                    "destination": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "where the issue was created: owner/repo on GitHub"
+                    },
+                    "key": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "the tracker's short name for the issue, e.g. #142"
+                    },
+                    "url": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "the issue's web page"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    }
+                  },
+                  "required": [
+                    "tracker",
+                    "destination",
+                    "key",
+                    "url",
+                    "created_at"
+                  ],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [

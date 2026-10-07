@@ -1,5 +1,5 @@
 // Architecture rule (docs/PLAN.md): packages/core/src never imports chrome.* / WXT or touches the DOM. Nor does it
-// import @inkup/ui, the React and DOM side of the workspace (ADR 0028); packages/protocol is held to that too.
+// import @inkup/ui, the React and DOM side of the workspace (ADR 0029); packages/protocol is held to that too.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
