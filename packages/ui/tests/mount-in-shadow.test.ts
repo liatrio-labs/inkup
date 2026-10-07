@@ -102,3 +102,14 @@ describe('toShadowCss', () => {
     expect(out).toBe('@layer properties{:host,*,::before,::after,::backdrop{--tw-x:0}}\n.a{b:c}');
   });
 });
+
+describe('toShadowCss on hostile input', () => {
+  it('strips real @property rules and leaves look-alikes alone, in linear time', () => {
+    const hostile = '@property ---{{|'.repeat(20_000);
+    const css = `@property --a { syntax: '*'; inherits: false; initial-value: 1 }@property --b{initial-value:2;}${hostile}`;
+    const start = performance.now();
+    const out = toShadowCss(css);
+    expect(performance.now() - start).toBeLessThan(1000);
+    expect(out).toBe(`@layer properties{:host,*,::before,::after,::backdrop{--a:1;--b:2}}\n${hostile}`);
+  });
+});
