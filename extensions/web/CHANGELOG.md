@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.11.0...inkup-extension-v0.12.0) (2026-10-07)
+
+
+### Features
+
+* **trackers:** send a Change Item to Jira Cloud ([#85](https://github.com/liatrio-labs/inkup/issues/85)) ([e6daff9](https://github.com/liatrio-labs/inkup/commit/e6daff9e8d29326992c6db80fbe9653dede8dc12))
+
 ## [0.11.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.10.0...inkup-extension-v0.11.0) (2026-10-07)
 
 
