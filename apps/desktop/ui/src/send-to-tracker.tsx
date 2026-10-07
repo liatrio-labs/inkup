@@ -9,10 +9,15 @@
 //   which blocks nothing. A status is never stored.
 // - Sending again is behind a menu and a confirm, because it makes a second issue.
 // - Bulk send sends every item not yet linked to that tracker, one at a time, keeps going after a failure, then
-//   lists the failed items with Retry.
+//   lists the failed items with Retry. Before each item it reads the item from the host again and skips it when it
+//   is already linked to that tracker, or is being sent from its row right now, so a hand send during a bulk send
+//   never makes a second issue.
 // - An issue made whose link the host then failed to record is kept here: Retry records the link, and makes no
 //   second issue.
+// - A send that failed after its issue was made (Jira, when a screenshot didn't go on) records the link and offers
+//   Open issue instead of Retry, because sending again would make a second issue.
 import {
+  createdIssue,
   type IssueItem,
   type IssueStatus,
   itemImageIds,
@@ -20,6 +25,7 @@ import {
   statusLabel,
   type TrackerDefinition,
   type TrackerName,
+  trackerDefinition,
 } from '@inkup/core/trackers';
 import {
   AlertDialog,
@@ -46,8 +52,8 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 interface Sends {
   /** item id → the tracker it is being sent to. */
   sending: Map<string, TrackerName>;
-  /** `${item}|${tracker}` → why the last send failed. */
-  failed: Map<string, string>;
+  /** `${item}|${tracker}` → why the last send failed, and the issue when it was made anyway. */
+  failed: Map<string, Failure>;
   /** `${item}|${tracker}` → an issue made whose link the host did not record yet. */
   unrecorded: Map<string, TrackerLink>;
   /** item id → its links as the host answered the last record. */
@@ -79,6 +85,22 @@ export function resetTrackerSends() {
 }
 const key = (item: string, tracker: TrackerName) => `${item}|${tracker}`;
 
+/** Why a send failed. `url` when its issue was made before it failed: open that, rather than send again. */
+interface Failure {
+  message: string;
+  url?: string;
+}
+
+/** A send failed after its issue was made. The link is recorded; `url` is the issue, to open and finish by hand. */
+class IssueMadeError extends Error {
+  constructor(
+    message: string,
+    readonly url: string,
+  ) {
+    super(message);
+  }
+}
+
 /** An item's links: the host's, and any recorded since the host state was read. */
 function linksOf(item: ItemView, recorded: Map<string, TrackerLink[]>): TrackerLink[] {
   const links = [...(item.tracker_links ?? [])];
@@ -89,8 +111,11 @@ function linksOf(item: ItemView, recorded: Map<string, TrackerLink[]>): TrackerL
 /** The newest link of an item to a tracker. */
 const linkTo = (links: TrackerLink[], tracker: TrackerName) => links.filter((l) => l.tracker === tracker).at(-1);
 
-/** Sends one item to a tracker as an issue with its screenshots, and records the link on the host. */
-async function sendItem(definition: TrackerDefinition, id: string): Promise<FullItem> {
+/**
+ * Sends one item to a tracker as an issue with its screenshots, and records the link on the host. With `unlessSent`
+ * (a bulk send), an item the host already has linked to the tracker is skipped: answers null.
+ */
+async function sendItem(definition: TrackerDefinition, id: string, unlessSent: boolean): Promise<FullItem | null> {
   const tracker = definition.tracker;
   const made = sends.unrecorded.get(key(id, tracker));
   if (made) return record(id, tracker, made);
@@ -98,6 +123,12 @@ async function sendItem(definition: TrackerDefinition, id: string): Promise<Full
   const destination = values.destination?.trim();
   if (!destination) throw new Error(`Pick a ${definition.destinationLabel.toLowerCase()} in Trackers first.`);
   const full = await hostItem(id);
+  const linked = full.item.tracker_links ?? [];
+  if (unlessSent && linked.some((l) => l.tracker === tracker)) {
+    // Sent since the bulk send started (from its row): show the link, and send nothing.
+    change((s) => s.recorded.set(id, linked));
+    return null;
+  }
   const item = {
     category: '',
     intent: '',
@@ -112,14 +143,23 @@ async function sendItem(definition: TrackerDefinition, id: string): Promise<Full
     if (bytes) images.push({ id: image, bytes: new Uint8Array(bytes) });
   }
   const { adapter, credentials } = trackerClient(definition, values);
-  const link = await pushItem({
-    adapter,
-    credentials,
-    destination,
-    item,
-    session: { id: full.session_id, name: full.session_name },
-    images,
-  });
+  let link: TrackerLink;
+  try {
+    link = await pushItem({
+      adapter,
+      credentials,
+      destination,
+      item,
+      session: { id: full.session_id, name: full.session_name },
+      images,
+    });
+  } catch (error) {
+    // The send made its issue before it failed: record it, so neither Retry nor a bulk send makes a second one.
+    const issue = createdIssue(error);
+    if (!issue) throw error;
+    await record(id, tracker, { ...issue, created_at: new Date().toISOString() }).catch(() => {});
+    throw new IssueMadeError(errorText(error), issue.url);
+  }
   return record(id, tracker, link);
 }
 
@@ -144,18 +184,38 @@ async function record(id: string, tracker: TrackerName, link: TrackerLink): Prom
   }
 }
 
-/** Sends with the shared state: sending while it runs, the failure after. Resolves whether it worked. */
-async function send(definition: TrackerDefinition, id: string): Promise<boolean> {
+/**
+ * Sends with the shared state: sending while it runs, the failure after. Resolves false when it failed. An item
+ * already being sent to this tracker is skipped (it is checked and marked before the first await, so a row and a bulk
+ * send can't both send it); one being sent to another tracker fails, to be retried once that send is done.
+ */
+async function send(definition: TrackerDefinition, id: string, unlessSent = false): Promise<boolean> {
   const at = key(id, definition.tracker);
+  const busy = sends.sending.get(id);
+  if (busy === definition.tracker) return true;
+  if (busy) {
+    const other = trackerDefinition(busy)?.label ?? busy;
+    change((s) =>
+      s.failed.set(at, {
+        message: `This item was being sent to ${other}, so it wasn't sent to ${definition.label}. Retry once that send is done.`,
+      }),
+    );
+    return false;
+  }
   change((s) => {
     s.sending.set(id, definition.tracker);
     s.failed.delete(at);
   });
   try {
-    await sendItem(definition, id);
+    await sendItem(definition, id, unlessSent);
     return true;
   } catch (error) {
-    change((s) => s.failed.set(at, errorText(error)));
+    change((s) =>
+      s.failed.set(at, {
+        message: errorText(error),
+        ...(error instanceof IssueMadeError ? { url: error.url } : {}),
+      }),
+    );
     return false;
   } finally {
     change((s) => s.sending.delete(id));
@@ -298,7 +358,7 @@ function TrackerLine({
   link: TrackerLink | undefined;
   sending: boolean;
   busy: boolean;
-  failed: string | undefined;
+  failed: Failure | undefined;
   canSend: boolean;
 }) {
   const { definition } = setup;
@@ -365,11 +425,22 @@ function TrackerLine({
       {failed && !sending && (
         <span className="flex basis-full flex-wrap items-center gap-2 text-xs">
           <span role="alert" className="text-destructive whitespace-normal" data-testid="tracker-error">
-            {failed}
+            {failed.message}
           </span>
-          <Button size="sm" variant="outline" onClick={go} data-testid="tracker-retry">
-            Retry
-          </Button>
+          {failed.url ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void openUrl(failed.url as string)}
+              data-testid="tracker-open-issue"
+            >
+              Open issue
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" onClick={go} data-testid="tracker-retry">
+              Retry
+            </Button>
+          )}
         </span>
       )}
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
@@ -405,7 +476,7 @@ export function BulkSend({ items }: { items: ItemView[] }) {
     const missed: string[] = [];
     for (const [i, id] of ids.entries()) {
       setRun({ tracker: definition.tracker, at: i + 1, of: ids.length });
-      if (!(await send(definition, id))) missed.push(id);
+      if (!(await send(definition, id, true))) missed.push(id);
     }
     setRun(null);
     setFailed(missed.length > 0 ? { tracker: definition.tracker, ids: missed } : null);
