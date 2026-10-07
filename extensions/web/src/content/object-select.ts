@@ -11,11 +11,12 @@
 //   comment box opens next to the element. Enter records it (with what was typed, or nothing: the reviewer may just
 //   speak, and speech from the pick to Enter is about it). Esc in the box drops the pick. A click on the page, the mode
 //   going off, a pause or Stop record it as it is. What is said while the box is open goes into it (E11,
-//   ./comment-box.ts), not into the Session transcript.
+//   @inkup/ui's comment box), not into the Session transcript.
 
 import { CLOSE_TIMEOUT_MS, expired, withTimeout } from '@inkup/core/overlay-lifetime';
 import type { DictationTarget } from '@inkup/core/timeline';
-import { CommentBox } from './comment-box';
+import { type MountedCommentBox, mountCommentBox } from '@inkup/ui/comment-box';
+import type { Surfaces } from '@inkup/ui/toolbar';
 import { composedParent } from './snapshot';
 import { themeFor } from './theme';
 
@@ -68,7 +69,7 @@ export class ObjectSelect<T> {
   private readonly style: HTMLStyleElement;
   private readonly outlineBox: HTMLElement;
   private readonly label: HTMLElement;
-  private readonly box: CommentBox;
+  private readonly box: MountedCommentBox;
   private on = false;
   private hovered: Element | null = null;
   /** Elements ↑ went up from, the latest last; ↓ returns to them. */
@@ -83,6 +84,7 @@ export class ObjectSelect<T> {
     container: HTMLElement,
     private readonly host: HTMLElement,
     private readonly cb: ObjectSelectCallbacks<T>,
+    surfaces: Surfaces,
   ) {
     this.style = document.createElement('style');
     this.style.textContent = STYLES;
@@ -93,7 +95,7 @@ export class ObjectSelect<T> {
     Object.assign(this.label, { className: 'var-hl-label', hidden: true });
     this.label.dataset.testid = 'object-select-label';
     container.append(this.style, this.outlineBox, this.label);
-    this.box = new CommentBox(container, {
+    this.box = mountCommentBox(surfaces, {
       testid: 'object-select-box',
       inputTestid: 'object-select-input',
       label: 'Comment on the picked element',
@@ -102,6 +104,7 @@ export class ObjectSelect<T> {
       allowEmpty: true,
       onSave: (text) => this.finish(text),
       onCancel: () => this.drop(),
+      themeFor: (rect) => themeFor(rect, host),
     });
   }
 

@@ -95,3 +95,9 @@ service worker and extension pages, and the panel Port's contract lives in `src/
   one React root per overlay host; stable keys keep a pushed state from replacing a pressed button. Its theme, position
   and hide-for-capture rules are unchanged, and the host's `:host` style moved from a `<style>` in `content/top-layer.ts`
   to the package's shadow stylesheet.
+- 2026-10-07 (spec 01, unit 3): the comment box and the draw note moved from DOM code with a CSS string
+  (`content/comment-box.ts`, `content/draw-note.ts`) to `CommentBox` and `DrawNote` in `@inkup/ui`
+  (`packages/ui/src/comment-box/`), surfaces in the same React root as the toolbar and driven through handles by Object
+  Select, Select Text and the content client. Their words, keys, dictation and close reasons are unchanged. A box still
+  takes its theme from the page under it ("any new overlay element takes its theme the same way"): it sets `data-theme`
+  on itself, and `shadow.css` gives such an element the palette for that theme.

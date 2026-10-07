@@ -3,6 +3,7 @@
 // selected text, and the selection put back on the page for the screenshot while the record goes out. A selection
 // that changes between the release and the box opening is the one the box records. (In real Chrome,
 // tests/e2e/text-comment.spec.ts asserts the same anchor on the recorded event.)
+import { mountSurfaces, type Surfaces } from '@inkup/ui/toolbar';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TextCommentUi } from '@/content/text-comment';
 import type { ContentSessionState, TextCommentInput } from '@/messaging';
@@ -13,6 +14,7 @@ describe('Text Comment focus race', () => {
   let host: HTMLElement;
   let heading: HTMLElement;
   let ui: TextCommentUi;
+  let surfaces: Surfaces;
   let recorded: { input: TextCommentInput; selection: string }[];
 
   const state: ContentSessionState = {
@@ -44,7 +46,8 @@ describe('Text Comment focus race', () => {
     host = document.createElement('div');
     document.body.append(host);
     recorded = [];
-    ui = new TextCommentUi(host, host, state, {
+    surfaces = mountSurfaces(host);
+    ui = new TextCommentUi(surfaces, host, state, {
       closeAnnotation: vi.fn(async () => {}),
       record: vi.fn(async (i: TextCommentInput) => {
         recorded.push({ input: i, selection: document.getSelection()?.toString() ?? '' });
@@ -53,6 +56,7 @@ describe('Text Comment focus race', () => {
   });
   afterEach(() => {
     ui.destroy();
+    surfaces.unmount();
     document.body.replaceChildren();
   });
 
