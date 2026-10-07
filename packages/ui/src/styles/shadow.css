@@ -1,12 +1,37 @@
-/* What mountInShadow() adopts into a shadow root: Tailwind (preflight and the utilities the package's own components
+/* What mountInShadow() adopts into a shadow root: Tailwind (preflight and the utilities the in-page surfaces
    use) and the theme, with no fonts: in a reviewed page the type is the system's. Compiled by the consumer's Vite
    through `?inline`; mount-in-shadow.ts rewrites `:root` to `:host`. */
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
 @import "./theme.css";
 
-@source "../";
+/* Only what renders in a shadow root: the in-page surfaces' directories (the toolbar now; the comment box and the
+   highlight join as they move here). The pages' primitives (dialogs, tables, tabs, toasts) stay out of the content
+   script's bundle; a surface that uses one lists its file here. */
+@source "../toolbar";
 
 @theme {
   --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+}
+
+/* The overlay host (ADR 0011): a full-viewport, transparent layer at the maximum z-index that takes no pointer events
+   (only the toolbar and, while drawing, the canvas do), and stays that way as a manual popover in the top layer
+   (extensions/web/src/content/top-layer.ts), whose UA box it undoes. `:host(:not(.inkup-never))` outranks a plain
+   `:host`, so these win over WXT's `:host { all: initial !important }` reset in the shadow root's own <style> whether
+   this sheet is adopted (adopted sheets come after it) or falls back to a <style> placed before it. */
+:host(:not(.inkup-never)) {
+  position: fixed !important;
+  inset: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  display: block !important;
+  overflow: visible !important;
+  background: transparent !important;
+  pointer-events: none !important;
+  z-index: 2147483647 !important;
 }

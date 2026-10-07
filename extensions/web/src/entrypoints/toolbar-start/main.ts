@@ -4,7 +4,7 @@
 // the side panel does, holding the panel Port as a video owner that does not stop the Session: if its page navigates
 // away the video ends there and the Session goes on.
 
-import { FRAME_ERROR, FRAME_READY, FRAME_RECORDING } from '@/content/toolbar';
+import { FRAME_ERROR, FRAME_READY, FRAME_RECORDING } from '@inkup/ui/toolbar-state';
 import { pickTabVideo, TabVideoRecorder } from '@/media/tab-video';
 import { holdVideo } from '@/media/video-owner';
 import { sendMessage } from '@/messaging';

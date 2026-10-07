@@ -1,6 +1,11 @@
+// The viewport control as the page carries it: in the toolbar's viewport slot, inside the overlay's shadow root. Its
+// menu's own rules are @inkup/ui's (packages/ui/tests/viewport-control.test.tsx); here, that the toolbar fills the slot
+// from the pushed ToolbarViewport, that its requests reach the extension's ViewportActions, that a failure lands in the
+// toolbar's notice, and that a pointer-down elsewhere on the page closes a menu that lives in a shadow root.
+import { mountSurfaces, type Surfaces, Toolbar } from '@inkup/ui/toolbar';
+import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type ViewportActions, ViewportControl } from '@/content/viewport-control';
-import type { ToolbarViewport } from '@/messaging';
+import type { ToolbarActions, ToolbarState, ToolbarViewport, ViewportActions } from '@/messaging';
 
 const viewportState = (over: Partial<ToolbarViewport> = {}): ToolbarViewport => ({
   current: null,
@@ -8,87 +13,106 @@ const viewportState = (over: Partial<ToolbarViewport> = {}): ToolbarViewport => 
   last: null,
   ...over,
 });
+const idle = (viewport: ToolbarViewport | null): ToolbarState => ({
+  session: null,
+  start: { ok: true, video: 'tab_capture' },
+  host: null,
+  hostNetwork: false,
+  toast: null,
+  notice: null,
+  viewport,
+  discard: null,
+});
 
-function actions(): ViewportActions & { [K in keyof ViewportActions]: ReturnType<typeof vi.fn> } {
-  return { set: vi.fn(() => Promise.resolve({ ok: true as const })), reset: vi.fn(() => Promise.resolve()) };
+function actions(viewport: ViewportActions): ToolbarActions {
+  const ok = () => Promise.resolve();
+  return {
+    start: vi.fn(() => Promise.resolve({ ok: true as const })),
+    pause: vi.fn(ok),
+    resume: vi.fn(ok),
+    stop: vi.fn(ok),
+    cancel: vi.fn(ok),
+    undoDiscard: vi.fn(ok),
+    setMuted: vi.fn(ok),
+    turnOnVoice: vi.fn(ok),
+    setDraw: vi.fn(ok),
+    setSelect: vi.fn(ok),
+    snap: vi.fn(ok),
+    open: vi.fn(ok),
+    hide: vi.fn(ok),
+    loadPosition: vi.fn(() => Promise.resolve(null)),
+    savePosition: vi.fn(ok),
+    ping: vi.fn(() => Promise.resolve(null)),
+    frameUrl: null,
+    clearAll: vi.fn(),
+    cycleTheme: vi.fn(ok),
+    viewport,
+  };
 }
 
-describe('ViewportControl', () => {
-  let container: HTMLElement;
-  let ctl: ViewportControl | null = null;
-  const $ = (id: string) => container.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+describe('the viewport control in the toolbar', () => {
+  let host: HTMLElement;
+  let shadow: ShadowRoot;
+  let surfaces: Surfaces;
+  let vp: {
+    set: ReturnType<typeof vi.fn<ViewportActions['set']>>;
+    reset: ReturnType<typeof vi.fn<ViewportActions['reset']>>;
+  };
+  const $ = (id: string) => shadow.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+  const render = (viewport: ToolbarViewport | null) =>
+    surfaces.set('toolbar', createElement(Toolbar, { state: idle(viewport), actions: actions(vp) }));
 
   beforeEach(() => {
-    container = document.createElement('div');
-    document.body.append(container);
+    host = document.createElement('var-review-overlay');
+    shadow = host.attachShadow({ mode: 'open' });
+    const container = document.createElement('div');
+    shadow.append(container);
+    document.documentElement.append(host);
+    surfaces = mountSurfaces(container);
+    vp = { set: vi.fn(() => Promise.resolve({ ok: true as const })), reset: vi.fn(() => Promise.resolve()) };
   });
   afterEach(() => {
-    ctl?.destroy();
-    ctl = null;
-    container.remove();
+    surfaces.unmount();
+    host.remove();
   });
-
-  function mount(state: ToolbarViewport | null, a = actions(), fail = vi.fn()) {
-    ctl = new ViewportControl(container, a, fail);
-    container.append(ctl.button);
-    ctl.update(state);
-    return { a, fail };
-  }
 
   it('is hidden where no mechanism can resize the page', () => {
-    mount(null);
+    render(null);
     expect($('toolbar-viewport')!.hidden).toBe(true);
+    expect(shadow.querySelector<HTMLElement>('[data-slot="viewport"]')!.hidden).toBe(true);
   });
 
-  it('offers the presets, Fit to tab and a typed size, and applies what is picked', async () => {
-    const { a } = mount(viewportState());
+  it('asks the extension for a preset and for the tab size, and shows the size pushed back', async () => {
+    render(viewportState());
     expect($('toolbar-viewport')!.textContent).toBe('Viewport');
     $('toolbar-viewport')!.click();
-    expect($('viewport-menu')!.hidden).toBe(false);
-    for (const id of ['375x812', '390x844', '768x1024', '1280x800', '1440x900'])
-      expect($(`viewport-preset-${id}`)).not.toBeNull();
-    expect($('viewport-fit')!.textContent).toContain('1280×900');
-    expect($('viewport-reset')).toBeNull();
+    await vi.waitFor(() => expect($('viewport-menu')!.hidden).toBe(false));
     $('viewport-preset-375x812')!.click();
-    expect(a.set).toHaveBeenCalledWith({ width: 375, height: 812 });
-    expect($('viewport-menu')!.hidden).toBe(true);
-
+    await vi.waitFor(() => expect(vp.set).toHaveBeenCalledWith({ width: 375, height: 812 }));
+    render(viewportState({ current: { width: 375, height: 812, scale: 1 } }));
+    expect($('toolbar-viewport')!.textContent).toBe('375×812');
     $('toolbar-viewport')!.click();
-    ($('viewport-width') as HTMLInputElement).value = '901.4';
-    ($('viewport-height') as HTMLInputElement).value = '50';
-    $('viewport-apply')!.click();
-    // Clamped: whole px, and no smaller than 200.
-    expect(a.set).toHaveBeenLastCalledWith({ width: 901, height: 200 });
-  });
-
-  it('shows the size and the scale, the last size used here, and Reset once resized', () => {
-    const { a } = mount(
-      viewportState({ current: { width: 1600, height: 1000, scale: 0.8 }, last: { width: 1000, height: 700 } }),
-    );
-    expect($('toolbar-viewport')!.textContent).toBe('1600×1000 at 80%');
-    // The drag handles are the frame host page's, not the toolbar's.
-    expect(container.querySelector('[data-testid^="viewport-handle"]')).toBeNull();
-    $('toolbar-viewport')!.click();
-    expect($('viewport-last')!.textContent).toContain('1000×700');
+    await vi.waitFor(() => expect($('viewport-reset')).not.toBeNull());
     $('viewport-reset')!.click();
-    expect(a.reset).toHaveBeenCalled();
+    await vi.waitFor(() => expect(vp.reset).toHaveBeenCalled());
   });
 
-  it('on a page that refuses framing, shows the reason instead of sizes', () => {
-    mount(viewportState({ blocked: 'This site does not allow being shown in a frame (X-Frame-Options: DENY)' }));
-    expect($('toolbar-viewport')!.hidden).toBe(false);
-    expect($('toolbar-viewport')!.title).toContain('X-Frame-Options');
+  it('a size that could not be set shows in the toolbar toast', async () => {
+    vp.set.mockResolvedValue({ ok: false, error: 'This site does not allow being shown in a frame' });
+    render(viewportState());
     $('toolbar-viewport')!.click();
-    expect($('viewport-blocked')!.textContent).toContain('X-Frame-Options: DENY');
-    expect($('viewport-preset-375x812')).toBeNull();
-  });
-
-  it('says why a size could not be set', async () => {
-    const a = actions();
-    a.set.mockResolvedValue({ ok: false, error: 'This site does not allow being shown in a frame' });
-    const { fail } = mount(viewportState(), a);
-    $('toolbar-viewport')!.click();
+    await vi.waitFor(() => expect($('viewport-menu')!.hidden).toBe(false));
     $('viewport-preset-768x1024')!.click();
-    await vi.waitFor(() => expect(fail).toHaveBeenCalledWith('This site does not allow being shown in a frame'));
+    await vi.waitFor(() =>
+      expect($('toolbar-toast')!.textContent).toBe('This site does not allow being shown in a frame'),
+    );
+  });
+
+  it('a pointer-down on the page outside the shadow root closes the menu', async () => {
+    render(viewportState());
+    $('toolbar-viewport')!.click();
+    await vi.waitFor(() => expect($('viewport-menu')!.hidden).toBe(false));
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
+    await vi.waitFor(() => expect($('viewport-menu')!.hidden).toBe(true));
   });
 });

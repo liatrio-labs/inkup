@@ -7,6 +7,7 @@ import type { Rect } from '@inkup/core/geometry';
 import type { ChangeItem } from '@inkup/core/process/change-item';
 import type { CostEstimate } from '@inkup/core/process/cost';
 import type { CloseReason, DictationTarget, EventOf } from '@inkup/core/timeline';
+import type { ToolbarState } from '@inkup/ui/toolbar-state';
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import type { FoundHost } from '@/adapters/host';
 import type { ConnectionTest } from '@/adapters/llm/types';
@@ -26,60 +27,19 @@ export type StartVideo =
   | { state: 'off'; reason: Extract<LiveVideo, { state: 'off' }>['reason'] }
   | { state: 'recording'; label: string; width: number | null; height: number | null };
 
-/**
- * What the page's floating toolbar shows (src/content/toolbar.ts), pushed by the service worker to every tab that
- * shows it; null hides it. The toolbar renders only this, so it has no state of its own beyond position.
- */
 export type HostPairResult = { ok: true } | { ok: false; error: string; needsCode?: boolean };
 
-export interface ToolbarState {
-  /** The live Session. `here`: it records this tab (else the toolbar offers only Stop). */
-  session: {
-    t0: number;
-    paused_ms: number;
-    /** Session time of the open pause, or null while recording. */
-    paused_t: number | null;
-    /** Until the page has the Session (F1): the toolbar says "Starting…". */
-    starting: boolean;
-    stopping: boolean;
-    draw_mode: boolean;
-    /** Object Select or Select Text is on (E7); never together with draw_mode. */
-    select_mode: SelectMode | null;
-    /** Drawing is possible on this page (not a 'no_overlay' page). */
-    can_draw: boolean;
-    here: boolean;
-    video: LiveVideo['state'];
-    /** The microphone is muted (E10). */
-    muted: boolean;
-    /** The microphone records (E11); false: "No mic", with "Turn on voice". */
-    voice: boolean;
-  } | null;
-  /** The Session just cancelled (E10), until its Undo deadline (epoch ms): the toast offers Undo. */
-  discard: { session_id: string; deadline: number } | null;
-  /** Start is possible, and how it would get video (without a microphone grant the Session has no voice, E11). */
-  start: { ok: true; video: 'tab_capture' | 'frame_picker' | 'none' } | { ok: false; reason: string };
-  /** Only while paired (ADR 0004): unpaired, no host UI at all. */
-  host: 'connected' | 'offline' | null;
-  /** The paired Host is on another computer (network mode, ADR 0006): nothing it is sent is encrypted. */
-  hostNetwork: boolean;
-  /** The toast strip: the latest caption or Draft Item of the live Session. */
-  toast: { id: string; kind: 'caption' | 'draft'; text: string } | null;
-  /** The last error to show (a failed Start, the microphone failing mid-Session). */
-  notice: string | null;
-  /** The viewport control (plan E6), or null where this page cannot be resized (the control is hidden). */
-  viewport: ToolbarViewport | null;
-}
-
-export interface ToolbarViewport {
-  /** The size the page is resized to, or null at the tab's own size. */
-  current: { width: number; height: number; scale: number } | null;
-  /** The tab's own size: "Fit to tab", and the limit past which a size is shown scaled down. */
-  tab: { width: number; height: number };
-  /** The last size used on this origin. */
-  last: { width: number; height: number } | null;
-  /** Why this page cannot be resized (it refuses framing): the control says so instead of offering sizes. */
-  blocked?: string;
-}
+/**
+ * What the page's floating toolbar shows, pushed by the service worker to every tab that shows it (null hides it), and
+ * what it asks of the page side: the UI contract lives with the toolbar in @inkup/ui (packages/ui/src/toolbar-state.ts).
+ */
+export type {
+  ToolbarActions,
+  ToolbarPosition,
+  ToolbarState,
+  ToolbarViewport,
+  ViewportActions,
+} from '@inkup/ui/toolbar-state';
 
 /** The panel's video MediaRecorder started (its first moment, as epoch ms) or the shared tab stopped. */
 export type VideoStatusInput =

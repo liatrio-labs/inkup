@@ -7,7 +7,7 @@ import type { ActiveSession, FrameHostLayout, HostStatus, TabViewport } from './
 
 export const activeSession = storage.defineItem<ActiveSession | null>('session:activeSession', { fallback: null });
 /**
- * Tabs that show the page's floating toolbar (src/content/toolbar.ts): the toolbar icon toggles a tab in and out, and
+ * Tabs that show the page's floating toolbar (@inkup/ui's Toolbar): the toolbar icon toggles a tab in and out, and
  * the shortcut or a toolbar Start adds it.
  */
 export const toolbarTabs = storage.defineItem<number[]>('session:toolbarTabs', { fallback: [] });
