@@ -218,7 +218,7 @@ test('without a tracker each card links to Trackers settings; saving a token sho
     expect(await options.locator('body').innerText()).not.toContain(TOKEN);
 
     // The default repo is picked from what the token can see.
-    const repo = options.getByTestId('github-repo');
+    const repo = options.getByTestId('github-destination');
     await expect(repo.locator('option')).toHaveText(['Pick a repo', 'acme/web', 'acme/api']);
     await repo.selectOption('acme/web');
     await expect
@@ -408,7 +408,7 @@ test('sending a linked item again is in the menu, behind a confirm', async ({ se
     await expect(first.getByRole('menuitem', { name: 'Send again' })).toBeVisible();
     await first.getByTestId('tracker-send-again').click();
     const confirm = review.getByTestId('tracker-confirm');
-    await expect(confirm).toContainText('It is already GitHub #1 in acme/web');
+    await expect(confirm).toContainText('It is already GitHub #1');
     await review.getByTestId('tracker-confirm-cancel').click();
     await expect(confirm).toHaveCount(0);
     expect(issueCreates(stub)).toHaveLength(1);

@@ -8,6 +8,8 @@ import { buildIssue, type IssueItem, type IssueSession } from './issue.ts';
 export * from './adapter.ts';
 export { ASSETS_BRANCH, assetPath, assetUrl, GITHUB_API, githubAdapter } from './github.ts';
 export * from './issue.ts';
+export { LINEAR_API, linearAdapter } from './linear.ts';
+export * from './registry.ts';
 
 /** The ids of every image an item shows: its screenshots, then its element crops. */
 export const itemImageIds = (item: Pick<IssueItem, 'evidence'>): string[] => [
