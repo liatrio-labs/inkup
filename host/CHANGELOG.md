@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/liatrio-labs/inkup/compare/inkup-v0.13.0...inkup-v0.13.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **extension:** give the Firefox Start frame button the DESIGN.md palette ([#95](https://github.com/liatrio-labs/inkup/issues/95)) ([5437f9b](https://github.com/liatrio-labs/inkup/commit/5437f9b8ec327fcd802d86c4cead2e77c98ff8c9))
+
 ## [0.13.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.12.0...inkup-v0.13.0) (2026-10-07)
 
 
