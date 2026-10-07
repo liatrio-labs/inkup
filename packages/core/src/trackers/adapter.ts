@@ -121,9 +121,19 @@ export class TrackerError extends Error {
     readonly status: number | null = null,
     /** For a rate limit: how long the tracker asked to wait (its `retry-after`), in milliseconds. */
     readonly retryAfterMs: number | null = null,
+    /**
+     * The issue the send made before it failed (Jira: created, then a screenshot didn't go on). The caller records it,
+     * because sending the item again would make a second issue.
+     */
+    readonly created: Omit<TrackerLink, 'created_at'> | null = null,
   ) {
     super(message);
   }
+}
+
+/** The issue a failed send made anyway (TrackerError's `created`), or null when it made none. */
+export function createdIssue(e: unknown): Omit<TrackerLink, 'created_at'> | null {
+  return e instanceof TrackerError ? e.created : null;
 }
 
 /** How a `retry-after` header reads in milliseconds: delta-seconds or an HTTP date; null when absent or unreadable. */

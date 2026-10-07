@@ -15,6 +15,7 @@ import {
   type Destination,
   type ImageUpload,
   type IssueStatus,
+  retryAfterMs,
   type TestCheck,
   type TrackerAdapter,
   type TrackerCredentials,
@@ -81,6 +82,7 @@ export function chooseIssueType(available: readonly string[], category: string, 
 
 interface Reply {
   status: number;
+  headers: Headers;
   // biome-ignore lint/suspicious/noExplicitAny: Jira's JSON, read field by field below
   body: any;
 }
@@ -129,7 +131,7 @@ export function jiraAdapter({ fetch: doFetch, baseUrl, email, issueType, siteUrl
     } catch {
       json = null;
     }
-    return { status: res.status, body: json };
+    return { status: res.status, headers: res.headers, body: json };
   }
 
   const ok = (r: Reply) => r.status >= 200 && r.status < 300;
@@ -153,6 +155,7 @@ export function jiraAdapter({ fetch: doFetch, baseUrl, email, issueType, siteUrl
         'rate_limit',
         'Jira is limiting requests from this account. Wait a minute, then try again.',
         429,
+        retryAfterMs(r.headers.get('retry-after')),
       );
     if (area === 'create' && (r.status === 403 || r.status === 404))
       return new TrackerError(
@@ -272,12 +275,20 @@ export function jiraAdapter({ fetch: doFetch, baseUrl, email, issueType, siteUrl
       checks.push(
         has('CREATE_ISSUES')
           ? { id: 'create', ok: true, message: `This account can create issues in "${project}".` }
-          : { id: 'create', ok: false, message: failure({ status: 403, body: null }, 'create', project).message },
+          : {
+              id: 'create',
+              ok: false,
+              message: failure({ status: 403, headers: new Headers(), body: null }, 'create', project).message,
+            },
       );
       checks.push(
         has('CREATE_ATTACHMENTS')
           ? { id: 'attach', ok: true, message: `This account can attach screenshots in "${project}".` }
-          : { id: 'attach', ok: false, message: failure({ status: 403, body: null }, 'attach', project).message },
+          : {
+              id: 'attach',
+              ok: false,
+              message: failure({ status: 403, headers: new Headers(), body: null }, 'attach', project).message,
+            },
       );
       return done();
     },
@@ -347,12 +358,15 @@ export function jiraAdapter({ fetch: doFetch, baseUrl, email, issueType, siteUrl
           if (!ok(updated)) throw failure(updated, 'update', project);
         }
       } catch (e) {
-        // The issue exists, so a second send would make a duplicate: say so, with where it is.
+        // The issue exists, so a second send would make a duplicate: say so, with where it is, and hand the caller the
+        // link to record. No retry-after, even on a 429: waiting and sending again would make a second issue.
         if (e instanceof TrackerError)
           throw new TrackerError(
             e.kind,
             `${key} was created in Jira, but its screenshots didn't all go on: ${e.message} Open ${link.url} to add them; sending again would make a second issue.`,
             e.status,
+            null,
+            link,
           );
         throw e;
       }
