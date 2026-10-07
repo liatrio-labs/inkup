@@ -29,6 +29,7 @@
     "@ricky0123/vad-web": "^0.0.31",
     "@inkup/core": "workspace:*",
     "@inkup/protocol": "workspace:*",
+    "@inkup/ui": "workspace:*",
     "@webext-core/messaging": "^4.0.0",
     "@wxt-dev/storage": "^1.2.9",
     "buffer": "^6.0.3",

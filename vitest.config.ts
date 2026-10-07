@@ -6,6 +6,7 @@ export default defineConfig({
     projects: [
       'packages/core',
       'packages/protocol',
+      'packages/ui',
       'extensions/web',
       'apps/desktop',
       {

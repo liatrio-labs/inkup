@@ -7,13 +7,12 @@ import { type DraftView, draftViews } from '@inkup/core/drafts';
 import { pairSegment } from '@inkup/core/process/pairing';
 import { type EventOf, sortTimeline, type TimelineEvent, type TimestampQuality } from '@inkup/core/timeline';
 import { stripCommandPhrase } from '@inkup/core/voice-command-effects';
+import { Button, cn } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { TONE } from '@/components/tone';
-import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import { useBlobUrl } from '@/lib/use-blob-url';
-import { cn } from '@/lib/utils';
 import { sendMessage } from '@/messaging';
 
 const ROLE = { subject: 'Subject', reference: 'Reference', destination: 'Destination' } as const;

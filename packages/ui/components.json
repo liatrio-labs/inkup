@@ -5,17 +5,17 @@
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "ui/src/tailwind.css",
+    "css": "src/styles/theme.css",
     "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
   },
   "aliases": {
-    "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
-    "lib": "@/lib",
-    "hooks": "@/hooks"
+    "components": "@inkup/ui/components",
+    "utils": "@inkup/ui/lib/utils",
+    "ui": "@inkup/ui/components",
+    "lib": "@inkup/ui/lib",
+    "hooks": "@inkup/ui/hooks"
   },
   "iconLibrary": "lucide"
 }

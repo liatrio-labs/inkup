@@ -83,6 +83,9 @@ function firefoxManifest(manifest: Browser.runtime.Manifest) {
 export default defineConfig({
   srcDir: 'src',
   publicDir: 'public',
+  // `@/components/ui/*` is @inkup/ui's (ADR 0028), for review/change-items.tsx, which still imports it that way until
+  // spec 02 moves its imports; WXT puts these before its own `@`. tsconfig.json carries the same path.
+  alias: { '@/components/ui': '../../packages/ui/src/components' },
   modules: ['@wxt-dev/module-react'],
   // No `version` here: WXT takes package.json's, which release-please sets to the release's version (ADR 0027). For a
   // release candidate, `0.7.0-rc.1`, WXT writes `version: "0.7.0"`, because browsers take only dotted numbers, and the
@@ -137,8 +140,9 @@ export default defineConfig({
     action: { default_title: 'InkUp' },
   },
   // The Firefox sources zip AMO reviewers rebuild from (docs/browsers.md): the part of the pnpm workspace the build
-  // reads, from the repo root, so @inkup/core and @inkup/protocol come along. Patterns are relative to the repo root.
-  // public/ort and public/vad are copied from node_modules on install. scripts/verify-sources-zip.sh rebuilds from it.
+  // reads, from the repo root, so @inkup/core, @inkup/protocol and @inkup/ui come along. Patterns are relative to the
+  // repo root. public/ort and public/vad are copied from node_modules on install. scripts/verify-sources-zip.sh
+  // rebuilds from it.
   zip: {
     sourcesRoot: fileURLToPath(new URL('../..', import.meta.url)),
     includeSources: [
@@ -150,9 +154,9 @@ export default defineConfig({
       'tsconfig.json',
       // The root `prepare` script; without a .git it exits at once.
       'scripts/install-hooks.mjs',
-      'packages/{core,protocol}/{package.json,tsconfig.json}',
-      'packages/{core,protocol}/src/**',
-      'extensions/web/{package.json,tsconfig.json,wxt.config.ts,components.json}',
+      'packages/{core,protocol,ui}/{package.json,tsconfig.json}',
+      'packages/{core,protocol,ui}/src/**',
+      'extensions/web/{package.json,tsconfig.json,wxt.config.ts}',
       'extensions/web/{src,public,assets}/**',
       'extensions/web/scripts/{copy-wasm-assets.mjs,dev-icons.ts}',
     ],

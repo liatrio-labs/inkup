@@ -122,6 +122,7 @@ The repo is a pnpm workspace:
 | `packages/core` | `@inkup/core`: the pure TypeScript domain (timeline, grouping, shapes, Candidates, Process, export, the Zod schemas). No browser APIs, no DOM |
 | `extensions/web` | The WXT extension (package `inkup`). Browser-specific calls sit behind `src/platform` |
 | `packages/protocol` | `@inkup/protocol`: the Zod schemas of the host's wire protocol and its control API |
+| `packages/ui` | `@inkup/ui`: the shadcn/ui primitives, the DESIGN.md theme and `mountInShadow`, shared by the extension and the desktop app |
 | `host/` | The Rust host (a cargo workspace): the `inkup` binary, its server, store and TUI |
 | `apps/desktop` | The Tauri desktop app: a React and shadcn/ui window in `ui/`, and its own cargo workspace in `src-tauri/` that builds the host's crates |
 | `scripts/`, `fixtures/`, `tests/e2e`, `tests/support` | Repo-level scripts, the fixture site and data, the Playwright e2e and shared test stubs |

@@ -3,15 +3,14 @@
 
 import { formatElapsed } from '@inkup/core/clock';
 import { formatBytes, originOf } from '@inkup/core/session-list';
+import { Button, cn } from '@inkup/ui';
 import { useState } from 'react';
 import { RESOLUTION_TEXT } from '@/components/resolution-style';
 import { ReviewLink } from '@/components/review-link';
-import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import type { ItemStatusCounts } from '@/db/resolutions';
 import { deleteSession, type SessionSummary } from '@/db/sessions';
 import { useOriginLabel } from '@/lib/use-origin-label';
-import { cn } from '@/lib/utils';
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 

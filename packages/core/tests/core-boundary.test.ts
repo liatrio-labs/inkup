@@ -1,9 +1,11 @@
-// Architecture rule (docs/PLAN.md): packages/core/src never imports chrome.* / WXT or touches the DOM.
+// Architecture rule (docs/PLAN.md): packages/core/src never imports chrome.* / WXT or touches the DOM. Nor does it
+// import @inkup/ui, the React and DOM side of the workspace (ADR 0028); packages/protocol is held to that too.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const CORE = join(__dirname, '../src');
+const PROTOCOL = join(__dirname, '../../protocol/src');
 const FORBIDDEN: [string, RegExp][] = [
   ['chrome.* API', /\bchrome\s*\./],
   ['browser.* API', /\bbrowser\s*\./],
@@ -14,6 +16,7 @@ const FORBIDDEN: [string, RegExp][] = [
     /(?<![\w$.-])(document|window|navigator)\s*[.[]|(?::|instanceof|new|<)\s*(HTMLElement|Element|Node|Document)\b/,
   ],
   ['WXT import', /from\s+['"](wxt|#imports|wxt\/[^'"]*)['"]/],
+  ['@inkup/ui import', /from\s+['"]@inkup\/ui(\/[^'"]*)?['"]/],
 ];
 
 function violations(source: string): string[] {
@@ -39,9 +42,20 @@ describe('packages/core/src boundary', () => {
     expect(violations('function f(e: HTMLElement) {}')).toEqual(['DOM global']);
     expect(violations('if (x instanceof Element) {}')).toEqual(['DOM global']);
     expect(violations("const s = 'see session-document.ts, the document root'")).toEqual([]);
+    expect(violations("import { cn } from '@inkup/ui'")).toEqual(['@inkup/ui import']);
+    expect(violations("import { Button } from '@inkup/ui/components/button'")).toEqual(['@inkup/ui import']);
   });
 
   it.each(files(CORE).map((f) => [f.slice(CORE.length + 1), f]))('%s is pure', (_rel, file) => {
     expect(violations(readFileSync(file, 'utf8'))).toEqual([]);
   });
+});
+
+describe('packages/protocol/src boundary', () => {
+  it.each(files(PROTOCOL).map((f) => [f.slice(PROTOCOL.length + 1), f]))(
+    '%s does not import @inkup/ui',
+    (_rel, file) => {
+      expect(violations(readFileSync(file, 'utf8'))).not.toContain('@inkup/ui import');
+    },
+  );
 });

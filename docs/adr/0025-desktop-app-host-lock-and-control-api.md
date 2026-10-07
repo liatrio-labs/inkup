@@ -135,9 +135,10 @@ Nothing in dist's workflow waits on this one, so a failed or slow desktop build 
 the host release: the release just has no DMG until the job is re-run. Pre-releases run it too, which is how the path
 is proven.
 
-**The UI is shadcn/ui only.** The window (`apps/desktop/ui`) is built from off-the-shelf shadcn/ui components added
-with the shadcn CLI, and has no custom components of its own. It follows the TUI's views and words, so the two stay
-recognisably the same product.
+**The UI is shadcn/ui and `@inkup/ui` components.** The window (`apps/desktop/ui`) is built from shadcn/ui
+primitives and the components built from them, all imported from the shared `@inkup/ui` package (`packages/ui`, ADR
+0028), where the shadcn CLI adds them. It has no components of its own and no `components/ui` directory. It follows
+the TUI's views and words, so the two stay recognisably the same product.
 
 ## Considered options
 
@@ -213,6 +214,10 @@ recognisably the same product.
 - 2026-09-28: app users without Homebrew had no way to get the CLI. Now the macOS app bundles the `inkup` binary
   from the same tag and Install CLI links `/usr/local/bin/inkup` to it, as "It bundles the CLI only to put it on
   PATH" says. It still never runs it: the sidecar option stays rejected.
+- 2026-10-07: the window was "shadcn/ui only, no custom components", with its own copy of the primitives in
+  `ui/src/components/ui`. Now it is "shadcn/ui and `@inkup/ui` components": the primitives live in the shared package
+  (ADR 0028), so the desktop's toolbar and Review view (native capture, Phase 1) import the extension's components
+  instead of copying them.
 
 ## Sources
 
