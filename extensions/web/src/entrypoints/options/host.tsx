@@ -5,7 +5,7 @@
 // the 6-digit code it shows. Paired, this shows the connection, what is waiting to be sent, the Sessions recorded
 // before pairing (Upload), and Forget, which has the Host revoke this browser's token first.
 
-import { Button, cn, TONE } from '@inkup/ui';
+import { Button, Card, CardContent, cn, Input, TONE } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
 import { type FoundHost, isLoopbackUrl, normalizeAddress, parsePairLink } from '@/adapters/host';
@@ -196,10 +196,10 @@ export function HostSection() {
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {editingUrl && (
-            <input
+            <Input
               aria-label="Host address or pair link"
               data-testid="host-url"
-              className="min-w-64 flex-1 rounded-md border px-3 py-2 font-mono"
+              className="min-w-64 flex-1 font-mono transition-none"
               placeholder="192.168.1.20, inkup.local or inkup://pair?…"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -246,9 +246,9 @@ export function HostSection() {
             </p>
           ) : (
             found.map((hub) => (
-              <div
+              <Card
                 key={hub.url}
-                className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
+                className="flex-row flex-wrap items-center gap-3 rounded-lg px-3 py-2 shadow-none"
                 data-testid="host-found-item"
                 data-url={hub.url}
               >
@@ -270,7 +270,7 @@ export function HostSection() {
                 >
                   Connect
                 </Button>
-              </div>
+              </Card>
             ))
           )}
         </div>
@@ -295,20 +295,20 @@ export function HostSection() {
             e.preventDefault();
             void pairWith(codeFor, code.replace(/\s/g, ''));
           }}
-          className="flex flex-col gap-2 rounded-md border p-3"
+          className="flex flex-col gap-2 rounded-lg border bg-card p-4"
           data-testid="host-code-form"
         >
           <p>
             Type the 6-digit code the host at <span className="font-mono">{codeFor}</span> shows. It lasts 2 minutes.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <input
+            <Input
               aria-label="Pairing code"
               data-testid="host-code"
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={7}
-              className="w-32 rounded-md border px-3 py-2 font-mono tracking-widest"
+              className="w-32 font-mono tracking-widest transition-none"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               disabled={pairingNow}
@@ -348,7 +348,7 @@ export function HostSection() {
 function HostShell({ children }: { children?: React.ReactNode }) {
   return (
     <section aria-labelledby="host" className="flex flex-col gap-4" data-testid="host-section">
-      <h2 id="host" className="text-base font-semibold">
+      <h2 id="host" className="text-lg font-bold tracking-tight">
         Host
       </h2>
       {children}
@@ -393,14 +393,16 @@ function QrScanner({ onLink, onClose }: { onLink: (link: string) => void; onClos
     };
   }, []);
   return (
-    <div className="flex flex-col gap-2 rounded-md border p-3" data-testid="host-scanner">
-      <p>Point the camera at the QR code the host shows.</p>
-      <video ref={video} muted playsInline className="max-h-64 w-full max-w-sm rounded bg-black" />
-      <div>
-        <Button type="button" variant="ghost" onClick={() => onClose()}>
-          Cancel
-        </Button>
-      </div>
-    </div>
+    <Card className="gap-2 rounded-lg py-4 shadow-none" data-testid="host-scanner">
+      <CardContent className="flex flex-col gap-2 px-4">
+        <p>Point the camera at the QR code the host shows.</p>
+        <video ref={video} muted playsInline className="max-h-64 w-full max-w-sm rounded-md bg-black" />
+        <div>
+          <Button type="button" variant="ghost" onClick={() => onClose()}>
+            Cancel
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
