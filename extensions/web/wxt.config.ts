@@ -83,9 +83,6 @@ function firefoxManifest(manifest: Browser.runtime.Manifest) {
 export default defineConfig({
   srcDir: 'src',
   publicDir: 'public',
-  // `@/components/ui/*` is @inkup/ui's (ADR 0029), for review/change-items.tsx, which still imports it that way until
-  // spec 02 moves its imports; WXT puts these before its own `@`. tsconfig.json carries the same path.
-  alias: { '@/components/ui': '../../packages/ui/src/components' },
   modules: ['@wxt-dev/module-react'],
   // No `version` here: WXT takes package.json's, which release-please sets to the release's version (ADR 0027). For a
   // release candidate, `0.7.0-rc.1`, WXT writes `version: "0.7.0"`, because browsers take only dotted numbers, and the

@@ -28,6 +28,16 @@ desktop app's window are React components styled with Tailwind on the package th
 `packages/ui/src/components/`; then `src/index.ts` exports it. A component built from primitives for one surface
 lives in the package too, beside them, so the other app can import it.
 
+**Product components take only props and callbacks.** What the extension's pages and the desktop app both show (the
+session row, the Draft and Change Item card, discard-undo, the host indicator, and the status tones in
+`tone.ts`, `resolution-style.ts` and `vetting-style.ts`) lives in `packages/ui/src/product/`. Each is drawn from the
+props it is given and reports the reviewer's actions through callbacks. The app keeps a thin container that supplies
+the data and the actions: the extension's read Dexie (`useLiveQuery`) and its storage items, and send its messages.
+Nothing under `packages/ui/src` imports Dexie, `@webext-core/messaging`, `@wxt-dev/storage`, WXT or an `@/` extension
+module, or touches the `chrome` and `browser` globals (`packages/ui/tests/product-boundary.test.ts`). The status tones
+are the theme's tokens (`done`, `working`, `pen` as `pen-ink` text, `muted`), held to 4.5:1 by
+`packages/ui/tests/tone.test.ts`.
+
 **The theme is DESIGN.md's, on shadcn's variables.** `theme.css` maps DESIGN.md's palette (ink, paper, pen, muted,
 hairline, done, working and their dark values) and `rounded` scale onto `--background`, `--foreground`, `--primary`,
 `--destructive`, `--border`, `--radius` and the rest, for light and dark. Every text pair is at least 4.5:1
@@ -62,8 +72,10 @@ the desktop app, bundled from Fontsource (`fonts.css`), never from a network.
   to source so the AMO sources zip rebuilds the same CSS. The Firefox sources zip includes `packages/ui`.
 - A change to `packages/ui` runs both the extension and the desktop checks in CI (`scripts/ci-changes.ts` already
   routes `packages/` to both).
-- Until spec 02 moves the review page's last imports, the extension resolves `@/components/ui/*` to the package
-  through a path alias (`extensions/web/tsconfig.json`, `wxt.config.ts`) and `src/lib/utils.ts` re-exports `cn`.
+- The extension imports primitives, `cn` and product components from `@inkup/ui` only. It has no
+  `@/components/ui` path alias and no `src/lib/utils.ts`.
+- The content script's stylesheet (`shadow.css`) does not scan `packages/ui/src/product`: page components stay out of
+  reviewed pages.
 
 ## History
 
@@ -73,6 +85,10 @@ the desktop app, bundled from Fontsource (`fonts.css`), never from a network.
 - 2026-10-07: we thought the extension zip would stay under 200 KB over the pre-migration build; now 300 KB, because
   the bundled fonts (108 KiB) and React (82 KiB) are one-time costs of the shadcn standard, not growth that recurs
   per surface. Spec 01's first measurement was +204,793 B in the Chrome zip over 0.8.0.
+- 2026-10-07: we kept a `@/components/ui` path alias and a `cn` re-export in `extensions/web/src/lib/utils.ts` until
+  the review page's imports moved; now both are gone, every importer uses `@inkup/ui`, and the product components
+  live in `packages/ui/src/product` taking only props and callbacks, because the desktop app's Review view (Phase 1)
+  imports them (spec 02, Unit 1).
 
 ## Sources
 

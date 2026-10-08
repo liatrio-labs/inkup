@@ -24,12 +24,10 @@ import {
   type TrackerLink,
   type TrackerName,
 } from '@inkup/core/trackers';
+import { Button, cn, Dialog, DialogContent, DialogDescription, DialogTitle, TONE } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { TONE } from '@/components/tone';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { db } from '@/db';
 import {
   destinationsFor,
@@ -40,7 +38,6 @@ import {
   trackerCredentials,
   useTrackerSetups,
 } from '@/lib/trackers';
-import { cn } from '@/lib/utils';
 
 const sessionId = new URLSearchParams(location.search).get('session') ?? '';
 

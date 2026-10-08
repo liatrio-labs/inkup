@@ -14,9 +14,9 @@ import type { ChangeItem } from '@inkup/core/process/change-item';
 import { latestLinks, sessionName, trackerLinksFor } from '@inkup/core/review-edits';
 import { sortTimeline } from '@inkup/core/timeline';
 import type { TrackerError, TrackerName } from '@inkup/core/trackers';
+import { Button } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { db } from '@/db';
 import { KNOWN_TRACKERS, sendToTracker, useTrackerSetups } from '@/lib/trackers';
 

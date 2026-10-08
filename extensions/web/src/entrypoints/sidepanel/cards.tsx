@@ -1,21 +1,18 @@
 // The side panel's live list (PRD P0-10). With a key for the Draft model: Draft Item cards (title, Category, Location
-// names) with Discard and Pin. Without one: Annotation cards (screenshot thumbnail, geometric pick, paired
-// speech), and "scratch that" discards Annotations. Both read Dexie through useLiveQuery, newest first.
+// names) with Discard and Pin, drawn by @inkup/ui's ItemCard; Pin and Discard go to the service worker. Without one:
+// Annotation cards (screenshot thumbnail, geometric pick, paired speech), and "scratch that" discards Annotations.
+// Both read Dexie through useLiveQuery, newest first.
 
 import { formatElapsed } from '@inkup/core/clock';
-import { type DraftView, draftViews } from '@inkup/core/drafts';
+import { draftViews } from '@inkup/core/drafts';
 import { pairSegment } from '@inkup/core/process/pairing';
 import { type EventOf, sortTimeline, type TimelineEvent, type TimestampQuality } from '@inkup/core/timeline';
 import { stripCommandPhrase } from '@inkup/core/voice-command-effects';
-import { Button, cn } from '@inkup/ui';
+import { Card, cn, ItemCard, TONE } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
-import { TONE } from '@/components/tone';
 import { db } from '@/db';
 import { useBlobUrl } from '@/lib/use-blob-url';
 import { sendMessage } from '@/messaging';
-
-const ROLE = { subject: 'Subject', reference: 'Reference', destination: 'Destination' } as const;
 
 function useEventsOf<T extends TimelineEvent['type']>(
   sessionId: string,
@@ -47,6 +44,8 @@ export function DraftCards({
 }) {
   const events = useEventsOf(sessionId, ['draft_item', 'draft_action']);
   const views = events ? draftViews(events).reverse() : [];
+  const pin = (draft_id: string) => sendMessage('draftAction', { draft_id, action: 'pin' });
+  const discard = (draft_id: string) => sendMessage('draftAction', { draft_id, action: 'discard' });
   return (
     <section aria-labelledby="drafts-heading" className="flex flex-col gap-2" data-testid="draft-list">
       <div className="flex items-baseline justify-between">
@@ -72,89 +71,20 @@ export function DraftCards({
       ) : (
         <ol className="flex flex-col gap-2">
           {views.map((v) => (
-            <DraftCard key={v.draft.draft_id} view={v} disabled={disabled} />
+            <ItemCard
+              key={v.draft.draft_id}
+              variant="draft"
+              draft={v.draft}
+              state={v.state}
+              source={v.source}
+              disabled={disabled}
+              onPin={pin}
+              onDiscard={discard}
+            />
           ))}
         </ol>
       )}
     </section>
-  );
-}
-
-function DraftCard({ view, disabled }: { view: DraftView; disabled: boolean }) {
-  const { draft, state, source } = view;
-  const [busy, setBusy] = useState(false);
-  const act = async (action: 'discard' | 'pin') => {
-    setBusy(true);
-    try {
-      await sendMessage('draftAction', { draft_id: draft.draft_id, action });
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <li
-      data-testid="draft-card"
-      data-draft-id={draft.draft_id}
-      data-state={state}
-      className={cn(
-        'flex flex-col gap-1.5 rounded-md border bg-card p-2',
-        state === 'pinned' && 'border-primary',
-        state === 'discarded' && 'opacity-50',
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p
-          className={cn('font-medium leading-snug', state === 'discarded' && 'line-through')}
-          data-testid="draft-title"
-        >
-          {draft.title}
-        </p>
-        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs" data-testid="draft-category">
-          {draft.category}
-        </span>
-      </div>
-      {draft.locations.length > 0 && (
-        <ul className="text-xs text-muted-foreground">
-          {draft.locations.map((l, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: Locations have no id, and a Draft Item's list is replaced as a whole
-            <li key={i} data-testid="draft-location" data-role={l.role}>
-              {ROLE[l.role]}: {l.element}
-              {l.annotation !== null && ` (#${l.annotation})`}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground" data-testid="draft-state">
-          {state === 'pinned'
-            ? `Pinned${source === 'voice' ? ' by voice' : ''}`
-            : state === 'discarded'
-              ? `Discarded${source === 'voice' ? ' by voice' : ''}`
-              : ''}
-        </span>
-        <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={disabled || busy || state === 'discarded'}
-            onClick={() => act('discard')}
-            data-testid="draft-discard"
-          >
-            Discard
-          </Button>
-          <Button
-            size="sm"
-            variant={state === 'pinned' ? 'default' : 'outline'}
-            disabled={disabled || busy || state === 'pinned'}
-            onClick={() => act('pin')}
-            data-testid="draft-pin"
-            aria-pressed={state === 'pinned'}
-          >
-            {state === 'pinned' ? 'Pinned' : 'Pin'}
-          </Button>
-        </div>
-      </div>
-    </li>
   );
 }
 
@@ -212,33 +142,43 @@ function AnnotationCard({
   const thumb = useBlobUrl(a.screenshot_id);
   const pick = a.pick !== null ? a.candidates[a.pick] : undefined;
   return (
-    <li
-      data-testid="annotation-card"
-      data-discarded={discarded}
-      className={cn('flex gap-2 rounded-md border bg-card p-2', discarded && 'opacity-50')}
-    >
-      {thumb ? (
-        <img
-          src={thumb}
-          alt={`Screenshot of Annotation ${a.index}`}
-          className={cn('h-14 w-20 shrink-0 rounded border bg-muted object-contain', TONE.shotFrame)}
-          data-testid="annotation-thumb"
-        />
-      ) : (
-        <div className="h-14 w-20 shrink-0 rounded border bg-muted" />
-      )}
-      <div className="flex min-w-0 flex-col gap-0.5 text-xs">
-        <p className="font-medium">
-          #{a.index} · {formatElapsed(a.t)}
-          {discarded && <span className="ml-1 font-normal text-muted-foreground">Discarded</span>}
-        </p>
-        <p className="truncate" data-testid="annotation-pick" title={pick?.selector}>
-          {pick ? `${pick.name ? `“${pick.name}” ` : ''}${pick.selector}` : 'Region only'}
-        </p>
-        <p className="line-clamp-2 text-muted-foreground" data-testid="annotation-speech">
-          {speech.length ? speech.map((s) => `“${s}”`).join(' ') : 'No speech nearby'}
-        </p>
-      </div>
+    <li data-testid="annotation-card" data-discarded={discarded}>
+      <Card
+        className={cn(
+          'flex-row gap-2.5 rounded-lg p-2 shadow-xs transition-opacity duration-150',
+          discarded && 'opacity-50 shadow-none',
+        )}
+      >
+        {thumb ? (
+          <img
+            src={thumb}
+            alt={`Screenshot of Annotation ${a.index}`}
+            className={cn('h-14 w-20 shrink-0 rounded-sm border bg-muted object-contain', TONE.shotFrame)}
+            data-testid="annotation-thumb"
+          />
+        ) : (
+          <div className="h-14 w-20 shrink-0 rounded-sm border bg-muted" />
+        )}
+        <div className="flex min-w-0 flex-col gap-0.5 text-xs">
+          <p className="font-medium">
+            #{a.index} · <span className="font-mono font-normal text-muted-foreground">{formatElapsed(a.t)}</span>
+            {discarded && <span className="ml-1 font-normal text-muted-foreground">Discarded</span>}
+          </p>
+          <p className="truncate" data-testid="annotation-pick" title={pick?.selector}>
+            {pick ? (
+              <>
+                {pick.name ? `“${pick.name}” ` : ''}
+                <span className="font-mono text-pen-ink">{pick.selector}</span>
+              </>
+            ) : (
+              'Region only'
+            )}
+          </p>
+          <p className="line-clamp-2 text-muted-foreground" data-testid="annotation-speech">
+            {speech.length ? speech.map((s) => `“${s}”`).join(' ') : 'No speech nearby'}
+          </p>
+        </div>
+      </Card>
     </li>
   );
 }

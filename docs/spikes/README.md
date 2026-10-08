@@ -169,6 +169,10 @@ Setup, once:
     204,793 B over the pre-migration 0.8.0 build (`dc5d2a7`; that gap includes 0.9.0's own changes). The shadow
     stylesheet scans only the in-page surfaces (`packages/ui/src/styles/shadow.css`): scanning all of `packages/ui/src`
     put the pages' dialog, table and tab utilities in the content script and the zip over budget.
+  - **Spec 02 (the extension pages) aims under 100 KB over post-spec-01 main** (`8146d3f`, 0.13.1), within the
+    300 KB over `dc5d2a7` (`docs/specs/02-spec-extension-pages-shadcn/01-proofs/T01-sizes.sh` checks both); its Unit 1
+    (the side panel and `packages/ui/src/product`) added 1,806 B Chrome, 1,791 B Firefox and 9,128 B sources, and the
+    pages' CSS shrank by 6,650 B as the stock Tailwind hues gave way to the theme tokens.
 
 ## Deviations and versions
 
