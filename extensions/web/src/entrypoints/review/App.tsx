@@ -212,14 +212,14 @@ function DraftItemsSection({ drafts }: { drafts: ReturnType<typeof draftViews> }
           </p>
           <ol className="flex flex-col gap-2">
             {drafts.map(({ draft: d, state, source }) => (
-              <li key={d.draft_id} data-testid="review-draft" data-draft-id={d.draft_id} data-state={state}>
-                <Card
-                  className={cn(
-                    'gap-1 rounded-lg p-3 shadow-none',
-                    state === 'discarded' && 'opacity-50',
-                    state === 'pinned' && 'border-primary',
-                  )}
-                >
+              <li
+                key={d.draft_id}
+                data-testid="review-draft"
+                data-draft-id={d.draft_id}
+                data-state={state}
+                className={cn(state === 'discarded' && 'opacity-50')}
+              >
+                <Card className={cn('gap-1 rounded-lg p-3 shadow-none', state === 'pinned' && 'border-primary')}>
                   <p className="font-medium">
                     {d.draft_id} · {d.title}
                     <Badge variant="secondary" className="ml-2 font-normal">
