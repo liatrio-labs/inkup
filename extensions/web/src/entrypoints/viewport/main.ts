@@ -6,6 +6,7 @@
 // It lays out from the service worker's state for this tab (storage.session tabViewports), reports where the frame
 // is (the service worker crops screenshots to it), and mirrors the framed page into its own URL, so the Session sees
 // each navigation in the frame as one of the tab. With no state for this tab it hands the tab back to the page.
+import '@/assets/tailwind.css';
 import { clampSize, frameRect, type Size, sizeLabel, sizeWithScale } from '@inkup/core/viewport';
 import { sendMessage } from '@/messaging';
 import { tabViewports } from '@/session-state';
