@@ -1,5 +1,6 @@
 // The side panel's idle state lists earlier Sessions (newest first) so a review is one click away, and restores an
-// exported one from a file.
+// exported one from a file. The rows are @inkup/ui's SessionRow, fed from Dexie.
+import { Skeleton } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { HostBackfill } from '@/components/host-backfill';
 import { RestoreSession } from '@/components/restore-session';
@@ -13,7 +14,8 @@ export function PreviousSessions() {
   const summaries = useLiveQuery(() => sessionSummaries(db), []);
   // Delete stays disabled for a Session that is recording, as on the Sessions page.
   const recordingId = useStorageItem(activeSession)?.id ?? null;
-  if (!summaries) return null;
+  // A placeholder the height of a short list, so the panel does not jump when Dexie answers.
+  if (!summaries) return <Skeleton className="h-24 w-full rounded-lg" aria-hidden />;
   const newestFirst = [...summaries].sort(
     (a, b) => b.started_at.localeCompare(a.started_at) || a.id.localeCompare(b.id),
   );

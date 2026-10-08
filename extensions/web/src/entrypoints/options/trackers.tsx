@@ -4,9 +4,8 @@
 // credentials are saved, a notice says what goes to it. Self-contained: options/App.tsx mounts it with one line. The
 // words and the fields come from core's registry, so a new tracker adds no code here.
 import type { Destination, TestResult, TrackerCredentials, TrackerField } from '@inkup/core/trackers';
+import { Button, cn, TONE } from '@inkup/ui';
 import { useEffect, useState } from 'react';
-import { TONE } from '@/components/tone';
-import { Button } from '@/components/ui/button';
 import {
   KNOWN_TRACKERS,
   saveDestination,
@@ -16,7 +15,6 @@ import {
   watchTracker,
 } from '@/lib/trackers';
 import { useStorageItem } from '@/lib/use-storage-item';
-import { cn } from '@/lib/utils';
 import { devOverrides, trackerSettings } from '@/settings';
 import { JiraIssueType } from './jira-issue-type';
 

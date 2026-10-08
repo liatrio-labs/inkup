@@ -11,9 +11,6 @@
       "node"
     ],
     "paths": {
-      "@/components/ui/*": [
-        "../../packages/ui/src/components/*"
-      ],
       "@/*": [
         "./src/*"
       ],

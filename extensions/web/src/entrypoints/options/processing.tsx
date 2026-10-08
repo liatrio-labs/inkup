@@ -3,10 +3,9 @@
 // and an effort. Keys live in storage.local only and are never shown back in full, logged or exported. Each key has
 // its own Test button beside it. Without a key, or when the list call fails, the model field is a text input.
 
-import { Button, cn } from '@inkup/ui';
+import { Button, cn, TONE } from '@inkup/ui';
 import { useEffect, useState } from 'react';
 import type { ListedModel } from '@/adapters/llm/models';
-import { TONE } from '@/components/tone';
 import { useStorageItem } from '@/lib/use-storage-item';
 import { sendMessage } from '@/messaging';
 import {

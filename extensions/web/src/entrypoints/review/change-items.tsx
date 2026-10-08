@@ -23,25 +23,33 @@ import { type ChangeItem, isLowConfidence, type Location } from '@inkup/core/pro
 import { type CostEstimate, formatUsd, type LimitWarning, shouldAutoRun } from '@inkup/core/process/cost';
 import { mergeSources, nextItemId, undoState } from '@inkup/core/review-edits';
 import { Category, type ItemEditOp } from '@inkup/core/timeline';
+import {
+  Button,
+  cn,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+  Input,
+  RESOLUTION_LABEL,
+  RESOLUTION_STYLE,
+  Skeleton,
+  Textarea,
+  TONE,
+  VETTING_LABEL,
+  VETTING_STYLE,
+} from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { GripVertical } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { EvidenceShot, locationShot, type ShotIndex } from '@/components/evidence-shot';
-import { RESOLUTION_LABEL, RESOLUTION_STYLE } from '@/components/resolution-style';
-import { TONE } from '@/components/tone';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
-import { VETTING_LABEL, VETTING_STYLE } from '@/components/vetting-style';
 import { db, type ProcessProgressRow, type ProcessRunRow, type ResolutionRow } from '@/db';
 import { latestResolutions } from '@/db/resolutions';
 import { appendReviewEvent } from '@/db/review';
 import { timeAgo, useNow } from '@/lib/time-ago';
 import { useRoleHasKey } from '@/lib/use-role-key';
 import { useStorageItem } from '@/lib/use-storage-item';
-import { cn } from '@/lib/utils';
 import { sendMessage } from '@/messaging';
 import { normalizeProcessingSettings, processingSettings } from '@/settings';
 import { SendToTracker } from './send-to-tracker';

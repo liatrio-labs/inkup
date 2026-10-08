@@ -3,12 +3,11 @@
 // reviewer's own key, stored in storage.local only and shown back masked. Test makes a real token-mint call. The
 // first time a paid tier is chosen, a notice says audio streams to that vendor while recording.
 
-import { Button, cn } from '@inkup/ui';
+import { Button, cn, TONE } from '@inkup/ui';
 import { useEffect, useState } from 'react';
 import { mintDeepgramToken } from '@/adapters/transcription/deepgram';
 import { mintScribeToken } from '@/adapters/transcription/elevenlabs';
 import { hasWebGpu, loadWhisper, WHISPER_MODELS } from '@/adapters/transcription/whisper-model';
-import { TONE } from '@/components/tone';
 import { useStorageItem } from '@/lib/use-storage-item';
 import { platform } from '@/platform';
 import {

@@ -1,12 +1,10 @@
 import { formatElapsed } from '@inkup/core/clock';
 import { activeElapsed } from '@inkup/core/media-time';
 import { SOFT_CAP_MINUTES, softCapMessage, softCapsReached } from '@inkup/core/session-list';
-import { Button, cn } from '@inkup/ui';
+import { Badge, Button, cn, TONE, Toaster, toast } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Toaster, toast } from 'sonner';
 import { DiscardUndo } from '@/components/discard-undo';
-import { TONE } from '@/components/tone';
 import { db } from '@/db';
 import { PANEL_PORT, type PanelToWorker, type WorkerToPanel } from '@/lib/panel-port';
 import { useSpeechPack } from '@/lib/speech-pack';
@@ -95,6 +93,12 @@ function useMicReady(): 'unknown' | 'ready' | 'needs-setup' | 'blocked' {
   if (denied) return 'blocked';
   return granted ? 'ready' : 'needs-setup';
 }
+
+/** A callout's box: a well with a hairline, like DESIGN.md's copy command. The colours are TONE.note. */
+const CALLOUT = 'rounded-lg border px-3 py-2';
+
+/** A text button inside a sentence: the sentence's own size and colour, underlined like the links beside it. */
+const INLINE_LINK = 'h-auto p-0 align-baseline text-[length:inherit] font-medium text-current underline';
 
 /** Chrome labels a captured tab `web-contents-media-stream://…`; the extension cannot map it back to a tab (ADR 0002). */
 const videoLabel = (label: string) =>
@@ -232,12 +236,14 @@ export function App() {
     <main className="flex min-h-screen flex-col gap-4 p-4 text-sm">
       <Toaster position="bottom-center" theme="system" />
       <header className="flex items-center justify-between">
-        <h1 className="text-base font-semibold">InkUp</h1>
-        <span
+        <h1 className="text-base font-[750] tracking-[-0.035em]">InkUp</h1>
+        <Badge
+          variant="outline"
           data-testid="status"
+          // No colour transition: the pill changes with the Session and the scheme at once, never through a blend.
           className={cn(
-            'rounded-full px-2 py-0.5 text-xs font-medium',
-            session?.paused ? TONE.pausedBadge : recording ? TONE.recordingBadge : 'bg-muted text-muted-foreground',
+            'font-semibold transition-none',
+            session?.paused ? TONE.pausedBadge : recording ? TONE.recordingBadge : TONE.idleBadge,
           )}
         >
           {session?.stopping
@@ -249,7 +255,7 @@ export function App() {
                 : recording
                   ? 'Recording'
                   : 'Ready'}
-        </span>
+        </Badge>
       </header>
 
       {recording ? (
@@ -269,7 +275,7 @@ export function App() {
             </span>
           </div>
           {softCap !== null && (
-            <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="soft-cap" data-minutes={softCap}>
+            <p className={cn(CALLOUT, TONE.note)} role="note" data-testid="soft-cap" data-minutes={softCap}>
               {softCapMessage(softCap)}
             </p>
           )}
@@ -288,23 +294,23 @@ export function App() {
                 : `Video: ${videoLabel(session.video.label)}`}
           </p>
           {session.mode === 'no_overlay' && (
-            <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="no-overlay">
+            <p className={cn(CALLOUT, TONE.note)} role="note" data-testid="no-overlay">
               Drawing is off on this page: it belongs to Chrome or to another extension, where this extension cannot
               draw or read the page. The Session still records your voice, the transcript, video and the address. Press
               Alt+Shift+S for a screenshot; the Snap button cannot capture this page.
             </p>
           )}
           {session.away && (
-            <p className="rounded-md bg-muted p-2" role="note" data-testid="away">
+            <p className={cn(CALLOUT, TONE.note)} role="note" data-testid="away">
               You are looking at another tab. The Session keeps recording {session.tab_title || 'its tab'}; screenshots
               resume when you return.{' '}
-              <button type="button" className="font-medium underline" onClick={goBack} data-testid="go-back">
+              <Button variant="link" className={INLINE_LINK} onClick={goBack} data-testid="go-back">
                 Go back
-              </button>
+              </Button>
             </p>
           )}
           {session.captions === 'unavailable' && (
-            <div className={cn('flex flex-col gap-2 rounded-md p-2', TONE.note)} role="note" data-testid="captions-off">
+            <div className={cn('flex flex-col gap-2', CALLOUT, TONE.note)} role="note" data-testid="captions-off">
               <p>
                 {platform.capabilities().speechRecognition
                   ? 'Live captions are off: on-device speech is not installed for this language, and server speech is not allowed.'
@@ -329,7 +335,7 @@ export function App() {
             </p>
           )}
           {session.transcription && session.transcription.engine === 'webspeech' && !session.transcription.local && (
-            <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="server-speech">
+            <p className={cn(CALLOUT, TONE.note)} role="note" data-testid="server-speech">
               Captions use Chrome&apos;s server speech service, as allowed in setup: your audio goes to Google.
             </p>
           )}
@@ -405,13 +411,13 @@ export function App() {
             </Button>
           </div>
           {session.voice === false && (
-            <p className="rounded-md bg-muted p-2" role="note" data-testid="no-mic-note">
+            <p className={cn(CALLOUT, TONE.note)} role="note" data-testid="no-mic-note">
               No mic: this Session records ink, picks, typed comments and screenshots. A drawn Annotation asks for a
               typed note.
             </p>
           )}
           {session.muted && (
-            <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="muted-note">
+            <p className={cn(CALLOUT, TONE.note)} role="note" data-testid="muted-note">
               Microphone off: nothing you say is recorded or transcribed. Drawing, picks and screenshots go on.
             </p>
           )}
@@ -428,7 +434,7 @@ export function App() {
           <div
             data-testid="captions"
             aria-live="polite"
-            className="min-h-[3.5rem] rounded-md border bg-card p-2 leading-snug"
+            className="min-h-[3.5rem] rounded-lg border bg-card px-3 py-2 leading-snug"
           >
             {captions && captions.length > 0 ? (
               // biome-ignore lint/suspicious/noArrayIndexKey: the last two caption lines, replaced as a whole; their text need not be unique
@@ -454,7 +460,7 @@ export function App() {
       ) : (
         <section className="flex flex-col gap-3" aria-label="Start">
           <DiscardUndo />
-          <Button onClick={start} disabled={busy || mic === 'unknown'} data-testid="start">
+          <Button size="lg" onClick={start} disabled={busy || mic === 'unknown'} data-testid="start">
             Start
           </Button>
           {mic === 'ready' && (pack === 'downloadable' || pack === 'downloading') && (
@@ -472,9 +478,9 @@ export function App() {
           {mic === 'needs-setup' && (
             <p data-testid="mic-gate" className="text-muted-foreground">
               No microphone yet: a Session records ink, picks, typed comments and screenshots.{' '}
-              <button type="button" className="underline" onClick={openSetup}>
+              <Button variant="link" className={INLINE_LINK} onClick={openSetup}>
                 Allow the microphone
-              </button>{' '}
+              </Button>{' '}
               for voice.
             </p>
           )}
@@ -482,9 +488,9 @@ export function App() {
             <p data-testid="mic-gate" className="text-destructive">
               The microphone is blocked for this extension, so a Session has no voice. Allow it in Chrome&apos;s site
               settings, then{' '}
-              <button type="button" className="underline" onClick={openSetup}>
+              <Button variant="link" className={INLINE_LINK} onClick={openSetup}>
                 run setup again
-              </button>
+              </Button>
               .
             </p>
           )}
@@ -492,7 +498,7 @@ export function App() {
         </section>
       )}
       {storage?.warn && (
-        <p className={cn('rounded-md p-2', TONE.note)} role="note" data-testid="storage-warning">
+        <p className={cn(CALLOUT, TONE.note)} role="note" data-testid="storage-warning">
           Storage is {Math.round(storage.ratio * 100)}% full.{' '}
           <a className="underline" href="/sessions.html" target="_blank" rel="noopener">
             Delete old Sessions
@@ -505,7 +511,7 @@ export function App() {
           {error ?? notice}
         </p>
       )}
-      <footer className="mt-auto flex gap-4 text-xs text-muted-foreground">
+      <footer className="mt-auto flex items-center gap-4 border-t pt-3 text-xs text-muted-foreground">
         <a className="underline" href="/sessions.html" target="_blank" data-testid="open-sessions" rel="noopener">
           Sessions
         </a>
