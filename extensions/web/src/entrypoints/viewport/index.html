@@ -1,21 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <title>Resized page</title>
   <style>
     :root { color-scheme: dark; --bar: 40px; --pad: 16px; }
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #3f3f46; font: 500 12px/1.2 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; color: #f4f4f5; }
-    header { position: fixed; inset: 0 0 auto 0; height: var(--bar); box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: #18181b; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper-3); font: 500 12px/1.2 var(--font-sans); color: var(--foreground); }
+    header { position: fixed; inset: 0 0 auto 0; height: var(--bar); box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--paper); }
     header .size { font-variant-numeric: tabular-nums; font-weight: 600; }
-    header .url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #a1a1aa; }
-    header button { all: unset; cursor: pointer; padding: 6px 10px; border-radius: 6px; background: #27272a; }
-    header button:hover { background: #3f3f46; }
-    header button:focus-visible { outline: 2px solid #60a5fa; }
+    header .url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground); }
+    header button { all: unset; cursor: pointer; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--paper-2); }
+    header button:hover { background: var(--accent); }
+    header button:focus-visible { outline: 2px solid var(--ring); }
     #wrap { position: absolute; background: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.4); }
     #wrap[hidden] { display: none; }
     iframe { border: 0; display: block; transform-origin: 0 0; background: #fff; }
-    .handle { position: absolute; background: rgba(59,130,246,.85); border-radius: 3px; touch-action: none; }
+    .handle { position: absolute; background: var(--ink-2); border-radius: var(--radius-tag); touch-action: none; }
     .handle[data-edge="right"] { cursor: ew-resize; width: 8px; height: 48px; right: -12px; top: calc(50% - 24px); }
     .handle[data-edge="bottom"] { cursor: ns-resize; width: 48px; height: 8px; bottom: -12px; left: calc(50% - 24px); }
     .handle[data-edge="corner"] { cursor: nwse-resize; width: 12px; height: 12px; right: -14px; bottom: -14px; }

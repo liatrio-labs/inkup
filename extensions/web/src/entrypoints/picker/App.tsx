@@ -3,7 +3,7 @@
 // the side panel. The stream belongs to this document, so the window records the video itself and stays open until
 // the Session ends; the reviewer goes back to the page meanwhile. Closing it ends the video, not the Session.
 
-import { Button } from '@inkup/ui';
+import { Alert, AlertDescription, Button } from '@inkup/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useStorageItem } from '@/lib/use-storage-item';
 import { pickTabVideo, TabVideoRecorder } from '@/media/tab-video';
@@ -72,7 +72,7 @@ export function App() {
     <main className="flex min-h-screen flex-col gap-3 p-4 text-sm" data-testid="picker" data-step={step}>
       {step === 'recording' ? (
         <>
-          <h1 className="text-base font-semibold" data-testid="picker-recording">
+          <h1 className="text-base font-bold tracking-tight text-balance" data-testid="picker-recording">
             {video.state === 'ended' ? 'Video ended' : 'Recording video — keep this window open'}
           </h1>
           <p className="text-muted-foreground">
@@ -87,7 +87,7 @@ export function App() {
       ) : (
         <>
           <div className="flex flex-col gap-0.5">
-            <h1 className="text-base font-semibold">Record video of this Session?</h1>
+            <h1 className="text-base font-bold tracking-tight text-balance">Record video of this Session?</h1>
             <p className="truncate font-medium" data-testid="picker-title" title={session.tab_title}>
               {session.tab_title || 'Untitled page'}
             </p>
@@ -99,9 +99,9 @@ export function App() {
             The Session is recording your voice, Strokes and screenshots. Choose the tab to add its video.
           </p>
           {error && (
-            <p className="text-destructive" role="alert">
-              {error}
-            </p>
+            <Alert variant="destructive">
+              <AlertDescription className="text-destructive">{error}</AlertDescription>
+            </Alert>
           )}
           <div className="mt-auto flex flex-col gap-2">
             <Button onClick={() => void choose()} disabled={step === 'picking'} data-testid="picker-choose">
