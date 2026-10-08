@@ -8,7 +8,7 @@ import { draftViews } from '@inkup/core/drafts';
 import { applyItemEdits, itemEditsFor, sessionName } from '@inkup/core/review-edits';
 import { sortTimeline, type TimelineEvent } from '@inkup/core/timeline';
 import { activeRunId, transcriptionRuns } from '@inkup/core/transcription-runs';
-import { Button } from '@inkup/ui';
+import { Badge, Button, Card, cn } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { DownloadIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -90,9 +90,9 @@ export function App() {
 
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-6 p-8 text-sm">
-      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 border-b pb-6">
         <div className="flex min-w-0 flex-1 basis-96 flex-col gap-1">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Session review</p>
+          <p className="text-xs font-semibold text-muted-foreground">Session review</p>
           <SessionName
             sessionId={sessionId}
             name={sessionName(session, events)}
@@ -147,7 +147,7 @@ export function App() {
             )}
           </div>
           <aside className="flex flex-col gap-3 lg:sticky lg:top-4 lg:self-start" aria-label="Recording">
-            <h2 className="text-base font-semibold">Recording</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Recording</h2>
             <Player
               ref={player}
               kind={recording.kind}
@@ -166,7 +166,7 @@ export function App() {
       </section>
 
       <section aria-labelledby="timeline-heading" className="flex flex-col gap-2">
-        <h2 id="timeline-heading" className="text-base font-semibold">
+        <h2 id="timeline-heading" className="text-lg font-semibold tracking-tight">
           Timeline
         </h2>
         <TranscriptRuns session={session} events={events} runs={runs} activeRun={activeRun} />
@@ -198,7 +198,7 @@ const ROLE = { subject: 'Subject', reference: 'Reference', destination: 'Destina
 function DraftItemsSection({ drafts }: { drafts: ReturnType<typeof draftViews> }) {
   return (
     <section aria-labelledby="drafts">
-      <h2 id="drafts" className="mb-2 text-base font-semibold">
+      <h2 id="drafts" className="mb-2 text-lg font-semibold tracking-tight">
         Draft Items ({drafts.length})
       </h2>
       {drafts.length === 0 ? (
@@ -212,35 +212,39 @@ function DraftItemsSection({ drafts }: { drafts: ReturnType<typeof draftViews> }
           </p>
           <ol className="flex flex-col gap-2">
             {drafts.map(({ draft: d, state, source }) => (
-              <li
-                key={d.draft_id}
-                data-testid="review-draft"
-                data-draft-id={d.draft_id}
-                data-state={state}
-                className={`flex flex-col gap-1 rounded-lg border p-3 ${state === 'discarded' ? 'opacity-50' : ''} ${state === 'pinned' ? 'border-primary' : ''}`}
-              >
-                <p className="font-medium">
-                  {d.draft_id} · {d.title}
-                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">{d.category}</span>
-                  {state !== 'shown' && (
-                    <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs" data-testid="review-draft-state">
-                      {state === 'pinned' ? 'Pinned' : 'Discarded'}
-                      {source === 'voice' ? ' by voice' : ' by click'}
-                    </span>
+              <li key={d.draft_id} data-testid="review-draft" data-draft-id={d.draft_id} data-state={state}>
+                <Card
+                  className={cn(
+                    'gap-1 rounded-lg p-3 shadow-none',
+                    state === 'discarded' && 'opacity-50',
+                    state === 'pinned' && 'border-primary',
                   )}
-                </p>
-                <ul className="text-muted-foreground">
-                  {d.locations.map((l, i) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: Locations have no id, and a Draft Item's list is replaced as a whole
-                    <li key={i}>
-                      {ROLE[l.role]}: {l.element}
-                      {l.annotation !== null && ` (#${l.annotation})`}
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground">
-                  at {formatElapsed(d.t)} · {d.model}
-                </p>
+                >
+                  <p className="font-medium">
+                    {d.draft_id} · {d.title}
+                    <Badge variant="secondary" className="ml-2 font-normal">
+                      {d.category}
+                    </Badge>
+                    {state !== 'shown' && (
+                      <Badge variant="outline" className="ml-2 font-normal" data-testid="review-draft-state">
+                        {state === 'pinned' ? 'Pinned' : 'Discarded'}
+                        {source === 'voice' ? ' by voice' : ' by click'}
+                      </Badge>
+                    )}
+                  </p>
+                  <ul className="text-muted-foreground">
+                    {d.locations.map((l, i) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: Locations have no id, and a Draft Item's list is replaced as a whole
+                      <li key={i}>
+                        {ROLE[l.role]}: {l.element}
+                        {l.annotation !== null && ` (#${l.annotation})`}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    at <span className="font-mono">{formatElapsed(d.t)}</span> · {d.model}
+                  </p>
+                </Card>
               </li>
             ))}
           </ol>

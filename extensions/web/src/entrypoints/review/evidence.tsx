@@ -1,6 +1,7 @@
 // The review page's right pane (PRD P0-12): the Session's recording, which seeks to the selected Change Item's
-// time. Screenshots live in the Change Item cards (src/components/evidence-shot.tsx). Seeking maps Session time to media time around the pauses
-// (packages/core/src/media-time.ts). With no video the audio plays instead.
+// time. Screenshots live in the Change Item cards (@inkup/ui's LocationShot, fed by src/components/evidence-shot.tsx).
+// Seeking maps Session time to media time around the pauses (packages/core/src/media-time.ts). With no video the
+// audio plays instead.
 
 import { type MediaClock, pauseGaps, sessionToMedia } from '@inkup/core/media-time';
 import type { TimelineEvent } from '@inkup/core/timeline';
@@ -61,7 +62,7 @@ export const Player = forwardRef<
       controls
       preload="metadata"
       onLoadedMetadata={apply}
-      className="w-full rounded border bg-black"
+      className="w-full rounded-xl border bg-muted shadow-sm"
       data-testid="evidence-video"
     />
   ) : (

@@ -7,8 +7,8 @@
 import { pauseGaps } from '@inkup/core/media-time';
 import type { TimelineEvent } from '@inkup/core/timeline';
 import type { RunSummary } from '@inkup/core/transcription-runs';
-import { Button } from '@inkup/ui';
-import { useState } from 'react';
+import { Button, NativeSelect, NativeSelectOption } from '@inkup/ui';
+import { useId, useState } from 'react';
 import { type BatchEngine, transcribeFile } from '@/adapters/transcription/batch';
 import { WHISPER_MODELS } from '@/adapters/transcription/whisper-model';
 import { db, type SessionRow } from '@/db';
@@ -79,6 +79,7 @@ export function TranscriptRuns({
   activeRun: string | null;
 }) {
   const choices = useChoices();
+  const runSelectId = useId();
   const [pick, setPick] = useState('');
   const [status, setStatus] = useState<{ busy: boolean; text: string; error?: boolean } | null>(null);
   const choice = choices.find((c) => c.value === pick) ?? choices[0];
@@ -124,20 +125,21 @@ export function TranscriptRuns({
   return (
     <div className="mb-3 flex flex-col gap-2" data-testid="transcript-run" data-run-id={activeRun ?? 'live'}>
       {runs.length > 1 && (
-        <label className="flex flex-wrap items-center gap-2">
+        <label className="flex flex-wrap items-center gap-2" htmlFor={runSelectId}>
           <span className="font-medium">Showing</span>
-          <select
-            className="rounded-md border px-2 py-1"
+          <NativeSelect
+            id={runSelectId}
+            size="sm"
             data-testid="transcript-run-select"
             value={activeRun ?? 'live'}
             onChange={(e) => void select(e.target.value)}
           >
             {runs.map((r) => (
-              <option key={r.run_id ?? 'live'} value={r.run_id ?? 'live'}>
+              <NativeSelectOption key={r.run_id ?? 'live'} value={r.run_id ?? 'live'}>
                 {runLabel(r)}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
+          </NativeSelect>
           <span className="text-muted-foreground">
             Process uses the transcript shown. Edits belong to the transcript they were made on.
           </span>
@@ -151,19 +153,19 @@ export function TranscriptRuns({
         ) : (
           <>
             <span className="font-medium">Re-transcribe with</span>
-            <select
-              className="rounded-md border px-2 py-1"
+            <NativeSelect
+              size="sm"
               data-testid="retranscribe-engine"
               value={choice?.value}
               onChange={(e) => setPick(e.target.value)}
               disabled={!!offReason}
             >
               {choices.map((c) => (
-                <option key={c.value} value={c.value}>
+                <NativeSelectOption key={c.value} value={c.value}>
                   {c.label}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
             <Button
               variant="outline"
               size="sm"
