@@ -21,7 +21,10 @@ a new tab on purpose.
 `screenshot`, else its Annotation's) directly under its row, with only the Strokes of the Annotation it cites drawn over
 it (`strokeIdsForShot`, `packages/core/src/evidence-strokes.ts`; all of them when it cites none). Strokes are drawn in
 their recorded colour with a halo (ADR 0011). The right pane holds only the recording, and selecting an item seeks it
-through `media-time.ts` (ADR 0010).
+through `media-time.ts` (ADR 0010). The card, the shot and its full-size view are `@inkup/ui` product components
+(`ItemCard`, `EvidenceShot`, `LocationShot` in `packages/ui/src/product/`; ADR 0029) drawn from the item, image URLs,
+rects and Strokes; the review page resolves the blobs from Dexie (`src/components/evidence-shot.tsx`) and keeps the
+sortable list (`@dnd-kit/react`) and the tracker actions.
 
 **Editing.** Edit, delete, split, reorder and merge are ops in the log (ADR 0018). Merge keeps the first item's id,
 title and category, unions Locations, Evidence and crops, spans both video ranges, joins intents, transcripts and agent
@@ -70,3 +73,6 @@ so a long recording is never copied into memory.
   speech as chat bubbles on the right, Annotations and Text Comments as crops on the left, stacked on narrow screens.
   The Session name is the page heading and can be renamed there (a `session_rename` event; see 0007), and the page
   and download filenames use the local start time.
+- 2026-10-07 (spec 02, Unit 2): the card, the evidence shot and the location shot were the review page's own
+  components reading Dexie. Now they are `@inkup/ui` product components taking URLs, rects and Strokes as props, so
+  the desktop app's Review view draws the same card; the crop's device-pixel-ratio scaling is unchanged.

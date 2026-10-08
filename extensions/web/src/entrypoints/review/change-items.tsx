@@ -19,31 +19,14 @@
 //   Host there are none, and nothing shows.
 import { DragDropProvider } from '@dnd-kit/react';
 import { isSortable, useSortable } from '@dnd-kit/react/sortable';
-import { type ChangeItem, isLowConfidence, type Location } from '@inkup/core/process/change-item';
+import { type ChangeItem, isLowConfidence } from '@inkup/core/process/change-item';
 import { type CostEstimate, formatUsd, type LimitWarning, shouldAutoRun } from '@inkup/core/process/cost';
 import { mergeSources, nextItemId, undoState } from '@inkup/core/review-edits';
-import { Category, type ItemEditOp } from '@inkup/core/timeline';
-import {
-  Button,
-  cn,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-  Input,
-  RESOLUTION_LABEL,
-  RESOLUTION_STYLE,
-  Skeleton,
-  Textarea,
-  TONE,
-  VETTING_LABEL,
-  VETTING_STYLE,
-} from '@inkup/ui';
+import type { ItemEditOp } from '@inkup/core/timeline';
+import { Alert, Badge, Button, Card, cn, ItemCard, type ItemCardChanges, Skeleton, TONE } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { GripVertical } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { EvidenceShot, locationShot, type ShotIndex } from '@/components/evidence-shot';
+import { LocationShot, type ShotIndex } from '@/components/evidence-shot';
 import { db, type ProcessProgressRow, type ProcessRunRow, type ResolutionRow } from '@/db';
 import { latestResolutions } from '@/db/resolutions';
 import { appendReviewEvent } from '@/db/review';
@@ -72,8 +55,6 @@ function limitText(w: LimitWarning, model: string): string {
     ? `${which} is about ${tokens(w.tokens)} input tokens, ${share} of ${model}'s ${tokens(w.max)}-token context window. It may be refused or cut short.`
     : `${which} may need about ${tokens(w.tokens)} output tokens, ${share} of ${model}'s ${tokens(w.max)}-token output limit. Its answer may be cut short.`;
 }
-
-const ROLE_LABEL = { subject: 'Subject', reference: 'Reference', destination: 'Destination' } as const;
 
 export function ProcessSection({
   sessionId,
@@ -126,7 +107,7 @@ export function ProcessSection({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="change-items" className="text-base font-semibold">
+        <h2 id="change-items" className="text-lg font-semibold tracking-tight">
           Change Items{count !== null ? ` (${count})` : ''}
         </h2>
         {hasKey ? (
@@ -140,15 +121,11 @@ export function ProcessSection({
         ) : (
           // Without a key the items are built in code (E11): one per Annotation and Text Comment, no network call.
           <div className="flex items-center gap-3">
-            <a
-              className="text-primary underline"
-              href="/options.html"
-              target="_blank"
-              data-testid="open-options"
-              rel="noopener"
-            >
-              Add a key for model-written items
-            </a>
+            <Button variant="link" className="h-auto p-0" asChild>
+              <a href="/options.html" target="_blank" data-testid="open-options" rel="noopener">
+                Add a key for model-written items
+              </a>
+            </Button>
             <Button
               onClick={() => run(null)}
               disabled={running}
@@ -163,13 +140,13 @@ export function ProcessSection({
 
       {phase.kind === 'confirm' && (
         <div
-          className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 p-3"
+          className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted p-3"
           data-testid="process-estimate"
         >
           <p>
             About <strong>{phase.estimate.input_tokens.toLocaleString('en-US')}</strong> input and ~
             {phase.estimate.output_tokens.toLocaleString('en-US')} output tokens with{' '}
-            <code>{phase.estimate.model}</code>
+            <code className="font-mono text-[0.9em]">{phase.estimate.model}</code>
             {(phase.estimate.chunks ?? 1) > 1 && (
               <span data-testid="process-chunks">, in {phase.estimate.chunks} parts run two at a time</span>
             )}
@@ -224,16 +201,16 @@ export function ProcessSection({
       {running && latest?.status === 'running' && <ProgressCards runId={latest.id} />}
 
       {failed && !running && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/40 p-3 text-destructive"
+        <Alert
+          variant="destructive"
+          className="flex flex-wrap items-center gap-3 border-destructive/40"
           data-testid="process-error"
         >
           <p>Process failed: {failed} Your recording, transcript and Annotations are unchanged.</p>
           <Button variant="outline" onClick={hasKey ? estimate : () => run(null)} data-testid="process-retry">
             Retry
           </Button>
-        </div>
+        </Alert>
       )}
       {!done && !running && phase.kind === 'idle' && !failed && (
         <p className="text-muted-foreground">Nothing processed yet.</p>
@@ -314,7 +291,7 @@ function ProgressCards({ runId }: { runId: string }) {
             ))}
             {(c.status === 'streaming' || c.status === 'queued') && (
               <li
-                className="flex flex-col gap-2 rounded-lg border border-dashed p-4"
+                className="flex flex-col gap-2 rounded-lg border border-dashed border-guide p-4"
                 data-testid="progress-placeholder"
                 aria-label="Item still being written"
               >
@@ -331,13 +308,17 @@ function ProgressCards({ runId }: { runId: string }) {
 
 function ProgressCard({ item }: { item: ProcessProgressRow['items'][number] }) {
   return (
-    <li className="flex flex-col gap-1 rounded-lg border bg-muted/30 p-4 opacity-90" data-testid="progress-item">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{item.category}</span>
-        <span className="text-xs text-muted-foreground">in progress</span>
-      </div>
-      <h4 className="font-semibold">{item.title}</h4>
-      <p className="text-muted-foreground">{item.intent}</p>
+    <li data-testid="progress-item">
+      <Card className="gap-1 rounded-lg p-4 opacity-90 shadow-none">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="font-normal">
+            {item.category}
+          </Badge>
+          <span className="text-xs text-muted-foreground">in progress</span>
+        </div>
+        <h4 className="font-semibold leading-snug">{item.title}</h4>
+        <p className="text-muted-foreground">{item.intent}</p>
+      </Card>
     </li>
   );
 }
@@ -558,8 +539,10 @@ export function ChangeItemList({
   );
 }
 
-type Changes = Extract<ItemEditOp, { op: 'edit' }>['changes'];
-
+/**
+ * One Change Item in the sortable list: the package card (`ItemCard`) with @dnd-kit/react's sortable refs, each
+ * Location's screenshot from Dexie, and Send to tracker beside Copy agent prompt.
+ */
 function ChangeItemCard({
   item,
   index,
@@ -584,343 +567,45 @@ function ChangeItemCard({
   combine: 'running' | { error: string | null; retry: (() => Promise<void>) | null } | null;
   onSelect: () => void;
   onPick: () => void;
-  onEdit: (changes: Changes) => Promise<void>;
+  onEdit: (changes: ItemCardChanges) => Promise<void>;
   onDelete: () => Promise<void>;
   onSplit: () => Promise<void>;
 }) {
   const { ref, handleRef, isDragging } = useSortable({ id: item.id, index });
-  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null);
-  const [editing, setEditing] = useState(false);
-  const low = isLowConfidence(item);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(item.agent_prompt);
-      setCopied('ok');
-    } catch {
-      setCopied('failed');
-    }
-  }
-
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: clicking anywhere on the card is a pointer shortcut for selecting it; the card's buttons are its keyboard controls
-    <li
+    <ItemCard
+      variant="change"
       ref={ref}
-      className={cn(
-        'flex flex-col gap-3 rounded-lg border bg-background p-4',
-        low && TONE.unsureCard,
-        selected && 'ring-2 ring-primary',
-        isDragging && 'opacity-60',
-      )}
-      onClick={onSelect}
-      data-testid="change-item"
-      data-item-id={item.id}
-      data-pinned={item.pinned}
-      data-selected={selected}
-    >
-      <div className="flex items-start gap-2">
-        <button
-          ref={handleRef}
-          type="button"
-          className="mt-1 cursor-grab text-muted-foreground"
-          aria-label={`Drag to reorder: ${item.title}`}
-          data-testid="drag-handle"
-        >
-          <GripVertical className="size-4" />
-        </button>
-        <input
-          type="checkbox"
-          className="mt-1.5"
-          checked={picked}
-          onChange={onPick}
-          onClick={(e) => e.stopPropagation()}
-          aria-label={`Select for merge: ${item.title}`}
-          data-testid="select-item"
-        />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {low && (
-              <span
-                className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', TONE.unsureChip)}
-                data-testid="check-me"
-              >
-                check me
-              </span>
-            )}
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs" data-testid="item-category">
-              {item.category}
-            </span>
-            {item.pinned && (
-              <span
-                className="rounded-full bg-muted px-2 py-0.5 text-xs"
-                data-testid="item-pinned"
-                title="Pinned as a Draft Item during the Session"
-              >
-                pinned
-              </span>
-            )}
-            {combine === 'running' && (
-              <span role="status" className="rounded-full bg-muted px-2 py-0.5 text-xs" data-testid="item-combining">
-                Combining…
-              </span>
-            )}
-            {combine && combine !== 'running' && (
-              <span
-                className="text-xs text-muted-foreground"
-                data-testid="item-combined-plain"
-                title={combine.error ?? 'The two items were joined as they were.'}
-              >
-                Combined without AI
-              </span>
-            )}
-            {combine && combine !== 'running' && combine.retry && (
-              <Button
-                variant="link"
-                size="sm"
-                className="h-auto p-0 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void combine.retry!();
-                }}
-                data-testid="item-combine-retry"
-              >
-                Combine with AI
-              </Button>
-            )}
-            {item.vetting && (
-              <span
-                className={cn(
-                  'px-2 py-0.5 text-xs',
-                  item.vetting.verdict === 'confirmed' ? 'rounded-full' : 'rounded-md',
-                  VETTING_STYLE[item.vetting.verdict],
-                )}
-                title={item.vetting.reason}
-                data-testid="vetting"
-                data-verdict={item.vetting.verdict}
-              >
-                {VETTING_LABEL[item.vetting.verdict]}
-                {item.vetting.verdict === 'confirmed' ? '' : `: ${item.vetting.reason}`}
-              </span>
-            )}
-            {item.source === 'page_api' && (
-              <span
-                className="rounded-full bg-muted px-2 py-0.5 text-xs"
-                data-testid="item-source"
-                title="Annotated by a script on the page through window.__inkup"
-              >
-                page API
-              </span>
-            )}
-          </div>
-          {editing ? (
-            <ItemEditor
-              item={item}
-              onCancel={() => setEditing(false)}
-              onSave={async (changes) => {
-                if (Object.keys(changes).length) await onEdit(changes);
-                setEditing(false);
-              }}
-            />
-          ) : (
-            <>
-              <h3 className="text-base font-semibold" data-testid="item-title">
-                {item.title}
-              </h3>
-              <p data-testid="item-intent">{item.intent}</p>
-            </>
-          )}
-        </div>
-      </div>
-      {resolution && <ResolutionLine resolution={resolution} />}
-      {/* A combine surfaces contradictions between the merged requests here too, whatever the confidence. */}
-      {item.ambiguity && (
-        <p className={TONE.warnStrongText} data-testid="ambiguity">
-          {item.ambiguity}
-        </p>
-      )}
-      <ul className="flex flex-col gap-3">
-        {item.locations.map((l, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: Locations have no id; a merge only appends to the list
-          <li key={i} className="flex flex-col gap-1.5" data-testid="item-location" data-role={l.role}>
-            <p>
-              <span className="font-medium">{ROLE_LABEL[l.role]}:</span> {l.element}
-              {l.selector && (
-                <>
-                  {' '}
-                  <code className="rounded bg-muted px-1">{l.selector}</code>
-                </>
-              )}{' '}
-              <span className="text-muted-foreground">
-                on {l.url}
-                {l.annotation !== null ? ` · Annotation #${l.annotation}` : ''}
-              </span>
-            </p>
-            <LocationShot location={l} shots={shots} label={`${ROLE_LABEL[l.role]}: ${l.element}`} />
-          </li>
-        ))}
-      </ul>
-      {item.transcript && <p className="text-muted-foreground italic">“{item.transcript}”</p>}
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: only keeps clicks on the controls inside from selecting the card; not an interaction of its own */}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: only keeps clicks on the controls inside from selecting the card; not an interaction of its own */}
-      <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-        <Button variant="outline" size="sm" onClick={copy} data-testid="copy-prompt">
-          {copied === 'ok' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy agent prompt'}
-        </Button>
-        <SendToTracker item={item} />
-        {!editing && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              onSelect();
-              setEditing(true);
-            }}
-            data-testid="edit-item"
-          >
-            Edit
-          </Button>
-        )}
-        <Button variant="ghost" size="sm" onClick={onSplit} data-testid="split-item">
-          Split
-        </Button>
-        <Button variant="ghost" size="sm" className="text-destructive" onClick={onDelete} data-testid="delete-item">
-          Delete
-        </Button>
-      </div>
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: only keeps clicks on the controls inside from selecting the card; not an interaction of its own */}
-      <details onClick={(e) => e.stopPropagation()}>
-        <summary className="cursor-pointer text-muted-foreground">Agent prompt</summary>
-        <pre className="mt-2 whitespace-pre-wrap rounded bg-muted p-3 text-xs" data-testid="agent-prompt">
-          {item.agent_prompt}
-        </pre>
-      </details>
-    </li>
+      handleRef={handleRef}
+      dragging={isDragging}
+      item={item}
+      resolution={
+        resolution
+          ? { status: resolution.status, by: <ResolutionBy resolution={resolution} />, note: resolution.note }
+          : null
+      }
+      selected={selected}
+      onSelect={onSelect}
+      picked={picked}
+      onPick={onPick}
+      lowConfidence={isLowConfidence(item)}
+      combine={combine && combine !== 'running' ? { error: combine.error, onRetry: combine.retry } : combine}
+      renderShot={(location, label) => <LocationShot location={location} shots={shots} label={label} />}
+      actions={<SendToTracker item={item} />}
+      onEdit={onEdit}
+      onSplit={onSplit}
+      onDelete={onDelete}
+    />
   );
 }
 
-/** The latest word from the agent: In work (who, since when), or Done, Won't fix, Needs info with its note. */
-function ResolutionLine({ resolution }: { resolution: ResolutionRow }) {
+/** Who set the latest Resolution, and since when: "An agent · 2 min ago". */
+function ResolutionBy({ resolution }: { resolution: ResolutionRow }) {
   const now = useNow();
   const who = resolution.agent ?? (resolution.source === 'mcp' ? 'An agent' : 'The Host');
   return (
-    <p
-      className={cn(
-        'flex flex-wrap items-baseline gap-x-2 rounded-md border px-3 py-2',
-        RESOLUTION_STYLE[resolution.status],
-      )}
-      data-testid="item-resolution"
-      data-status={resolution.status}
-    >
-      <span className="font-semibold" data-testid="item-resolution-label">
-        {RESOLUTION_LABEL[resolution.status]}
-      </span>
-      <span className="text-xs opacity-80" data-testid="item-resolution-by">
-        {who} · {timeAgo(resolution.created_at, now)}
-      </span>
-      {resolution.note && (
-        <span className="basis-full" data-testid="item-resolution-note">
-          {resolution.note}
-        </span>
-      )}
-    </p>
-  );
-}
-
-/** A Location's screenshot with its Annotation's Strokes, under the Location; click to see it full size. */
-function LocationShot({ location, shots, label }: { location: Location; shots: ShotIndex; label: string }) {
-  const found = locationShot(shots, location);
-  if (!found || !shots.shots.has(found.id)) return null;
-  const shot = shots.shots.get(found.id);
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          className="w-full max-w-sm cursor-zoom-in rounded text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          onClick={(e) => e.stopPropagation()}
-          aria-label={`Enlarge the screenshot of ${label}`}
-          data-testid="location-shot-open"
-        >
-          <EvidenceShot id={found.id} shot={shot} strokes={found.strokes} />
-        </button>
-      </DialogTrigger>
-      <DialogContent
-        className="max-h-[95vh] overflow-auto sm:max-w-[min(95vw,1400px)]"
-        onClick={(e) => e.stopPropagation()}
-        data-testid="location-shot-dialog"
-      >
-        <DialogTitle>{label}</DialogTitle>
-        <DialogDescription>
-          {location.url}
-          {location.annotation !== null ? ` · Annotation #${location.annotation}` : ''}
-        </DialogDescription>
-        <EvidenceShot id={found.id} shot={shot} strokes={found.strokes} testId="evidence-shot-large" />
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ItemEditor({
-  item,
-  onSave,
-  onCancel,
-}: {
-  item: ChangeItem;
-  onSave: (changes: Changes) => Promise<void>;
-  onCancel: () => void;
-}) {
-  const [title, setTitle] = useState(item.title);
-  const [intent, setIntent] = useState(item.intent);
-  const [category, setCategory] = useState(item.category);
-  const changes: Changes = {
-    ...(title.trim() && title.trim() !== item.title ? { title: title.trim() } : {}),
-    ...(intent.trim() && intent.trim() !== item.intent ? { intent: intent.trim() } : {}),
-    ...(category !== item.category ? { category } : {}),
-  };
-  return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: only keeps clicks on the controls inside from selecting the card; not an interaction of its own
-    <form
-      className="flex flex-col gap-2"
-      onClick={(e) => e.stopPropagation()}
-      onSubmit={(e) => {
-        e.preventDefault();
-        void onSave(changes);
-      }}
-    >
-      <label className="flex flex-col gap-1">
-        <span className="text-xs text-muted-foreground">Title</span>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} data-testid="edit-title" />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-xs text-muted-foreground">Intent</span>
-        <Textarea value={intent} onChange={(e) => setIntent(e.target.value)} data-testid="edit-intent" />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-xs text-muted-foreground">Category</span>
-        <select
-          className="h-9 rounded-md border bg-transparent px-2"
-          value={category}
-          onChange={(e) => setCategory(e.target.value as ChangeItem['category'])}
-          data-testid="edit-category"
-        >
-          {Category.options.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p className="text-xs text-muted-foreground">
-        The agent prompt is not rewritten; check it still matches after an edit.
-      </p>
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={!title.trim() || !intent.trim()} data-testid="save-item">
-          Save
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+    <>
+      {who} · {timeAgo(resolution.created_at, now)}
+    </>
   );
 }

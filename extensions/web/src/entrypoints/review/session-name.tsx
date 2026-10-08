@@ -1,6 +1,7 @@
 // The review page's title: the Session's name (sessionName), renamed in place. Click it to edit; Enter or leaving
 // the field saves a `session_rename`, Esc cancels. The Sessions list, the Host and the exports use the new name.
 
+import { cn, Input } from '@inkup/ui';
 import { PencilIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { appendReviewEvent } from '@/db/review';
@@ -34,12 +35,15 @@ export function SessionName({ sessionId, name, editable }: { sessionId: string; 
 
   return (
     <>
-      <h1 className="text-3xl font-semibold tracking-tight" data-testid="session-name">
+      <h1 className="text-3xl leading-tight font-bold tracking-[-0.025em]" data-testid="session-name">
         {editing ? (
-          <input
-            // biome-ignore lint/a11y/noAutofocus: the reviewer just clicked the name to edit it
+          <Input
+            // The reviewer just clicked the name to edit it.
             autoFocus
-            className="w-full rounded-md border border-ring bg-background px-2 py-0.5 -mx-2 outline-none ring-[3px] ring-ring/50"
+            className={cn(
+              '-mx-2 h-auto w-[calc(100%+1rem)] border-ring bg-background px-2 py-0.5 ring-[3px] ring-ring/50',
+              'text-3xl leading-tight font-bold tracking-[-0.025em] md:text-3xl',
+            )}
             defaultValue={shown}
             maxLength={200}
             aria-label="Session name"
@@ -57,7 +61,7 @@ export function SessionName({ sessionId, name, editable }: { sessionId: string; 
         ) : (
           <button
             type="button"
-            className="group -mx-2 inline-flex max-w-full items-center gap-2 rounded-md px-2 py-0.5 text-left hover:bg-muted disabled:hover:bg-transparent"
+            className="group -mx-2 inline-flex max-w-full items-center gap-2 rounded-md px-2 py-0.5 text-left transition-colors duration-150 outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:hover:bg-transparent"
             onClick={() => {
               settled.current = false;
               setEditing(true);

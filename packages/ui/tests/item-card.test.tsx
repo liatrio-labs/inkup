@@ -194,6 +194,232 @@ describe('ItemCard, Change face', () => {
   });
 });
 
+describe('ItemCard, Change face at review time', () => {
+  const full: ChangeCardItem = {
+    ...item,
+    pinned: true,
+    source: 'page_api',
+    vetting: { verdict: 'corrected', reason: 'The circle is around the link.' },
+    ambiguity: 'The reviewer said both "bigger" and "smaller".',
+    transcript: 'this heading is too long',
+    agent_prompt: 'On /pricing.html shorten h1.hero. See screenshots/s1.png.',
+    locations: [
+      {
+        role: 'subject',
+        element: 'hero heading',
+        selector: 'h1.hero',
+        url: '/pricing.html',
+        screenshot: 's1',
+        annotation: 1,
+      },
+      {
+        role: 'destination',
+        element: 'site header',
+        selector: null,
+        url: '/pricing.html',
+        screenshot: null,
+        annotation: null,
+      },
+    ],
+  };
+
+  function renderReview(over: Partial<Parameters<typeof ItemCard>[0] & { variant: 'change' }> = {}) {
+    const calls = {
+      onSelect: vi.fn(),
+      onPick: vi.fn(),
+      onEdit: vi.fn(async () => {}),
+      onSplit: vi.fn(),
+      onDelete: vi.fn(),
+      renderShot: vi.fn((_l: unknown, label: string) => (
+        <button type="button" aria-label={`Enlarge the screenshot of ${label}`} data-testid="location-shot-open" />
+      )),
+    };
+    const handleRef = vi.fn();
+    render(
+      <ol>
+        <ItemCard
+          variant="change"
+          item={full}
+          handleRef={handleRef}
+          selected={false}
+          picked={false}
+          actions={
+            <button type="button" data-testid="send-to-tracker">
+              Send to tracker
+            </button>
+          }
+          {...calls}
+          {...over}
+        />
+      </ol>,
+    );
+    return { ...calls, handleRef, card: screen.getByTestId('change-item') };
+  }
+
+  /** The card's controls in document order, by accessible name. */
+  const controls = (card: HTMLElement) =>
+    [...card.querySelectorAll('button, [role="checkbox"], summary')].map(
+      (b) => b.getAttribute('aria-label') ?? b.textContent,
+    );
+
+  it('keeps the review page order: handle, checkbox, Location shots, Copy, the caller actions, Edit, Split, Delete, Agent prompt', () => {
+    const { card, handleRef } = renderReview();
+    expect(controls(card)).toEqual([
+      `Drag to reorder: ${item.title}`,
+      `Select for merge: ${item.title}`,
+      'Enlarge the screenshot of Subject: hero heading',
+      'Enlarge the screenshot of Destination: site header',
+      'Copy agent prompt',
+      'Send to tracker',
+      'Edit',
+      'Split',
+      'Delete',
+      'Agent prompt',
+    ]);
+    expect(handleRef).toHaveBeenCalledWith(screen.getByTestId('drag-handle'));
+  });
+
+  it('shows the pills in order: check me, Category, pinned, the merge state, vetting, page API', () => {
+    const { card } = renderReview({ lowConfidence: true, combine: 'running' });
+    const pills = [...card.querySelectorAll('[data-testid]')]
+      .map((e) => (e as HTMLElement).dataset.testid)
+      .filter((id) =>
+        ['check-me', 'item-category', 'item-pinned', 'item-combining', 'vetting', 'item-source'].includes(id!),
+      );
+    expect(pills).toEqual(['check-me', 'item-category', 'item-pinned', 'item-combining', 'vetting', 'item-source']);
+    expect(screen.getByRole('status').textContent).toBe('Combining…');
+    expect(screen.getByTestId('item-source').textContent).toBe('page API');
+  });
+
+  it('low confidence: the pen border on the card and the "check me" pill in its tone, with no colour fade', () => {
+    const { card } = renderReview({ lowConfidence: true });
+    for (const c of TONE.unsureCard.split(' '))
+      expect(card.querySelector('[data-slot="card"]')?.className).toContain(c);
+    const chip = screen.getByTestId('check-me');
+    expect(chip.textContent).toBe('check me');
+    for (const c of TONE.unsureChip.split(' ')) expect(chip.className).toContain(c);
+    expect(chip.className).toContain('transition-none');
+    expect(screen.getByTestId('vetting').className).toContain('transition-none');
+  });
+
+  it('the item without low confidence has neither', () => {
+    const { card } = renderReview();
+    expect(screen.queryByTestId('check-me')).toBeNull();
+    expect(card.querySelector('[data-slot="card"]')?.className).not.toContain('border-pen');
+  });
+
+  it('shows the ambiguity, each Location with its selector in pen-ink and its shot, and the transcript', () => {
+    const { renderShot } = renderReview();
+    expect(screen.getByTestId('ambiguity').textContent).toBe(full.ambiguity);
+    const rows = screen.getAllByTestId('item-location');
+    expect(rows.map((r) => [r.dataset.role, r.querySelector('p')?.textContent])).toEqual([
+      ['subject', 'Subject: hero heading h1.hero on /pricing.html · Annotation #1'],
+      ['destination', 'Destination: site header on /pricing.html'],
+    ]);
+    expect(rows[0]!.querySelector('code')?.className).toContain('text-pen-ink');
+    expect(renderShot.mock.calls.map(([l, label]) => [(l as { role: string }).role, label])).toEqual([
+      ['subject', 'Subject: hero heading'],
+      ['destination', 'Destination: site header'],
+    ]);
+    expect(screen.getByText('“this heading is too long”')).toBeTruthy();
+    expect(screen.getByTestId('agent-prompt').textContent).toBe(full.agent_prompt);
+  });
+
+  it('selects on a click on the card, and not on a click on its controls', () => {
+    const { card, onSelect, onPick, onSplit, onDelete } = renderReview();
+    fireEvent.click(screen.getByTestId('item-title'));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTestId('select-item'));
+    fireEvent.click(screen.getByTestId('split-item'));
+    fireEvent.click(screen.getByTestId('delete-item'));
+    fireEvent.click(screen.getByTestId('send-to-tracker'));
+    fireEvent.click(card.querySelector('summary')!);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onSplit).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('the select-for-merge checkbox is a checkbox with its state, and the selected card has the ring', () => {
+    const { card } = renderReview({ picked: true, selected: true });
+    const box = screen.getByRole('checkbox', { name: `Select for merge: ${item.title}` });
+    expect(box.getAttribute('aria-checked')).toBe('true');
+    expect(box.dataset.testid).toBe('select-item');
+    expect(card.dataset.selected).toBe('true');
+    expect(card.querySelector('[data-slot="card"]')?.className).toContain('ring-primary');
+  });
+
+  it('edits title and Category in place, sends only what changed, and selects the card', async () => {
+    const { onEdit, onSelect } = renderReview();
+    fireEvent.click(screen.getByTestId('edit-item'));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('edit-item')).toBeNull();
+    expect(screen.queryByTestId('item-title')).toBeNull();
+    const title = screen.getByTestId('edit-title') as HTMLInputElement;
+    expect(title.value).toBe(item.title);
+    expect(screen.getByRole('combobox', { name: 'Category' }).dataset.testid).toBe('edit-category');
+    fireEvent.change(title, { target: { value: '  Shorter hero heading ' } });
+    fireEvent.change(screen.getByTestId('edit-category'), { target: { value: 'layout' } });
+    expect(screen.getByText('The agent prompt is not rewritten; check it still matches after an edit.')).toBeTruthy();
+    await act(async () => fireEvent.click(screen.getByTestId('save-item')));
+    expect(onEdit).toHaveBeenCalledExactlyOnceWith({ title: 'Shorter hero heading', category: 'layout' });
+    expect(screen.getByTestId('item-title')).toBeTruthy();
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('Save waits for a title, Cancel and an unchanged Save log nothing', async () => {
+    const { onEdit } = renderReview();
+    fireEvent.click(screen.getByTestId('edit-item'));
+    fireEvent.change(screen.getByTestId('edit-title'), { target: { value: ' ' } });
+    expect(screen.getByTestId('save-item')).toHaveProperty('disabled', true);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByTestId('item-title').textContent).toBe(item.title);
+    fireEvent.click(screen.getByTestId('edit-item'));
+    await act(async () => fireEvent.click(screen.getByTestId('save-item')));
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(screen.getByTestId('edit-item')).toBeTruthy();
+  });
+
+  it('a merge kept as it was says so, and Combine with AI retries without selecting', () => {
+    const onRetry = vi.fn();
+    const { onSelect } = renderReview({ combine: { error: 'No key.', onRetry } });
+    expect(screen.getByTestId('item-combined-plain').textContent).toBe('Combined without AI');
+    expect(screen.getByTestId('item-combined-plain').title).toBe('No key.');
+    fireEvent.click(screen.getByTestId('item-combine-retry'));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('Copy agent prompt copies the prompt and says Copied, or Copy failed', async () => {
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    try {
+      renderReview();
+      await act(async () => fireEvent.click(screen.getByTestId('copy-prompt')));
+      expect(writeText).toHaveBeenCalledWith(full.agent_prompt);
+      expect(screen.getByTestId('copy-prompt').textContent).toBe('Copied');
+      writeText.mockRejectedValueOnce(new Error('denied'));
+      await act(async () => fireEvent.click(screen.getByTestId('copy-prompt')));
+      expect(screen.getByTestId('copy-prompt').textContent).toBe('Copy failed');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps the Resolution box in its tone with who said it', () => {
+    renderReview({ resolution: { status: 'needs_info', by: 'An agent · just now', note: 'Which heading?' } });
+    const box = screen.getByTestId('item-resolution');
+    for (const c of RESOLUTION_STYLE.needs_info.split(' ')) expect(box.className).toContain(c);
+    expect(screen.getByTestId('item-resolution-by').textContent).toBe('An agent · just now');
+    expect(screen.getByTestId('change-item').dataset.status).toBe('needs_info');
+  });
+
+  it('the dragged card fades', () => {
+    const { card } = renderReview({ dragging: true });
+    expect(card.className).toContain('opacity-60');
+  });
+});
+
 describe('the product components without an extension runtime', () => {
   it('has no chrome global here', () => {
     expect((globalThis as { chrome?: unknown }).chrome).toBeUndefined();

@@ -2,7 +2,7 @@
 // another one) never streamed, so the Host lacks them. The options page's Host section offers them while there are
 // any; the Sessions page and the side panel show the offer once per pairing, until the reviewer uploads or says Not now.
 
-import { Button } from '@inkup/ui';
+import { Button, cn, TONE } from '@inkup/ui';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { db } from '@/db';
@@ -74,7 +74,7 @@ export function HostBackfill({ variant }: { variant: 'section' | 'notice' }) {
   return (
     <div
       role="status"
-      className="flex flex-col gap-2 rounded-md border p-3"
+      className={cn('flex flex-col gap-2 rounded-lg border px-3 py-2', TONE.note)}
       data-testid="host-backfill-notice"
       data-count={count}
     >

@@ -7,7 +7,7 @@
 import { formatElapsed } from '@inkup/core/clock';
 import { type ReviewEntry, reviewTimeline } from '@inkup/core/review-timeline';
 import { type EventOf, isObjectSelectPick, type TimelineEvent } from '@inkup/core/timeline';
-import { cn, Textarea } from '@inkup/ui';
+import { Badge, Button, Card, cn, Textarea } from '@inkup/ui';
 import { useMemo, useState } from 'react';
 import { EvidenceShot, type ShotIndex, strokesOf } from '@/components/evidence-shot';
 import { appendReviewEvent } from '@/db/review';
@@ -49,16 +49,16 @@ export function Timeline({
   }
 
   const seek = (t: number, testId: string) => (
-    <button
-      type="button"
-      className="rounded px-1 font-mono text-xs text-primary tabular-nums underline-offset-2 hover:underline disabled:text-muted-foreground disabled:no-underline"
+    <Button
+      variant="link"
+      className="h-auto px-1 py-0 font-mono text-xs font-normal tabular-nums underline-offset-2 disabled:text-muted-foreground"
       onClick={() => onSeek(t)}
       disabled={!canSeek}
       aria-label={`Play from ${formatElapsed(t)}`}
       data-testid={testId}
     >
       {formatElapsed(t)}
-    </button>
+    </Button>
   );
 
   return (
@@ -128,14 +128,17 @@ export function Timeline({
   );
 }
 
+/** A selector, as DESIGN.md sets it: the mono face in pen-ink. */
+const SELECTOR = 'font-mono text-[0.9em] break-all text-pen-ink';
+
 function AnnotationCard({ a, shots, discarded }: { a: EventOf<'annotation'>; shots: ShotIndex; discarded: boolean }) {
   const pick = a.pick !== null ? a.candidates[a.pick] : undefined;
   const endPick = (end: NonNullable<typeof a.connector>['tail']) =>
     (end.pick !== null ? end.candidates[end.pick]?.selector : null) ?? 'a region';
   return (
-    <div
+    <Card
       className={cn(
-        'flex flex-col gap-3 rounded-lg border bg-card p-3 sm:flex-row lg:col-start-2',
+        'gap-3 rounded-lg p-3 shadow-none transition-opacity duration-150 sm:flex-row lg:col-start-2',
         discarded && 'opacity-50',
       )}
       data-testid="annotation"
@@ -172,21 +175,22 @@ function AnnotationCard({ a, shots, discarded }: { a: EventOf<'annotation'>; sho
             </>
           )}
           {discarded && (
-            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs">Discarded by “scratch that”</span>
+            <Badge variant="secondary" className="ml-2 font-normal">
+              Discarded by “scratch that”
+            </Badge>
           )}
         </p>
         {a.comment && <p data-testid="annotation-comment">“{a.comment}”</p>}
         {a.page_api && <p data-testid="annotation-page-api">“{a.page_api.comment}”</p>}
         {a.connector && (
           <p data-testid="connector">
-            Arrow from <code className="rounded bg-muted px-1">{endPick(a.connector.tail)}</code> to{' '}
-            <code className="rounded bg-muted px-1">{endPick(a.connector.head)}</code>
+            Arrow from <code className={SELECTOR}>{endPick(a.connector.tail)}</code> to{' '}
+            <code className={SELECTOR}>{endPick(a.connector.head)}</code>
           </p>
         )}
         {pick ? (
           <p className="break-words">
-            Geometric pick: <code className="rounded bg-muted px-1">{pick.selector}</code>{' '}
-            {pick.name && `“${pick.name}”`}
+            Geometric pick: <code className={SELECTOR}>{pick.selector}</code> {pick.name && `“${pick.name}”`}
           </p>
         ) : (
           <p>Region only (nothing resolvable under the Strokes).</p>
@@ -195,14 +199,14 @@ function AnnotationCard({ a, shots, discarded }: { a: EventOf<'annotation'>; sho
           {a.candidates.length} Candidates · {new URL(a.url).pathname}
         </p>
       </div>
-    </div>
+    </Card>
   );
 }
 
 function TextCommentCard({ c, shots }: { c: EventOf<'text_comment'>; shots: ShotIndex }) {
   return (
-    <div
-      className="flex flex-col gap-3 rounded-lg border bg-card p-3 sm:flex-row lg:col-start-2"
+    <Card
+      className="gap-3 rounded-lg p-3 shadow-none sm:flex-row lg:col-start-2"
       data-testid="timeline-text-comment"
       data-comment-id={c.comment_id}
     >
@@ -220,10 +224,10 @@ function TextCommentCard({ c, shots }: { c: EventOf<'text_comment'>; shots: Shot
         <p className="font-medium">
           t{c.index} at {formatElapsed(c.t)} · Text Comment
         </p>
-        <blockquote className="border-l-2 pl-2 text-muted-foreground">“{c.selected_text}”</blockquote>
+        <blockquote className="border-l border-pen pl-3 text-muted-foreground">“{c.selected_text}”</blockquote>
         <p>{c.comment}</p>
         <p className="text-muted-foreground">{new URL(c.url).pathname}</p>
       </div>
-    </div>
+    </Card>
   );
 }

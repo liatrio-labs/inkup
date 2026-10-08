@@ -70,7 +70,7 @@ export function ExportControls({ sessionId, hasMedia }: { sessionId: string; has
       </Button>
       {state.kind === 'done' && (
         <div
-          className="absolute top-full right-0 z-10 mt-2 flex w-80 flex-col gap-2 rounded-lg border bg-background p-3 shadow-md"
+          className="absolute top-full right-0 z-10 mt-2 flex w-80 flex-col gap-2 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md"
           role="status"
           data-testid="export-done"
         >
@@ -98,7 +98,7 @@ export function ExportControls({ sessionId, hasMedia }: { sessionId: string; has
       {state.kind === 'media_deleted' && (
         <p
           role="status"
-          className="absolute top-full right-0 z-10 mt-2 w-80 rounded-lg border bg-background p-3 shadow-md"
+          className="absolute top-full right-0 z-10 mt-2 w-80 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md"
           data-testid="media-deleted"
         >
           Video and audio deleted. The transcript, screenshots and Change Items are kept.
@@ -107,7 +107,7 @@ export function ExportControls({ sessionId, hasMedia }: { sessionId: string; has
       {state.kind === 'error' && (
         <p
           role="alert"
-          className="absolute top-full right-0 z-10 mt-2 w-80 rounded-lg border bg-background p-3 text-destructive shadow-md"
+          className="absolute top-full right-0 z-10 mt-2 w-80 rounded-lg border bg-popover p-3 text-destructive shadow-md"
           data-testid="export-error"
         >
           Export failed: {state.message}

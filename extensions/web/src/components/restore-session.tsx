@@ -83,9 +83,11 @@ export function RestoreSession({ size = 'default' }: { size?: 'default' | 'sm' }
         <p role="status" data-testid="restore-done" data-session={state.id}>
           Restored {state.title}
           {state.media ? '' : ' without screenshots or media: a session.json alone does not carry them'}.{' '}
-          <ReviewLink className="text-primary underline" sessionId={state.id} data-testid="restore-open-review">
-            Open review
-          </ReviewLink>
+          <Button variant="link" className="h-auto p-0 align-baseline text-[length:inherit] underline" asChild>
+            <ReviewLink sessionId={state.id} data-testid="restore-open-review">
+              Open review
+            </ReviewLink>
+          </Button>
         </p>
       )}
       {state.kind === 'error' && (
