@@ -3,7 +3,17 @@
 // and an effort. Keys live in storage.local only and are never shown back in full, logged or exported. Each key has
 // its own Test button beside it. Without a key, or when the list call fails, the model field is a text input.
 
-import { Button, cn, TONE } from '@inkup/ui';
+import {
+  Button,
+  Checkbox,
+  cn,
+  Input,
+  Label,
+  NativeSelect,
+  NativeSelectOptGroup,
+  NativeSelectOption,
+  TONE,
+} from '@inkup/ui';
 import { useEffect, useState } from 'react';
 import type { ListedModel } from '@/adapters/llm/models';
 import { useStorageItem } from '@/lib/use-storage-item';
@@ -151,7 +161,7 @@ export function ProcessingSection() {
 
   return (
     <section aria-labelledby="processing" className="flex flex-col gap-4">
-      <h2 id="processing" className="text-base font-semibold">
+      <h2 id="processing" className="text-lg font-bold tracking-tight">
         Processing
       </h2>
       <p className="text-muted-foreground">
@@ -206,44 +216,44 @@ export function ProcessingSection() {
         ))}
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="auto-run-below" className="flex flex-wrap items-center gap-2 font-medium">
+          <Label htmlFor="auto-run-below" className="flex-wrap gap-2 leading-snug">
             Run Process without asking when the estimate is under $
-            <input
+            <Input
               id="auto-run-below"
               type="number"
               min={0}
               step={0.01}
               inputMode="decimal"
               data-testid="auto-run-below"
-              className="w-28 rounded-md border px-3 py-2"
+              className="w-28 transition-none"
               placeholder="Always ask"
               value={autoRun}
               onChange={(e) => setAutoRun(e.target.value)}
             />
-          </label>
+          </Label>
           <span className="text-muted-foreground">
             Leave it empty to always see the estimate first. Process still asks when the price is unknown, when a part
             is close to the model's limits, and before it replaces items you already have.
           </span>
         </div>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-1"
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="vet-items"
+            className="mt-0.5"
             checked={roles.vet}
-            onChange={(e) => setRoles((r) => ({ ...r, vet: e.target.checked }))}
+            onCheckedChange={(checked) => setRoles((r) => ({ ...r, vet: checked === true }))}
             data-testid="vet-items"
           />
-          <span className="flex flex-col gap-0.5">
-            <span className="font-medium">Check items against the recording</span>
-            <span className="text-muted-foreground">
+          <Label htmlFor="vet-items" className="flex-col items-start gap-0.5 leading-snug">
+            <span>Check items against the recording</span>
+            <span className="font-normal text-muted-foreground">
               After Process, the Process model checks every Change Item against the video (for a model that takes video)
               or the screenshots, corrects what it can, and marks each one checked, corrected or unverified. Costs about
               as much again as Process.
             </span>
-          </span>
-        </label>
+          </Label>
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <Button type="submit" data-testid="save-processing">
@@ -313,17 +323,15 @@ function KeyField(props: {
   const inputId = `${props.provider}-key-input`;
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={inputId} className="font-medium">
-        {props.label}
-      </label>
+      <Label htmlFor={inputId}>{props.label}</Label>
       <div className="flex flex-wrap items-center gap-2">
-        <input
+        <Input
           id={inputId}
           type="password"
           autoComplete="off"
           spellCheck={false}
           data-testid={testIds.key}
-          className="min-w-0 flex-1 rounded-md border px-3 py-2 font-mono"
+          className="min-w-0 flex-1 font-mono transition-none"
           placeholder={saved ? `Saved (${mask(saved)}). Paste a new key to replace it.` : props.placeholder}
           value={props.draft}
           onChange={(e) => props.onDraft(e.target.value)}
@@ -369,7 +377,6 @@ function RoleFields({
   onChange: (change: Partial<RoleModel>) => void;
 }) {
   const { label, help } = ROLES[role];
-  const fieldClass = 'rounded-md border px-3 py-2';
   // A saved id the list does not have still shows, first.
   const listed = models && !models.some((m) => m.id === value.model) ? [{ id: value.model, name: null }] : [];
   const groups = new Map<string, { id: string; name: string | null }[]>();
@@ -378,18 +385,18 @@ function RoleFields({
     groups.set(g, [...(groups.get(g) ?? []), m]);
   }
   const option = (m: { id: string; name: string | null }) => (
-    <option key={m.id} value={m.id}>
+    <NativeSelectOption key={m.id} value={m.id}>
       {m.name && m.name !== m.id ? `${m.name} (${m.id})` : m.id}
-    </option>
+    </NativeSelectOption>
   );
   return (
     <fieldset className="flex flex-col gap-1" data-testid={`${role}-role`}>
       <legend className="mb-1 font-medium">{label} model</legend>
       <div className="flex flex-wrap gap-2">
-        <select
+        <NativeSelect
           aria-label={`${label} provider`}
           data-testid={`${role}-provider`}
-          className={fieldClass}
+          className="transition-none"
           value={value.provider}
           onChange={(e) => {
             const provider = e.target.value as LlmProvider;
@@ -397,50 +404,52 @@ function RoleFields({
           }}
         >
           {PROVIDERS.map((p) => (
-            <option key={p.id} value={p.id}>
+            <NativeSelectOption key={p.id} value={p.id}>
               {p.label}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
         {models ? (
-          <select
-            aria-label={`${label} model`}
-            data-testid={`${role}-model`}
-            className={`${fieldClass} min-w-0 flex-1 font-mono`}
-            value={value.model}
-            onChange={(e) => onChange({ model: e.target.value })}
-          >
-            {groups.size > 1
-              ? [...groups].map(([creator, ms]) => (
-                  <optgroup key={creator} label={creator || 'Other'}>
-                    {ms.map(option)}
-                  </optgroup>
-                ))
-              : [...groups.values()].flat().map(option)}
-          </select>
+          <div className="min-w-0 flex-1 [&>[data-slot=native-select-wrapper]]:w-full">
+            <NativeSelect
+              aria-label={`${label} model`}
+              data-testid={`${role}-model`}
+              className="font-mono transition-none"
+              value={value.model}
+              onChange={(e) => onChange({ model: e.target.value })}
+            >
+              {groups.size > 1
+                ? [...groups].map(([creator, ms]) => (
+                    <NativeSelectOptGroup key={creator} label={creator || 'Other'}>
+                      {ms.map(option)}
+                    </NativeSelectOptGroup>
+                  ))
+                : [...groups.values()].flat().map(option)}
+            </NativeSelect>
+          </div>
         ) : (
-          <input
+          <Input
             aria-label={`${label} model`}
             data-testid={`${role}-model`}
-            className={`${fieldClass} min-w-0 flex-1 font-mono`}
+            className="min-w-0 flex-1 font-mono transition-none"
             value={value.model}
             onChange={(e) => onChange({ model: e.target.value })}
           />
         )}
-        <select
+        <NativeSelect
           aria-label={`${label} effort`}
           data-testid={`${role}-effort`}
-          className={fieldClass}
+          className="transition-none"
           value={value.effort ?? ''}
           onChange={(e) => onChange({ effort: (e.target.value || undefined) as Effort | undefined })}
           title="How much the model thinks and writes. Default leaves it to the model."
         >
           {EFFORT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
+            <NativeSelectOption key={o.value} value={o.value}>
               {o.label === 'Default' ? 'Default effort' : `${o.label} effort`}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
       </div>
       <span className="text-muted-foreground">
         {help} Default {DEFAULT_MODELS[value.provider][role]}.
