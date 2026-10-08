@@ -3,7 +3,7 @@
 // reviewer's own key, stored in storage.local only and shown back masked. Test makes a real token-mint call. The
 // first time a paid tier is chosen, a notice says audio streams to that vendor while recording.
 
-import { Button, cn, TONE } from '@inkup/ui';
+import { Button, Card, CardContent, cn, Input, Label, RadioGroup, RadioGroupItem, TONE } from '@inkup/ui';
 import { useEffect, useState } from 'react';
 import { mintDeepgramToken } from '@/adapters/transcription/deepgram';
 import { mintScribeToken } from '@/adapters/transcription/elevenlabs';
@@ -63,28 +63,26 @@ export function TranscriptionSection() {
 
   return (
     <section aria-labelledby="transcription" className="flex flex-col gap-4">
-      <h2 id="transcription" className="text-base font-semibold">
+      <h2 id="transcription" className="text-lg font-bold tracking-tight">
         Transcription
       </h2>
-      <fieldset className="flex flex-col gap-2" data-testid="tier-picker">
-        <legend className="mb-1 font-medium">Tier</legend>
-        {TIERS.map((t) => (
-          <label key={t.id} className="flex items-start gap-2">
-            <input
-              type="radio"
-              name="tier"
-              value={t.id}
-              checked={settings.tier === t.id}
-              onChange={() => void update({ tier: t.id })}
-              data-testid={`tier-${t.id}`}
-              className="mt-1"
-            />
-            <span>
-              <span className="font-medium">{t.label}</span> <span className="text-muted-foreground">{t.blurb}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
+      <RadioGroup
+        asChild
+        value={settings.tier}
+        onValueChange={(tier) => void update({ tier: tier as TranscriptionTier })}
+      >
+        <fieldset className="gap-2" data-testid="tier-picker">
+          <legend className="mb-1 font-medium">Tier</legend>
+          {TIERS.map((t) => (
+            <div key={t.id} className="flex items-start gap-3">
+              <RadioGroupItem id={`tier-${t.id}`} value={t.id} data-testid={`tier-${t.id}`} className="mt-0.5" />
+              <Label htmlFor={`tier-${t.id}`} className="block font-normal leading-snug">
+                <span className="font-medium">{t.label}</span> <span className="text-muted-foreground">{t.blurb}</span>
+              </Label>
+            </div>
+          ))}
+        </fieldset>
+      </RadioGroup>
 
       {notice && (
         <div
@@ -123,53 +121,53 @@ function FreeTier({
 }) {
   const webSpeech = platform.capabilities().speechRecognition;
   return (
-    <div className="flex flex-col gap-3 rounded-lg border p-4">
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 font-medium">Engine</legend>
-        {webSpeech ? (
-          <label className="flex items-start gap-2">
-            <input
-              type="radio"
-              name="free-engine"
-              checked={settings.freeEngine === 'webspeech'}
-              onChange={() => void update({ freeEngine: 'webspeech' })}
-              data-testid="engine-webspeech"
-              className="mt-1"
-            />
-            <span>
-              <span className="font-medium">On-device Web Speech</span>{' '}
-              <span className="text-muted-foreground">
-                Chrome&apos;s speech pack. Live captions; times are approximate.
-              </span>
-            </span>
-          </label>
-        ) : (
-          <p className="text-muted-foreground" data-testid="no-webspeech">
-            This browser has no built-in speech recognition. Download a Whisper model below for live captions, or use
-            Better or Best. Until then, Sessions record audio, Strokes and screenshots without captions.
-          </p>
+    <Card className="gap-0 py-4 shadow-none">
+      <CardContent className="flex flex-col gap-3 px-4">
+        <RadioGroup
+          asChild
+          value={settings.freeEngine}
+          onValueChange={(freeEngine) => void update({ freeEngine: freeEngine as TranscriptionSettings['freeEngine'] })}
+        >
+          <fieldset className="gap-2">
+            <legend className="mb-1 font-medium">Engine</legend>
+            {webSpeech ? (
+              <div className="flex items-start gap-3">
+                <RadioGroupItem
+                  id="engine-webspeech"
+                  value="webspeech"
+                  data-testid="engine-webspeech"
+                  className="mt-0.5"
+                />
+                <Label htmlFor="engine-webspeech" className="block font-normal leading-snug">
+                  <span className="font-medium">On-device Web Speech</span>{' '}
+                  <span className="text-muted-foreground">
+                    Chrome&apos;s speech pack. Live captions; times are approximate.
+                  </span>
+                </Label>
+              </div>
+            ) : (
+              <p className="text-muted-foreground" data-testid="no-webspeech">
+                This browser has no built-in speech recognition. Download a Whisper model below for live captions, or
+                use Better or Best. Until then, Sessions record audio, Strokes and screenshots without captions.
+              </p>
+            )}
+            <div className="flex items-start gap-3">
+              <RadioGroupItem id="engine-whisper" value="whisper" data-testid="engine-whisper" className="mt-0.5" />
+              <Label htmlFor="engine-whisper" className="block font-normal leading-snug">
+                <span className="font-medium">Local Whisper</span>{' '}
+                <span className="text-muted-foreground">
+                  Runs on this device with word timings. Captions appear after each pause. Needs a one-time model
+                  download.
+                </span>
+              </Label>
+            </div>
+          </fieldset>
+        </RadioGroup>
+        {(settings.freeEngine === 'whisper' || !webSpeech) && (
+          <WhisperPicker selected={settings.whisperModel} onSelect={(m) => void update({ whisperModel: m })} />
         )}
-        <label className="flex items-start gap-2">
-          <input
-            type="radio"
-            name="free-engine"
-            checked={settings.freeEngine === 'whisper'}
-            onChange={() => void update({ freeEngine: 'whisper' })}
-            data-testid="engine-whisper"
-            className="mt-1"
-          />
-          <span>
-            <span className="font-medium">Local Whisper</span>{' '}
-            <span className="text-muted-foreground">
-              Runs on this device with word timings. Captions appear after each pause. Needs a one-time model download.
-            </span>
-          </span>
-        </label>
-      </fieldset>
-      {(settings.freeEngine === 'whisper' || !webSpeech) && (
-        <WhisperPicker selected={settings.whisperModel} onSelect={(m) => void update({ whisperModel: m })} />
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -212,71 +210,67 @@ function WhisperPicker({ selected, onSelect }: { selected: WhisperModelId; onSel
 
   const models = Object.values(WHISPER_MODELS).filter((m) => !m.webgpuOnly || webgpu);
   return (
-    <fieldset className="flex flex-col gap-2" data-testid="whisper-models">
-      <legend className="mb-1 font-medium">Whisper model</legend>
-      <p className="text-muted-foreground">
-        Models download from huggingface.co only when you click Download, and stay in this browser.
-        {webgpu === false && ' Large-v3 turbo needs WebGPU, which this browser does not offer.'}
-      </p>
-      {models.map((m) => {
-        const done = downloads[m.id];
-        const busy = active?.model === m.id;
-        return (
-          <div
-            key={m.id}
-            className="flex flex-wrap items-center gap-3"
-            data-testid={`whisper-${m.id}`}
-            data-downloaded={!!done}
-          >
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="whisper-model"
-                checked={selected === m.id}
-                onChange={() => onSelect(m.id)}
-                data-testid={`whisper-pick-${m.id}`}
-              />
-              <span className="font-medium">{m.label}</span>
-              <span className="text-muted-foreground">
-                {m.size}
-                {m.webgpuOnly ? ', WebGPU' : ''}
-              </span>
-            </label>
-            {done ? (
-              <span className={TONE.okText} data-testid={`whisper-status-${m.id}`}>
-                Downloaded
-              </span>
-            ) : busy ? (
-              <span className="flex items-center gap-2" data-testid={`whisper-status-${m.id}`}>
-                <progress max={100} value={active.progress} className="w-40" aria-label={`Downloading ${m.label}`} />
-                {Math.round(active.progress)}%{active.total ? ` of ${(active.total / 1e6).toFixed(0)} MB` : ''}
-              </span>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!!active}
-                onClick={() => void download(m.id)}
-                data-testid={`whisper-download-${m.id}`}
-              >
-                Download
-              </Button>
-            )}
-          </div>
-        );
-      })}
-      {selected && !downloads[selected] && !active && (
-        <p className={TONE.warnText}>
-          Until this model is downloaded, Sessions{' '}
-          {platform.capabilities().speechRecognition ? 'use on-device Web Speech' : 'record without live captions'}.
+    <RadioGroup asChild value={selected} onValueChange={(m) => onSelect(m as WhisperModelId)}>
+      <fieldset className="gap-2" data-testid="whisper-models">
+        <legend className="mb-1 font-medium">Whisper model</legend>
+        <p className="text-muted-foreground">
+          Models download from huggingface.co only when you click Download, and stay in this browser.
+          {webgpu === false && ' Large-v3 turbo needs WebGPU, which this browser does not offer.'}
         </p>
-      )}
-      {error && (
-        <p role="alert" className="text-destructive">
-          {error}
-        </p>
-      )}
-    </fieldset>
+        {models.map((m) => {
+          const done = downloads[m.id];
+          const busy = active?.model === m.id;
+          return (
+            <div
+              key={m.id}
+              className="flex flex-wrap items-center gap-3"
+              data-testid={`whisper-${m.id}`}
+              data-downloaded={!!done}
+            >
+              <Label htmlFor={`whisper-pick-${m.id}`} className="gap-2 font-normal">
+                <RadioGroupItem id={`whisper-pick-${m.id}`} value={m.id} data-testid={`whisper-pick-${m.id}`} />
+                <span className="font-medium">{m.label}</span>
+                <span className="text-muted-foreground">
+                  {m.size}
+                  {m.webgpuOnly ? ', WebGPU' : ''}
+                </span>
+              </Label>
+              {done ? (
+                <span className={TONE.okText} data-testid={`whisper-status-${m.id}`}>
+                  Downloaded
+                </span>
+              ) : busy ? (
+                <span className="flex items-center gap-2" data-testid={`whisper-status-${m.id}`}>
+                  <progress max={100} value={active.progress} className="w-40" aria-label={`Downloading ${m.label}`} />
+                  {Math.round(active.progress)}%{active.total ? ` of ${(active.total / 1e6).toFixed(0)} MB` : ''}
+                </span>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!!active}
+                  onClick={() => void download(m.id)}
+                  data-testid={`whisper-download-${m.id}`}
+                >
+                  Download
+                </Button>
+              )}
+            </div>
+          );
+        })}
+        {selected && !downloads[selected] && !active && (
+          <p className={TONE.warnText}>
+            Until this model is downloaded, Sessions{' '}
+            {platform.capabilities().speechRecognition ? 'use on-device Web Speech' : 'record without live captions'}.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
+        )}
+      </fieldset>
+    </RadioGroup>
   );
 }
 
@@ -321,57 +315,63 @@ function KeyField({ vendor }: { vendor: 'deepgram' | 'elevenlabs' }) {
   }
 
   return (
-    <form onSubmit={save} className="flex flex-col gap-3 rounded-lg border p-4">
-      <label className="flex flex-col gap-1">
-        <span className="font-medium">{name} API key</span>
-        <input
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          data-testid={`${vendor}-key`}
-          className="rounded-md border px-3 py-2 font-mono"
-          placeholder={saved ? `Saved (${mask(saved)}). Paste a new key to replace it.` : `${name} key`}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-        />
-        <span className="text-muted-foreground">Stored in this browser only. Never synced, logged or exported.</span>
-      </label>
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" data-testid={`save-${vendor}`}>
-          Save key
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!saved || test === 'running'}
-          onClick={() => void runTest()}
-          data-testid={`test-${vendor}`}
-        >
-          {test === 'running' ? 'Testing…' : 'Test'}
-        </Button>
-        {saved && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              void item.setValue('');
-              setTest(null);
-              setStatus('Key removed. Sessions use the Free tier until a key is saved.');
-            }}
-            data-testid={`remove-${vendor}`}
-          >
-            Remove key
-          </Button>
-        )}
-      </div>
-      {!saved && <p className={TONE.warnText}>Without a key, Sessions use the Free tier.</p>}
-      {status && <p role="status">{status}</p>}
-      {test && test !== 'running' && (
-        <p data-testid={`test-${vendor}-result`} className={test.ok ? TONE.okText : 'text-destructive'}>
-          {test.ok ? 'OK: ' : 'Error: '}
-          {test.message}
-        </p>
-      )}
-    </form>
+    <Card className="gap-0 py-4 shadow-none">
+      <CardContent className="px-4">
+        <form onSubmit={save} className="flex flex-col gap-3">
+          <Label className="flex-col items-stretch gap-1 leading-snug">
+            <span>{name} API key</span>
+            <Input
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              data-testid={`${vendor}-key`}
+              className="font-mono transition-none"
+              placeholder={saved ? `Saved (${mask(saved)}). Paste a new key to replace it.` : `${name} key`}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+            <span className="font-normal text-muted-foreground">
+              Stored in this browser only. Never synced, logged or exported.
+            </span>
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" data-testid={`save-${vendor}`}>
+              Save key
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!saved || test === 'running'}
+              onClick={() => void runTest()}
+              data-testid={`test-${vendor}`}
+            >
+              {test === 'running' ? 'Testing…' : 'Test'}
+            </Button>
+            {saved && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  void item.setValue('');
+                  setTest(null);
+                  setStatus('Key removed. Sessions use the Free tier until a key is saved.');
+                }}
+                data-testid={`remove-${vendor}`}
+              >
+                Remove key
+              </Button>
+            )}
+          </div>
+          {!saved && <p className={TONE.warnText}>Without a key, Sessions use the Free tier.</p>}
+          {status && <p role="status">{status}</p>}
+          {test && test !== 'running' && (
+            <p data-testid={`test-${vendor}-result`} className={test.ok ? TONE.okText : 'text-destructive'}>
+              {test.ok ? 'OK: ' : 'Error: '}
+              {test.message}
+            </p>
+          )}
+        </form>
+      </CardContent>
+    </Card>
   );
 }

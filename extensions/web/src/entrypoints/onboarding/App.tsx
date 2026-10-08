@@ -4,7 +4,7 @@
 // The microphone is optional (E11): skipped, a Session records ink, picks, typed comments and screenshots. "Turn on
 // voice" in a running Session opens this page with `?voice=1`; the grant turns that Session's voice on.
 
-import { Button, TONE } from '@inkup/ui';
+import { Button, Card, CardContent, Checkbox, Label, TONE } from '@inkup/ui';
 import { useState } from 'react';
 import { getUserMediaWithRetry } from '@/lib/get-user-media';
 import { useSpeechPack } from '@/lib/speech-pack';
@@ -41,36 +41,40 @@ export function App() {
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-6 p-8 text-sm leading-relaxed">
-      <h1 className="text-2xl font-semibold">Set up InkUp</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Set up InkUp</h1>
 
-      <section aria-labelledby="notice" className="rounded-lg border bg-card p-5">
-        <h2 id="notice" className="mb-2 text-base font-semibold">
-          What a Session captures
-        </h2>
-        <ul className="list-disc space-y-1 pl-5" data-testid="privacy-notice">
-          <li>
-            Your microphone, from Start to Stop, if you allow it. The audio is recorded and transcribed into live
-            captions.
-          </li>
-          <li>
-            Screenshots of the tab you are reviewing, taken when you finish drawing on it. Screen content is captured
-            as-is.
-          </li>
-          <li>The Strokes you draw, and the page elements under them.</li>
-          <li>Keystrokes are never captured.</li>
-          <li>
-            Everything stays in this browser&apos;s extension storage until you delete it. With the free transcription
-            tier and no API key, the extension makes no network calls.
-          </li>
-          <li>
-            The side panel timer and Chrome&apos;s own indicators show when you are recording. Nothing is drawn into the
-            page except your Strokes.
-          </li>
-        </ul>
+      <section aria-labelledby="notice">
+        <Card className="gap-3 py-5 shadow-none">
+          <CardContent className="flex flex-col gap-3 px-5">
+            <h2 id="notice" className="text-lg font-bold tracking-tight">
+              What a Session captures
+            </h2>
+            <ul className="list-disc space-y-1 pl-5" data-testid="privacy-notice">
+              <li>
+                Your microphone, from Start to Stop, if you allow it. The audio is recorded and transcribed into live
+                captions.
+              </li>
+              <li>
+                Screenshots of the tab you are reviewing, taken when you finish drawing on it. Screen content is
+                captured as-is.
+              </li>
+              <li>The Strokes you draw, and the page elements under them.</li>
+              <li>Keystrokes are never captured.</li>
+              <li>
+                Everything stays in this browser&apos;s extension storage until you delete it. With the free
+                transcription tier and no API key, the extension makes no network calls.
+              </li>
+              <li>
+                The side panel timer and Chrome&apos;s own indicators show when you are recording. Nothing is drawn into
+                the page except your Strokes.
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
       </section>
 
       <section aria-labelledby="mic" className="flex flex-col gap-2">
-        <h2 id="mic" className="text-base font-semibold">
+        <h2 id="mic" className="text-lg font-bold tracking-tight">
           1. Microphone
         </h2>
         {forSession && !granted && (
@@ -90,8 +94,8 @@ export function App() {
             what you type. &ldquo;Turn on voice&rdquo; on the toolbar asks again.
           </p>
         ) : (
-          <div className="flex items-center gap-3">
-            <Button onClick={allowMic} data-testid="allow-mic">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button size="lg" onClick={allowMic} data-testid="allow-mic">
               Allow microphone
             </Button>
             <Button variant="ghost" onClick={() => setSkipped(true)} data-testid="skip-mic">
@@ -107,7 +111,7 @@ export function App() {
       </section>
 
       <section aria-labelledby="speech" className="flex flex-col gap-2">
-        <h2 id="speech" className="text-base font-semibold">
+        <h2 id="speech" className="text-lg font-bold tracking-tight">
           2. On-device captions ({lang})
         </h2>
         <p data-testid="speech-pack">
@@ -141,20 +145,22 @@ export function App() {
 
       {platform.capabilities().speechRecognition && (
         <section aria-labelledby="server" className="flex flex-col gap-1">
-          <h2 id="server" className="text-base font-semibold">
+          <h2 id="server" className="text-lg font-bold tracking-tight">
             3. Server speech (optional)
           </h2>
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              className="mt-1"
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="allow-server-speech"
+              className="mt-0.5"
               data-testid="allow-server-speech"
               checked={allowServer ?? false}
-              onChange={(e) => void allowServerSpeech.setValue(e.target.checked)}
+              onCheckedChange={(checked) => void allowServerSpeech.setValue(checked === true)}
             />
-            <span>Allow Chrome server speech recognition when on-device is unavailable</span>
-          </label>
-          <p className="pl-6 text-muted-foreground">
+            <Label htmlFor="allow-server-speech" className="leading-snug">
+              <span>Allow Chrome server speech recognition when on-device is unavailable</span>
+            </Label>
+          </div>
+          <p className="pl-7 text-muted-foreground">
             When this is on and on-device speech is missing, your audio goes to Google for live captions.
           </p>
         </section>
