@@ -4,7 +4,8 @@
 // 16 kHz PCM16 graph (./pcm.ts) that feeds the detector and the streaming tiers.
 //
 // The stream is a MicSource's (./mic-source.ts): the chosen input device feeds it through a Web Audio graph, so the
-// toolbar's microphone picker switches devices mid-Session without restarting anything (micDevice). The device list
+// toolbar's microphone picker switches devices mid-Session without restarting anything (micDevice); the PCM graph
+// reads the raw device in its own context and swaps its source on a switch. The device list
 // is this context's own (enumerateDevices here, not in the page: the page has other permissions and other deviceIds),
 // sent to the service worker at start and on every devicechange.
 //
@@ -119,8 +120,10 @@ async function startMic(r: Running, transcription: AdapterConfig, deviceId: stri
   const stream = source.stream;
   const now = () => toOffset(config.t0, Date.now());
   const recorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(MIME) ? { mimeType: MIME } : undefined);
-  // The PCM graph starts now, not on first use: the VAD buffers it from Start (./voice.ts).
-  const pcm = startPcmGraph(stream, now);
+  // The PCM graph starts now, not on first use: the VAD buffers it from Start (./voice.ts). It reads the raw device in
+  // its own context, and follows a switch (./mic-source.ts says why).
+  const pcm = startPcmGraph(source.input(), now);
+  source.onInput((input) => void pcm.then((g) => g.setStream(input)).catch(() => {}));
   const voice = startVoiceCommands(stream, pcm, now);
   let m!: Mic;
   const adapter = createTranscriptionAdapter(transcription, {
@@ -290,7 +293,7 @@ function applyMic(r: Running): void {
   const m = r.mic;
   if (!m) return;
   const live = r.mutedAt === null || r.box !== null;
-  for (const track of m.stream.getAudioTracks()) track.enabled = live;
+  m.source.setEnabled(live);
   m.voice.setMuted(!live);
   m.voice.setDictating(r.box !== null);
   syncAdapter(r);

@@ -21,13 +21,15 @@ export const FRAME_SAMPLES = 1600;
 export const AUDIO_DEVICE_TIMEOUT_MS = 2_000;
 
 export interface PcmGraph extends PcmSource {
+  /** Reads `stream` from now on (the microphone picker switched devices): the source node swaps, the clock runs on. */
+  setStream(stream: MediaStream): void;
   close(): Promise<void>;
 }
 
 export async function startPcmGraph(stream: MediaStream, now: () => number): Promise<PcmGraph> {
   const ctx = new AudioContext({ sampleRate: PCM_RATE });
   await ctx.audioWorklet.addModule(chrome.runtime.getURL('/worklets/pcm16-worklet.js'));
-  const source = ctx.createMediaStreamSource(stream);
+  let source = ctx.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(ctx, 'pcm16', {
     numberOfInputs: 1,
     numberOfOutputs: 1,
@@ -51,6 +53,12 @@ export async function startPcmGraph(stream: MediaStream, now: () => number): Pro
   };
   return {
     sampleRate: PCM_RATE,
+    setStream(next) {
+      const replacement = ctx.createMediaStreamSource(next);
+      replacement.connect(node);
+      source.disconnect();
+      source = replacement;
+    },
     onFrame(fn) {
       listeners.add(fn);
       return () => listeners.delete(fn);

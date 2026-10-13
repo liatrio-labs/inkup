@@ -20,16 +20,17 @@ worker at the microphone's start, on `devicechange` and after a switch, and push
 (`ToolbarState.mic`). Before a Session the picker lists on demand: on Chrome the offscreen document is opened to list
 the inputs and closed again unless a Session started meanwhile; where the browser hides their names from a document
 that has not used the microphone, the default opens for as long as the list takes. Without the grant the picker says
-so and offers setup instead of a list. The choice is `micDevice` (`storage.local`); a Start
-opens it with `deviceId: { exact }`, and one that is gone (OverconstrainedError, NotFoundError) opens the system default
-with a warning, never failing the Session. The chosen device feeds a Web Audio graph whose
-`MediaStreamAudioDestinationNode` track is the Session's one mic stream (`offscreen/mic-source.ts`): the recorder, the
-PCM graph, the VAD and the transcription adapter (Web Speech through `start(track)`) all hold that track, so a pick
-mid-Session swaps only the graph's source node and releases the old device; nothing restarts and the audio file is not
-split. Mute disables that stable track. Where the graph's context does not run within the 2 s audio-device bound
-(Firefox with no sound server), the raw device stream is used as before and the picker hides mid-Session. The picker
-is offered where `PlatformCapabilities.micPicker` says so: Chrome and Firefox, not Safari, whose media context is a
-visible window.
+so and offers setup instead of a list. The choice is `micDevice` (`storage.local`); a Start opens it with
+`deviceId: { exact }`, and one that is gone (OverconstrainedError, NotFoundError) opens the system default with a
+warning, never failing the Session. The chosen device feeds a Web Audio graph whose `MediaStreamAudioDestinationNode`
+track is the Session's stable mic stream (`offscreen/mic-source.ts`): the recorder and the transcription adapter (Web
+Speech through `start(track)`) hold that track, so a pick mid-Session swaps only the graph's source node and releases
+the old device; nothing restarts and the audio file is not split. The 16 kHz PCM graph (VAD, streaming tiers) is
+another AudioContext, and a track carried between contexts arrives in gaps, so it reads the raw device stream and
+swaps its own source node on a switch. Mute disables the stable track and the raw one. Where the graph's context does
+not run within the 2 s audio-device bound (Firefox with no sound server), the raw device stream is used as before and
+the picker hides mid-Session. The picker is offered where `PlatformCapabilities.micPicker` says so: Chrome and
+Firefox, not Safari, whose media context is a visible window.
 
 ## Considered options
 

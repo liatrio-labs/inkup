@@ -1,8 +1,12 @@
-// The microphone input in the media context (ADR 0001), and the one stream every consumer reads. The chosen device
-// (null: the system default) opens raw, into a Web Audio graph whose MediaStreamAudioDestinationNode track is the
-// Session's mic stream: the recorder, the PCM graph, the VAD and the transcription adapter all hold that track, so
-// choosing another device mid-Session only swaps the graph's source node. Nothing restarts and the audio file is not
-// split. Mute still disables the stable track.
+// The microphone input in the media context (ADR 0001). The chosen device (null: the system default) opens raw, into a
+// Web Audio graph whose MediaStreamAudioDestinationNode track is the Session's mic stream: the recorder and the
+// transcription adapter (Web Speech's `start(track)`) hold that track, so choosing another device mid-Session only
+// swaps the graph's source node. Nothing restarts and the audio file is not split.
+//
+// The 16 kHz PCM graph (./pcm.ts, for the VAD and the streaming tiers) is another AudioContext, and a track carried
+// from one context to another arrives in gaps (its worklet saw about two thirds of the frames on CI). So it reads the
+// raw device stream in its own context instead (`input`), and swaps its own source node when `onInput` says the device
+// changed. Mute (`setEnabled`) disables both the stable track and the raw one, including a raw one opened later.
 //
 // A remembered device that is gone (OverconstrainedError or NotFoundError on `deviceId: { exact }`) opens the default
 // instead, with a warning: the choice never fails a Session. A device unplugged mid-Session ends its track; the source
@@ -28,6 +32,12 @@ export interface MicSource {
   device(): string | null;
   /** Whether `use` can switch the device live (the graph runs). */
   readonly live: boolean;
+  /** The raw stream of the device feeding it now (the PCM graph reads this, in its own context). */
+  input(): MediaStream;
+  /** Calls `listener` with the new raw stream after each switch. Returns the unsubscribe. */
+  onInput(listener: (input: MediaStream) => void): () => void;
+  /** Mute: the stable track and the raw one off (they carry silence), or back on. Holds across switches. */
+  setEnabled(on: boolean): void;
   /**
    * Feeds the stream from `deviceId` (null: the system default) from now on, and releases the old device. A device
    * that is gone gives the default. Resolves with the device now feeding it. Rejects (keeping the old device) when no
@@ -91,10 +101,8 @@ const stopAll = (s: MediaStream) => {
 /** Opens the microphone (`deviceId`, or the default) as a MicSource. Rejects when no microphone opens. */
 export async function openMicSource(deviceId: string | null, deps: MicSourceDeps = {}): Promise<MicSource> {
   const warn = deps.warn ?? defaultWarn;
-  const first = await openDevice(deviceId, { ...deps, warn });
-  let raw = first.stream;
-  let current = first.deviceId;
-
+  // The graph's context first, the device after: once the device opens, the caller starts the recorder and the engine
+  // at once, as it did before this graph existed (a slow resume() must not stand between the two).
   let ctx: AudioContext | null = null;
   try {
     ctx = deps.context ? deps.context() : new AudioContext();
@@ -102,6 +110,16 @@ export async function openMicSource(deviceId: string | null, deps: MicSourceDeps
   } catch (e) {
     warn(`no audio graph for the microphone (${e instanceof Error ? e.message : String(e)})`);
   }
+  let first: Awaited<ReturnType<typeof openDevice>>;
+  try {
+    first = await openDevice(deviceId, { ...deps, warn });
+  } catch (e) {
+    if (ctx) void withTimeout(ctx.close(), AUDIO_DEVICE_TIMEOUT_MS, undefined).catch(() => {});
+    throw e;
+  }
+  let raw = first.stream;
+  let current = first.deviceId;
+
   if (ctx?.state !== 'running') {
     // No graph that runs: the raw stream, as before, and no live switching.
     if (ctx) void withTimeout(ctx.close(), AUDIO_DEVICE_TIMEOUT_MS, undefined).catch(() => {});
@@ -109,6 +127,11 @@ export async function openMicSource(deviceId: string | null, deps: MicSourceDeps
       stream: raw,
       device: () => current,
       live: false,
+      input: () => raw,
+      onInput: () => () => {},
+      setEnabled(on) {
+        for (const t of raw.getAudioTracks()) t.enabled = on;
+      },
       use: () => Promise.reject(new Error('This browser cannot switch the microphone during a Session.')),
       async close() {
         stopAll(raw);
@@ -122,6 +145,8 @@ export async function openMicSource(deviceId: string | null, deps: MicSourceDeps
   let source = graph.createMediaStreamSource(raw);
   source.connect(dest);
   let closed = false;
+  let enabled = true;
+  const inputListeners = new Set<(input: MediaStream) => void>();
   /** Counts switches, so an older one that finishes late does not replace a newer one. */
   let generation = 0;
 
@@ -143,6 +168,15 @@ export async function openMicSource(deviceId: string | null, deps: MicSourceDeps
     stream: dest.stream,
     device: () => current,
     live: true,
+    input: () => raw,
+    onInput(listener) {
+      inputListeners.add(listener);
+      return () => inputListeners.delete(listener);
+    },
+    setEnabled(on) {
+      enabled = on;
+      for (const t of [...dest.stream.getAudioTracks(), ...raw.getAudioTracks()]) t.enabled = on;
+    },
     async use(next) {
       if (closed) throw new Error('The microphone is closed.');
       const gen = ++generation;
@@ -152,6 +186,7 @@ export async function openMicSource(deviceId: string | null, deps: MicSourceDeps
         if (closed) throw new Error('The microphone is closed.');
         return current;
       }
+      for (const t of opened.stream.getAudioTracks()) t.enabled = enabled;
       const nextSource = graph.createMediaStreamSource(opened.stream);
       // Connect the new source before dropping the old one: the destination never runs dry in between.
       nextSource.connect(dest);
@@ -161,6 +196,7 @@ export async function openMicSource(deviceId: string | null, deps: MicSourceDeps
       raw = opened.stream;
       current = opened.deviceId;
       watch(raw, gen);
+      for (const l of inputListeners) l(raw);
       return current;
     },
     async close() {

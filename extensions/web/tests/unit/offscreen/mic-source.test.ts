@@ -174,6 +174,46 @@ describe('openMicSource', () => {
     expect(ctx.feeding.map((s) => trackOf(s.stream).device)).toEqual(['built-in']);
   });
 
+  it('starts the graph before it opens the device, and closes it when no device opens', async () => {
+    const ctx = new FakeContext();
+    ctx.state = 'suspended';
+    const order: string[] = [];
+    ctx.resume = vi.fn(async () => {
+      order.push('resume');
+      ctx.state = 'running';
+    });
+    const gum = vi.fn(async () => {
+      order.push('gum');
+      throw named('NotAllowedError');
+    });
+    await expect(openMicSource(null, { gum, context: ctxOf(ctx), warn: vi.fn() })).rejects.toMatchObject({
+      name: 'NotAllowedError',
+    });
+    expect(order).toEqual(['resume', 'gum']);
+    expect(ctx.close).toHaveBeenCalledOnce();
+  });
+
+  it('hands the PCM graph each new raw device, and keeps Mute across a switch', async () => {
+    const { gum } = devices(['usb-1', 'usb-2']);
+    const ctx = new FakeContext();
+    const src = await openMicSource('usb-1', { gum, context: ctxOf(ctx), warn: vi.fn() });
+    expect(trackOf(src.input()).device).toBe('usb-1');
+    const inputs: string[] = [];
+    src.onInput((s) => inputs.push(trackOf(s).device));
+
+    src.setEnabled(false);
+    expect(trackOf(src.stream).enabled).toBe(false);
+    expect(trackOf(src.input()).enabled).toBe(false);
+    await src.use('usb-2');
+    expect(inputs).toEqual(['usb-2']);
+    expect(trackOf(src.input()).device).toBe('usb-2');
+    // Opened while muted: it carries silence too.
+    expect(trackOf(src.input()).enabled).toBe(false);
+    src.setEnabled(true);
+    expect(trackOf(src.stream).enabled).toBe(true);
+    expect(trackOf(src.input()).enabled).toBe(true);
+  });
+
   it('connects the new device before it lets go of the old one', async () => {
     const { gum } = devices(['usb-1', 'usb-2']);
     const ctx = new FakeContext();
