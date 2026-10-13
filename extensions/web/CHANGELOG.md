@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.13.1...inkup-extension-v0.14.0) (2026-10-13)
+
+
+### Features
+
+* **extension:** pick the microphone from the toolbar ([#104](https://github.com/liatrio-labs/inkup/issues/104)) ([e772a2f](https://github.com/liatrio-labs/inkup/commit/e772a2f2bb63f06aadc1a37158d5416a30ab53d5))
+
 ## [0.13.1](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.13.0...inkup-extension-v0.13.1) (2026-10-07)
 
 
