@@ -14,6 +14,24 @@ satisfies the user-activation requirement Chrome is moving to enforce. A one-tim
 grant, since neither context can prompt for it. Closing the side panel is treated as Stop rather than as a failure, so
 the only way to lose the panel's video is a deliberate act that also finalizes everything.
 
+**Which microphone.** The media context also owns the choice of input. Its device list is its own
+(`enumerateDevices` there, never in the page, whose permissions and deviceIds are another origin's), sent to the service
+worker at the microphone's start, on `devicechange` and after a switch, and pushed to the toolbar's picker
+(`ToolbarState.mic`). Before a Session the picker lists on demand: on Chrome the offscreen document is opened to list
+the inputs and closed again unless a Session started meanwhile; where the browser hides their names from a document
+that has not used the microphone, the default opens for as long as the list takes. Without the grant the picker says
+so and offers setup instead of a list. The choice is `micDevice` (`storage.local`); a Start opens it with
+`deviceId: { exact }`, and one that is gone (OverconstrainedError, NotFoundError) opens the system default with a
+warning, never failing the Session. The chosen device feeds a Web Audio graph whose `MediaStreamAudioDestinationNode`
+track is the Session's stable mic stream (`offscreen/mic-source.ts`): the recorder and the transcription adapter (Web
+Speech through `start(track)`) hold that track, so a pick mid-Session swaps only the graph's source node and releases
+the old device; nothing restarts and the audio file is not split. The 16 kHz PCM graph (VAD, streaming tiers) is
+another AudioContext, and a track carried between contexts arrives in gaps, so it reads the raw device stream and
+swaps its own source node on a switch. Mute disables the stable track and the raw one. Where the graph's context does
+not run by 250 ms after the device opened (Firefox with no sound server), the raw device stream is used as before and
+the picker hides mid-Session. The picker is offered where `PlatformCapabilities.micPicker` says so: Chrome and
+Firefox, not Safari, whose media context is a visible window.
+
 ## Considered options
 
 - Everything in the offscreen document: simplest lifetime, but `getDisplayMedia` there has no activation and will break
@@ -24,6 +42,11 @@ the only way to lose the panel's video is a deliberate act that also finalizes e
 
 - Session state must be owned by the service worker and rebuilt in the panel on reopen.
 - Firefox has no offscreen document; the port will move the offscreen role to the background page.
+
+## History
+
+- 2026-10-13: the media context always opened the system default microphone, and the reviewer could not tell which
+  input live transcription heard. The toolbar's microphone picker and the stable graph stream above replaced that.
 
 ## Sources
 

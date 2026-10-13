@@ -13,7 +13,7 @@ import { coalesced } from '@/lib/coalesced';
 import { type StartResult, sendMessage, type ToolbarState } from '@/messaging';
 import { platform } from '@/platform';
 import { activeSession, hostStatus, panelNotice, tabViewports, toolbarTabs } from '@/session-state';
-import { type ActiveSession, discardPending, hostPairing, viewportSizes } from '@/settings';
+import { type ActiveSession, discardPending, hostPairing, micDevice, micGranted, viewportSizes } from '@/settings';
 import { onEventAppended } from './event-log';
 import { openPicker } from './picker';
 import { getActive, startSession, stopSession } from './session';
@@ -26,13 +26,15 @@ let toast: { session_id: string; toast: NonNullable<ToolbarState['toast']> } | n
 const pushedTo = new Set<number>();
 
 export async function stateFor(tabId: number, s: ActiveSession | null = null): Promise<ToolbarState> {
-  const [active, pairing, status, notice, viewport, discards] = await Promise.all([
+  const [active, pairing, status, notice, viewport, discards, granted, chosenMic] = await Promise.all([
     s ? s : getActive(),
     hostPairing.getValue(),
     hostStatus.getValue(),
     panelNotice.getValue(),
     toolbarViewport(tabId).catch(() => null),
     discardPending.getValue(),
+    micGranted.getValue(),
+    micDevice.getValue(),
   ]);
   // A cancelled Session is over for the toolbar at once, while its Stop still finishes behind the Undo toast (E10).
   const now = Date.now();
@@ -63,7 +65,19 @@ export async function stateFor(tabId: number, s: ActiveSession | null = null): P
     toast: session && toast?.session_id === session.id ? toast.toast : null,
     notice,
     viewport,
+    mic: micState(session, granted, chosenMic),
   };
+}
+
+/**
+ * The microphone picker: before a Session, the remembered choice (the inputs are listed when its menu opens); during
+ * one, the media context's report, while it can switch live. Null where this browser offers no picker.
+ */
+function micState(session: ActiveSession | null, granted: boolean, chosen: string | null): ToolbarState['mic'] {
+  if (!platform.capabilities().micPicker) return null;
+  if (!session) return { granted, devices: null, selected: chosen };
+  const mic = session.mic;
+  return session.voice !== false && mic?.live ? { granted: true, devices: mic.devices, selected: mic.selected } : null;
 }
 
 async function shownIn(tabId: number | undefined): Promise<boolean> {
@@ -216,6 +230,8 @@ export function initToolbar(): void {
     panelNotice,
     tabViewports,
     viewportSizes,
+    micDevice,
+    micGranted,
   ] as const) {
     (item as { watch(cb: () => void): unknown }).watch(pushToolbars);
   }

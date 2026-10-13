@@ -51,6 +51,12 @@ export const allowServerSpeech = storage.defineItem<boolean>('local:allowServerS
 export const micGranted = storage.defineItem<boolean>('local:micGranted', { fallback: false });
 
 /**
+ * The microphone the toolbar's picker chose, as the media context's deviceId; null: the system default. The next Start
+ * opens it (`deviceId: { exact }`), and one that is gone gives the default with a warning, never a failed Session.
+ */
+export const micDevice = storage.defineItem<string | null>('local:micDevice', { fallback: null });
+
+/**
  * The reviewer's Anthropic API key (PRD P0-14): `storage.local` only, never `sync`, never logged, never exported.
  * Empty string: no key, so a model role set to Anthropic makes no Draft Items and Process builds items in code.
  */
@@ -394,6 +400,11 @@ export interface ActiveSession {
    * nothing is transcribed or heard as a Voice Command; everything else goes on. Independent of `paused`.
    */
   muted?: { t: number; at: number } | null;
+  /**
+   * The media context's audio inputs and the one recording, from its `micDevices` reports. `live` false: it cannot
+   * switch mid-Session (no running audio graph), so the toolbar hides the picker. Absent: not reported yet.
+   */
+  mic?: { devices: { id: string; label: string }[]; selected: string | null; live: boolean } | null;
   /**
    * The microphone is recording (E11). False: the Session started without one (no grant, or it failed to open); the
    * toolbar says "No mic" and offers "Turn on voice". `voice_requested`: that was pressed and setup is open for the

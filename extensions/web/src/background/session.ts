@@ -9,6 +9,8 @@ import { queueBlobs } from '@/db/outbox';
 import {
   type ContentSessionState,
   type ContentSignal,
+  type MicDevicesInput,
+  type MicSwitchResult,
   type StartResult,
   type StartVideo,
   sendMessage,
@@ -21,6 +23,7 @@ import {
   captureSettings,
   clampFade,
   devOverrides,
+  micDevice,
   micGranted,
   providerKey,
   readProcessingSettings,
@@ -258,6 +261,7 @@ async function startMedia(
   }
   const dev = await devOverrides.getValue();
   const start = await transcriptionForStart();
+  const micDeviceId = await chosenMic();
   await platform.mediaContext.ensure();
   const started = await sendMessage('offscreenStart', {
     session_id: id,
@@ -266,6 +270,7 @@ async function startMedia(
     chunk_ms: audioChunkMs(dev),
     transcription: start.config,
     voice,
+    mic_device_id: micDeviceId,
     ...(captureId ? { video_capture_id: captureId } : {}),
   }).catch((e: unknown) => ({ ok: false as const, error: String(e) }));
   if (!started.ok) {
@@ -552,10 +557,12 @@ export async function turnOnVoice(): Promise<{ ok: true } | { ok: false; code: '
     return { ok: false, code: 'setup', error: 'Allow the microphone in setup; voice turns on once it is allowed.' };
   }
   const { config } = await transcriptionForStart();
-  const r = await sendMessage('offscreenVoiceOn', { transcription: config }).catch((e: unknown) => ({
-    ok: false as const,
-    error: String(e),
-  }));
+  const r = await sendMessage('offscreenVoiceOn', { transcription: config, mic_device_id: await chosenMic() }).catch(
+    (e: unknown) => ({
+      ok: false as const,
+      error: String(e),
+    }),
+  );
   if (!r.ok) {
     await panelNotice.setValue(`The microphone did not open: ${r.error}`);
     return { ok: false, code: 'failed', error: r.error };
@@ -575,6 +582,57 @@ export async function turnOnVoice(): Promise<{ ok: true } | { ok: false; code: '
   await panelNotice.setValue(null);
   if (next) await notifyContent(next.tab_id, next);
   return { ok: true };
+}
+
+/** Lists in flight: the last one closes the media context it opened. */
+let listing = 0;
+
+/** The remembered microphone where this browser offers the picker; else null, the system default. */
+async function chosenMic(): Promise<string | null> {
+  return platform.capabilities().micPicker ? micDevice.getValue() : null;
+}
+
+/**
+ * The toolbar's microphone picker: the input is remembered for the next Start and, while a Session records with a
+ * microphone that can switch, records from now on (the media context swaps its audio graph's source: one audio file,
+ * nothing restarts). A device that is gone gives the system default, which `selected` reports.
+ */
+export async function setMicDevice(deviceId: string | null): Promise<MicSwitchResult> {
+  await micDevice.setValue(deviceId);
+  await mediaStarted();
+  const s = await getActive();
+  if (!s || s.stopping || s.voice === false || !s.mic?.live) return { ok: true, selected: deviceId };
+  const r = await sendMessage('offscreenMicDevice', deviceId).catch((e: unknown) => ({
+    ok: false as const,
+    error: String(e),
+  }));
+  if (r.ok) await patchActive((a) => (a.mic ? { ...a, mic: { ...a.mic, selected: r.selected } } : a));
+  return r.ok ? r : { ok: false, error: `The microphone did not switch: ${r.error}` };
+}
+
+/** The media context's report of its inputs and the one recording. */
+export async function onMicDevices(input: MicDevicesInput): Promise<void> {
+  await patchActive((a) => ({ ...a, mic: input }));
+}
+
+/**
+ * The picker opened before a Session: the inputs as the media context sees them (its origin's deviceIds and labels,
+ * which the page's would not match). On Chrome that context, the offscreen document, exists only for a Session, so it
+ * is opened to list them and closed again unless a Session started meanwhile.
+ */
+export async function listMicDevices(): Promise<{ id: string; label: string }[] | null> {
+  if (!platform.capabilities().micPicker || !(await micGranted.getValue())) return null;
+  listing++;
+  try {
+    await platform.mediaContext.ensure();
+    return await sendMessage('offscreenListMics');
+  } catch (e) {
+    console.warn('could not list the microphones', e);
+    return null;
+  } finally {
+    listing--;
+    if (!listing && !(await getActive()) && !startingMedia) await platform.mediaContext.close().catch(() => {});
+  }
 }
 
 /** Setup granted the microphone: a Session waiting for it (Turn on voice) gets its voice now. */

@@ -63,3 +63,30 @@ describe('startPcmGraph with no audio device', () => {
     expect(StuckAudioContext.last!.close).toHaveBeenCalledOnce();
   });
 });
+
+describe('startPcmGraph after a microphone switch', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('reads the new device through a new source node, connected before the old one goes', async () => {
+    const log: string[] = [];
+    class RunningContext extends StuckAudioContext {
+      override state = 'running';
+      override createMediaStreamSource(stream?: MediaStream) {
+        const name = (stream as unknown as { name: string }).name;
+        return {
+          connect: (n: unknown) => {
+            log.push(`${name} on`);
+            return n;
+          },
+          disconnect: () => log.push(`${name} off`),
+        };
+      }
+    }
+    vi.stubGlobal('AudioContext', RunningContext);
+    vi.stubGlobal('AudioWorkletNode', FakeWorkletNode);
+    vi.stubGlobal('chrome', { runtime: { getURL: (p: string) => p } });
+    const graph = await startPcmGraph({ name: 'usb-1' } as unknown as MediaStream, () => 0);
+    graph.setStream({ name: 'usb-2' } as unknown as MediaStream);
+    expect(log).toEqual(['usb-1 on', 'usb-2 on', 'usb-1 off']);
+  });
+});

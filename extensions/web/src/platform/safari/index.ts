@@ -38,6 +38,9 @@ export const safariPlatform: Platform = {
     // The frame host is plain extension pages and scripting, but unverified in Safari (manual check S6).
     viewport: false,
     qrScan: canScanQr(),
+    // The media context is a visible window: opening it only to list inputs before a Session would pop it up, and
+    // the live switch is unverified in Safari. Every Session opens the system default.
+    micPicker: false,
   }),
 
   mediaContext: {

@@ -33,6 +33,12 @@ export interface PlatformCapabilities {
    * Scan QR; typing the code or pasting the pair link still works.
    */
   qrScan: boolean;
+  /**
+   * The toolbar's microphone picker: the media context lists its audio inputs (also before a Session, so it can be
+   * opened just to list them without a visible window) and opens the chosen one; mid-Session the choice switches live
+   * through its audio graph. False hides the picker, and every Session opens the system default.
+   */
+  micPicker: boolean;
 }
 
 /** Whether this page can scan a QR code with the camera: see `PlatformCapabilities.qrScan`. */

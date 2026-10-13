@@ -22,6 +22,7 @@ export const chromePlatform: Platform = {
     toolbarVideo: 'tab_capture',
     viewport: true,
     qrScan: canScanQr(),
+    micPicker: true,
   }),
 
   mediaContext: { ensure: ensureOffscreen, close: closeOffscreen },

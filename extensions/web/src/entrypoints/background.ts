@@ -50,7 +50,9 @@ import {
   clearModes,
   contentHello,
   getActive,
+  listMicDevices,
   onMediaContextGone,
+  onMicDevices,
   onMicGranted,
   onOffscreenError,
   onPanelGone,
@@ -60,6 +62,7 @@ import {
   resumeSession,
   setBoxDictation,
   setDrawMode,
+  setMicDevice,
   setMuted,
   setSelectMode,
   startSession,
@@ -144,6 +147,9 @@ export default defineBackground(() => {
   onMessage('undoDiscard', ({ data }) => undoDiscard(data));
   onMessage('setMuted', ({ data }) => setMuted(data.on, data.via));
   onMessage('turnOnVoice', () => turnOnVoice());
+  onMessage('setMicDevice', ({ data }) => setMicDevice(data));
+  onMessage('listMicDevices', () => listMicDevices());
+  onMessage('micDevices', ({ data }) => onMicDevices(data));
   // Setup granted the microphone while a Session waited for it ("Turn on voice", E11).
   micGranted.watch((granted) => {
     if (granted) void onMicGranted();
