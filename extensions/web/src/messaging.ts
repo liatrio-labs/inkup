@@ -7,7 +7,7 @@ import type { Rect } from '@inkup/core/geometry';
 import type { ChangeItem } from '@inkup/core/process/change-item';
 import type { CostEstimate } from '@inkup/core/process/cost';
 import type { CloseReason, DictationTarget, EventOf } from '@inkup/core/timeline';
-import type { ToolbarState } from '@inkup/ui/toolbar-state';
+import type { MicSwitchResult, ToolbarMicDevice, ToolbarState } from '@inkup/ui/toolbar-state';
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import type { FoundHost } from '@/adapters/host';
 import type { ConnectionTest } from '@/adapters/llm/types';
@@ -34,7 +34,9 @@ export type HostPairResult = { ok: true } | { ok: false; error: string; needsCod
  * what it asks of the page side: the UI contract lives with the toolbar in @inkup/ui (packages/ui/src/toolbar-state.ts).
  */
 export type {
+  MicSwitchResult,
   ToolbarActions,
+  ToolbarMicDevice,
   ToolbarPosition,
   ToolbarState,
   ToolbarViewport,
@@ -165,6 +167,15 @@ export interface OffscreenStartConfig {
   voice: boolean;
   /** Chrome's tabCapture id for the Session tab: the media context records its video too. */
   video_capture_id?: string;
+  /** The remembered microphone (`micDevice`); null or absent: the system default. One that is gone gives the default. */
+  mic_device_id?: string | null;
+}
+
+/** The media context's audio inputs and the one recording; `live`: it can switch mid-Session (its audio graph runs). */
+export interface MicDevicesInput {
+  devices: ToolbarMicDevice[];
+  selected: string | null;
+  live: boolean;
 }
 
 /** The media context's tab video: its size once open, or why it could not open. */
@@ -200,6 +211,10 @@ export interface ProtocolMap {
   setMuted(input: { on: boolean; via: 'button' | 'shortcut' }): ActiveSession | null;
   /** "Turn on voice" (E11): the microphone for a Session without one; opens setup when it has not been granted. */
   turnOnVoice(): { ok: true } | { ok: false; code: 'setup' | 'failed'; error: string };
+  /** The toolbar's microphone picker: remember the input (null: the system default) and, mid-Session, switch to it. */
+  setMicDevice(deviceId: string | null): MicSwitchResult;
+  /** The picker opened before a Session: the media context's audio inputs (null where they cannot be listed). */
+  listMicDevices(): ToolbarMicDevice[] | null;
   setDrawMode(on: boolean): ActiveSession | null;
   /** Object Select or Select Text on (null: off); turns Draw off (E7). */
   setSelectMode(mode: SelectMode | null): ActiveSession | null;
@@ -298,6 +313,8 @@ export interface ProtocolMap {
   speechStart(input: { t: number }): void;
   voiceCommand(hit: VoiceCommandInput): void;
   voiceCommandsStatus(status: VoiceCommandsStatus): void;
+  /** The audio inputs and the one recording: at the microphone's start, on devicechange, after a switch. */
+  micDevices(input: MicDevicesInput): void;
   /** An interim caption while a comment box dictates (E11); finals come as transcriptSegment with their target. */
   boxInterim(input: { target: DictationTarget; text: string }): void;
 
@@ -315,7 +332,12 @@ export interface ProtocolMap {
   /** "Turn on voice" (E11): open the microphone for a Session started without one. */
   offscreenVoiceOn(input: {
     transcription: AdapterConfig;
+    mic_device_id?: string | null;
   }): { ok: true; transcription: TranscriptionInfo } | { ok: false; error: string };
+  /** The microphone picker mid-Session: feed the Session's mic stream from this input (null: the default). */
+  offscreenMicDevice(deviceId: string | null): MicSwitchResult;
+  /** This context's audio inputs, with or without a Session. */
+  offscreenListMics(): ToolbarMicDevice[];
   /** Build-integrity check of the bundled ORT/VAD assets (tests only; see tests/e2e/ort-assets.spec.ts). */
   ortSelfTest(check: 'vad' | 'transformers'): unknown;
 

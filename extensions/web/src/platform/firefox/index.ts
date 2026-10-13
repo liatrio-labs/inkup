@@ -23,6 +23,9 @@ export const firefoxPlatform: Platform = {
     toolbarVideo: 'frame_picker',
     viewport: true,
     qrScan: canScanQr(),
+    // The media frame in the background page lists and opens inputs like the offscreen document does. With no sound
+    // server the audio graph never runs: the picker then hides mid-Session (mic-source.ts) but still sets the next Start.
+    micPicker: true,
   }),
 
   mediaContext: { ensure: ensureMediaFrame, close: closeMediaFrame },

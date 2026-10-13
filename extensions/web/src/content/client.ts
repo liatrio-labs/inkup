@@ -95,6 +95,14 @@ const actions: ToolbarActions = {
     set: (size) => sendMessage('viewportSet', size),
     reset: () => sendMessage('viewportReset'),
   },
+  ...(platform.capabilities().micPicker
+    ? {
+        mic: {
+          set: (deviceId: string | null) => sendMessage('setMicDevice', deviceId),
+          list: () => sendMessage('listMicDevices'),
+        },
+      }
+    : {}),
   cycleTheme: async () => toolbarTheme.setValue(nextSetting(await toolbarTheme.getValue())),
   moved: () => themer?.moved(),
 };

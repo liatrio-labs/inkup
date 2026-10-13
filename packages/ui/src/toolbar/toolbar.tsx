@@ -49,6 +49,7 @@ import {
   type ToolbarThemeSetting,
   type ToolbarThemeSource,
 } from '../toolbar-state';
+import { MicPicker } from './mic-picker';
 import { nextPaint } from './paint';
 import { clampPosition, defaultPosition, type Pos } from './position';
 import { ViewportControl } from './viewport-control';
@@ -459,6 +460,23 @@ export function Toolbar({ state, actions, ref }: ToolbarProps) {
     </span>
   );
 
+  /** The microphone picker (split from Mute, or beside Start): hidden where nothing is pushed or it cannot ask. */
+  const micPicker = (disabled: boolean) => (
+    <span key="mic-picker" className="contents" data-slot="mic" hidden={!state.mic || !actions.mic}>
+      {actions.mic ? (
+        <MicPicker
+          mic={state.mic ?? null}
+          actions={actions.mic}
+          onError={fail}
+          onSetup={() => run(actions.open('setup'))}
+          theme={theme.theme}
+          buttonClassName={BUTTON}
+          disabled={disabled}
+        />
+      ) : null}
+    </span>
+  );
+
   const main: ReactNode[] = [];
   if (!session) {
     if (!state.start.ok)
@@ -470,6 +488,8 @@ export function Toolbar({ state, actions, ref }: ToolbarProps) {
       );
     else if (!frameStart)
       main.push(b('start', busy ? 'Starting…' : 'Start', start, { className: PRIMARY, disabled: busy }));
+    // Before Start: the choice is remembered for the Session it starts.
+    if (state.start.ok) main.push(micPicker(busy));
   } else if (!here) {
     main.push(
       <span key="elsewhere-dot" className={cn(DOT, 'bg-pen motion-safe:animate-pulse')} aria-hidden="true" />,
@@ -548,6 +568,7 @@ export function Toolbar({ state, actions, ref }: ToolbarProps) {
                 ? 'Microphone off: nothing you say is recorded (Alt+Shift+M to turn it on)'
                 : 'Mute the microphone (Alt+Shift+M)',
             }),
+            micPicker(busySession),
           ]
         : [
             <span

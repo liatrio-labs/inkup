@@ -51,6 +51,39 @@ export interface ToolbarState {
   notice: string | null;
   /** The viewport control (plan E6), or null where this page cannot be resized (the control is hidden). */
   viewport: ToolbarViewport | null;
+  /**
+   * The microphone picker, beside Start before a Session and beside Mute during one; null or absent hides it (a
+   * browser that cannot choose the input, or a Session whose microphone cannot switch live).
+   */
+  mic?: ToolbarMic | null;
+}
+
+/** An audio input, as the context that opens the microphone sees it (its deviceId is that origin's). */
+export interface ToolbarMicDevice {
+  id: string;
+  label: string;
+}
+
+export interface ToolbarMic {
+  /** False: the microphone was never allowed (setup not done); the picker says so instead of listing inputs. */
+  granted: boolean;
+  /** The inputs; null: not listed yet (before a Session they are listed when the menu opens, by MicActions.list). */
+  devices: ToolbarMicDevice[] | null;
+  /** The input chosen (during a Session: the one recording); null: the system default. */
+  selected: string | null;
+}
+
+export type MicSwitchResult = { ok: true; selected: string | null } | { ok: false; error: string };
+
+/** The microphone picker's requests. */
+export interface MicActions {
+  /**
+   * Choose the input: during a Session it records from now on (no restart, one audio file); always remembered for the
+   * next Start. `null`: the system default.
+   */
+  set(deviceId: string | null): Promise<MicSwitchResult>;
+  /** The inputs now, from the context that opens the microphone; null where they cannot be listed. */
+  list(): Promise<ToolbarMicDevice[] | null>;
 }
 
 export interface ToolbarViewport {
@@ -106,6 +139,8 @@ export interface ToolbarActions {
   frameUrl: string | null;
   /** The viewport control's requests (plan E6). */
   viewport?: ViewportActions;
+  /** The microphone picker's requests; absent hides the picker. */
+  mic?: MicActions;
   /** Clear all (E9): empties this page's overlay at once. */
   clearAll(): void;
   /** The theme button: Auto → Light → Dark → Auto (plan E8). */

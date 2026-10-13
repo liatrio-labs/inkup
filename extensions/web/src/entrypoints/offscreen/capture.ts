@@ -3,6 +3,11 @@
 // voice activity detector that gates Voice Commands and segments local Whisper (./voice.ts), and the shared
 // 16 kHz PCM16 graph (./pcm.ts) that feeds the detector and the streaming tiers.
 //
+// The stream is a MicSource's (./mic-source.ts): the chosen input device feeds it through a Web Audio graph, so the
+// toolbar's microphone picker switches devices mid-Session without restarting anything (micDevice). The device list
+// is this context's own (enumerateDevices here, not in the page: the page has other permissions and other deviceIds),
+// sent to the service worker at start and on every devicechange.
+//
 // E11: the microphone is optional. A Session without one records only the tab video here, until "Turn on voice"
 // (voiceOn) opens it. While a comment box dictates (boxDictation), finals go to that box, tagged with its target.
 
@@ -17,9 +22,9 @@ import {
   type TranscriptionInfo,
 } from '@/adapters/transcription';
 import { type AudioMedia, db } from '@/db';
-import { getUserMediaWithRetry } from '@/lib/get-user-media';
 import { joinChunks } from '@/media/join-chunks';
-import { type OffscreenStartConfig, type OffscreenStartResult, sendMessage } from '@/messaging';
+import { type MicSwitchResult, type OffscreenStartConfig, type OffscreenStartResult, sendMessage } from '@/messaging';
+import { listMics, type MicSource, openMicSource } from './mic-source';
 import { type PcmGraph, startPcmGraph } from './pcm';
 import { pauseTabVideo, startTabVideo, stopTabVideo } from './video';
 import { startVoiceCommands, type VoiceCommands } from './voice';
@@ -28,6 +33,8 @@ const MIME = 'audio/webm;codecs=opus';
 
 /** The microphone's part of a Session: absent while it has no voice (E11). */
 interface Mic {
+  /** The chosen input device, behind the one stable stream everything below reads. */
+  source: MicSource;
   stream: MediaStream;
   recorder: MediaRecorder;
   adapter: TranscriptionAdapter;
@@ -62,10 +69,6 @@ let running: Running | null = null;
 
 const errMsg = (e: unknown) => (e instanceof Error ? `${e.name}: ${e.message}` : String(e));
 
-const MIC_CONSTRAINTS: MediaStreamConstraints = {
-  audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
-};
-
 export async function startCapture(config: OffscreenStartConfig): Promise<OffscreenStartResult> {
   if (running) await stopCapture();
   const r: Running = { config, mic: null, paused: false, mutedAt: null, mutes: [], box: null, boxSince: 0 };
@@ -73,7 +76,7 @@ export async function startCapture(config: OffscreenStartConfig): Promise<Offscr
   let mic_error: string | undefined;
   if (config.voice) {
     try {
-      transcription = await startMic(r, config.transcription);
+      transcription = await startMic(r, config.transcription, config.mic_device_id ?? null);
     } catch (e) {
       // The Session goes on without voice (E11): "Turn on voice" can try again.
       mic_error = errMsg(e);
@@ -89,22 +92,31 @@ export async function startCapture(config: OffscreenStartConfig): Promise<Offscr
 /** "Turn on voice" (E11): the microphone from now on, for a Session that started without it. */
 export async function voiceOn({
   transcription,
+  mic_device_id,
 }: {
   transcription: AdapterConfig;
+  mic_device_id?: string | null;
 }): Promise<{ ok: true; transcription: TranscriptionInfo } | { ok: false; error: string }> {
   const r = running;
   if (!r) return { ok: false, error: 'No Session is recording.' };
   try {
-    return { ok: true, transcription: r.mic ? await r.mic.adapter.describe() : await startMic(r, transcription) };
+    return {
+      ok: true,
+      transcription: r.mic ? await r.mic.adapter.describe() : await startMic(r, transcription, mic_device_id ?? null),
+    };
   } catch (e) {
     return { ok: false, error: errMsg(e) };
   }
 }
 
 /** Opens the microphone and starts its recorder, transcription and Voice Commands. Throws when it will not open. */
-async function startMic(r: Running, transcription: AdapterConfig): Promise<TranscriptionInfo> {
+async function startMic(r: Running, transcription: AdapterConfig, deviceId: string | null): Promise<TranscriptionInfo> {
   const { config } = r;
-  const stream = await getUserMediaWithRetry(MIC_CONSTRAINTS);
+  const source = await openMicSource(deviceId, {
+    // Unplugged mid-Session: the default took over, and the toolbar shows it checked.
+    onDeviceLost: () => void reportMics(),
+  });
+  const stream = source.stream;
   const now = () => toOffset(config.t0, Date.now());
   const recorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(MIME) ? { mimeType: MIME } : undefined);
   // The PCM graph starts now, not on first use: the VAD buffers it from Start (./voice.ts).
@@ -129,6 +141,7 @@ async function startMic(r: Running, transcription: AdapterConfig): Promise<Trans
     speech: voice.speech,
   });
   m = {
+    source,
     stream,
     recorder,
     adapter,
@@ -198,7 +211,44 @@ async function startMic(r: Running, transcription: AdapterConfig): Promise<Trans
   m.remote = !info.local;
   voice.setCaptions(info.captions === 'live');
   applyMic(r);
+  watchDevices(true);
+  void reportMics();
   return info;
+}
+
+/** The device list and the device in use, to the service worker (it pushes them to the toolbar's picker). */
+async function reportMics(): Promise<void> {
+  const m = running?.mic;
+  if (!m) return;
+  const devices = await listMics().catch(() => []);
+  if (running?.mic !== m) return;
+  // Not live (no running audio graph): the toolbar hides the picker mid-Session, since a switch would do nothing.
+  await sendMessage('micDevices', { devices, selected: m.source.device(), live: m.source.live }).catch(() => {});
+}
+
+const onDeviceChange = () => void reportMics();
+function watchDevices(on: boolean): void {
+  const md = navigator.mediaDevices;
+  if (!md?.addEventListener) return;
+  if (on) md.addEventListener('devicechange', onDeviceChange);
+  else md.removeEventListener('devicechange', onDeviceChange);
+}
+
+/**
+ * The toolbar's microphone picker: `deviceId` (null: the system default) feeds the Session's stream from now on. The
+ * recorder, PCM graph, VAD and engine keep the stream they have; Mute, Pause and dictation are unchanged. A device that
+ * is gone gives the default (`selected` says which one is in use).
+ */
+export async function switchMic(deviceId: string | null): Promise<MicSwitchResult> {
+  const m = running?.mic;
+  if (!m) return { ok: false, error: 'The microphone is not on.' };
+  try {
+    const selected = await m.source.use(deviceId);
+    void reportMics();
+    return { ok: true, selected };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
 }
 
 /** Pause (PRD P0-1): the recorder pauses; segments are no longer logged; server recognition stops. */
@@ -296,11 +346,10 @@ export async function stopCapture(): Promise<AudioMedia | null> {
   if (m.recorder.state !== 'inactive') m.recorder.stop();
   await stopped; // the final dataavailable fires before stop
   const stoppedAt = Date.now();
+  watchDevices(false);
   await m.voice.stop();
   m.adapter.stop();
-  m.stream.getTracks().forEach((t) => {
-    t.stop();
-  });
+  await m.source.close();
   await m.transcribing;
   await m.pcm.then((g) => g.close()).catch(() => {});
   await Promise.all(m.pendingWrites);
