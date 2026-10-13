@@ -106,7 +106,9 @@ export function MicPicker({ mic, actions, onError, onSetup, theme, buttonClassNa
   const choose = (id: string | null) => {
     close();
     button.current?.focus();
-    if (id === selected) return;
+    // Compared with what is remembered, not what is checked: picking "System default" over a remembered input that is
+    // not connected clears it.
+    if (id === (mic?.selected ?? null)) return;
     void actions
       .set(id)
       .then((r) => {
@@ -222,7 +224,7 @@ export function MicPicker({ mic, actions, onError, onSetup, theme, buttonClassNa
         title={current ? `Microphone: ${current}` : mic?.granted === false ? label : 'Microphone: System default'}
         hidden={!mic}
         disabled={disabled}
-        className={cn('w-4 justify-center px-0 [&_svg]:block [&_svg]:size-3', buttonClassName)}
+        className={cn(buttonClassName, 'w-5 justify-center px-0 [&_svg]:block [&_svg]:size-3')}
         onClick={() => setOpen((o) => !o)}
       >
         <svg

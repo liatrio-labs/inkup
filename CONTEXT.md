@@ -13,9 +13,9 @@ _Avoid_: Recording, review cycle, run
 
 **Toolbar**:
 The floating control bar the extension adds to the page under review (the timer; Draw, Object Select, Select Text, Snap
-and the viewport sizes; then Mute, Pause, Stop and Cancel), the main way to run a Session in every browser. It is never
-in a screenshot. The panel is optional. From Start until the page has the Session it says "Starting…", so it never says
-Recording while the page's modes would not answer.
+and the viewport sizes; then Mute with its microphone picker, Pause, Stop and Cancel), the main way to run a Session in
+every browser. It is never in a screenshot. The panel is optional. From Start until the page has the Session it says
+"Starting…", so it never says Recording while the page's modes would not answer.
 _Avoid_: Widget, HUD, controls, floating panel
 
 **Cancel**:
@@ -28,6 +28,12 @@ Turning the microphone off during a Session without pausing it: the audio record
 transcribed or heard as a Voice Command, while drawing, picks, screenshots and video go on. The timeline logs
 `mic_muted` and `mic_unmuted`.
 _Avoid_: Pause (which stops everything), silence
+
+**Microphone picker**:
+The chevron beside Mute (beside Start before a Session) that chooses which audio input the Session records and
+transcribes from: "System default" or one input by name. Before a Session it sets the input the next Start uses; during
+one it switches the input at once, in the same Session and the same audio file.
+_Avoid_: Input selector, device menu
 
 **Voice-less Session**:
 A Session recorded without a microphone, because setup never granted one or the reviewer skipped it: ink, picks, Text

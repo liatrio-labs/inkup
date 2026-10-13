@@ -157,8 +157,10 @@ export function createWebSpeechAdapter(
     try {
       if (track) r.start(track);
       else r.start();
-    } catch {
-      r.start(); // engines without MediaStreamTrack input (pre-Chrome 139) use the default mic
+    } catch (e) {
+      // Engines without MediaStreamTrack input (pre-Chrome 139) use the default mic, whichever input was picked.
+      if (track) console.warn('[var] speech recognition took no track; it hears the system default microphone', e);
+      r.start();
     }
   }
 

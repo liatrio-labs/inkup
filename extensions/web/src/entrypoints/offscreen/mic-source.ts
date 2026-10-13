@@ -174,14 +174,35 @@ export async function openMicSource(deviceId: string | null, deps: MicSourceDeps
   return self;
 }
 
+const toMics = (all: MediaDeviceInfo[]): MicDevice[] =>
+  all
+    // Chrome's "default" and "communications" entries alias a real device; "System default" stands for them.
+    .filter((d) => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications')
+    .map((d, i) => ({ id: d.deviceId, label: d.label || `Microphone ${i + 1}` }));
+
 /** The audio inputs this context can open, by label (a placeholder where the label is hidden without the grant). */
 export async function listMics(
   md: Pick<MediaDevices, 'enumerateDevices'> = navigator.mediaDevices,
 ): Promise<MicDevice[]> {
+  return toMics(await md.enumerateDevices());
+}
+
+/**
+ * The inputs before a Session, when nothing holds the microphone. A document that has not used the microphone gets the
+ * inputs without their deviceIds and labels where the grant was not kept for the extension (Chromium with fake
+ * devices, a grant for this session only): the default then opens for as long as the list takes, and closes again.
+ */
+export async function listMicsIdle(
+  md: Pick<MediaDevices, 'enumerateDevices'> = navigator.mediaDevices,
+  gum?: (c: MediaStreamConstraints) => Promise<MediaStream>,
+): Promise<MicDevice[]> {
   const all = await md.enumerateDevices();
-  const inputs = all.filter(
-    // Chrome's "default" and "communications" entries alias a real device; "System default" stands for them.
-    (d) => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications',
-  );
-  return inputs.map((d, i) => ({ id: d.deviceId, label: d.label || `Microphone ${i + 1}` }));
+  if (!all.some((d) => d.kind === 'audioinput' && (!d.deviceId || !d.label))) return toMics(all);
+  const open = await getUserMediaWithRetry(micConstraints(null), gum ? { gum } : {}).catch(() => null);
+  if (!open) return toMics(all);
+  try {
+    return toMics(await md.enumerateDevices());
+  } finally {
+    stopAll(open);
+  }
 }

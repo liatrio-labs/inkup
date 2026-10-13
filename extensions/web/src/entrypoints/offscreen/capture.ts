@@ -114,7 +114,7 @@ async function startMic(r: Running, transcription: AdapterConfig, deviceId: stri
   const { config } = r;
   const source = await openMicSource(deviceId, {
     // Unplugged mid-Session: the default took over, and the toolbar shows it checked.
-    onDeviceLost: () => void reportMics(),
+    onDeviceLost: () => void reportMics(r.mic),
   });
   const stream = source.stream;
   const now = () => toOffset(config.t0, Date.now());
@@ -212,16 +212,15 @@ async function startMic(r: Running, transcription: AdapterConfig, deviceId: stri
   voice.setCaptions(info.captions === 'live');
   applyMic(r);
   watchDevices(true);
-  void reportMics();
+  void reportMics(m);
   return info;
 }
 
 /** The device list and the device in use, to the service worker (it pushes them to the toolbar's picker). */
-async function reportMics(): Promise<void> {
-  const m = running?.mic;
+async function reportMics(m: Mic | null | undefined = running?.mic): Promise<void> {
+  // `m`: at the microphone's start `running` is not set yet (startCapture sets it once startMic returns).
   if (!m) return;
   const devices = await listMics().catch(() => []);
-  if (running?.mic !== m) return;
   // Not live (no running audio graph): the toolbar hides the picker mid-Session, since a switch would do nothing.
   await sendMessage('micDevices', { devices, selected: m.source.device(), live: m.source.live }).catch(() => {});
 }
@@ -244,7 +243,7 @@ export async function switchMic(deviceId: string | null): Promise<MicSwitchResul
   if (!m) return { ok: false, error: 'The microphone is not on.' };
   try {
     const selected = await m.source.use(deviceId);
-    void reportMics();
+    void reportMics(m);
     return { ok: true, selected };
   } catch (e) {
     return { ok: false, error: errMsg(e) };

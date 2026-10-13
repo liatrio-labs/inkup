@@ -11,7 +11,7 @@ import {
   switchMic,
   voiceOn,
 } from './capture';
-import { listMics } from './mic-source';
+import { listMicsIdle } from './mic-source';
 import { stopTabVideo } from './video';
 
 onMessage('offscreenStart', ({ data }) => startCapture(data));
@@ -24,5 +24,5 @@ onMessage('offscreenBoxDictation', ({ data }) => boxDictation(data));
 onMessage('offscreenVoiceOn', ({ data }) => voiceOn(data));
 onMessage('offscreenMicDevice', ({ data }) => switchMic(data));
 // This context's own inputs (its origin's deviceIds and labels), also with no Session: the idle toolbar's picker.
-onMessage('offscreenListMics', () => listMics());
+onMessage('offscreenListMics', () => listMicsIdle());
 onMessage('ortSelfTest', async ({ data }) => (await import('./ort-self-test')).runOrtSelfTest(data));
