@@ -28,7 +28,7 @@ Speech through `start(track)`) hold that track, so a pick mid-Session swaps only
 the old device; nothing restarts and the audio file is not split. The 16 kHz PCM graph (VAD, streaming tiers) is
 another AudioContext, and a track carried between contexts arrives in gaps, so it reads the raw device stream and
 swaps its own source node on a switch. Mute disables the stable track and the raw one. Where the graph's context does
-not run within the 2 s audio-device bound (Firefox with no sound server), the raw device stream is used as before and
+not run by 250 ms after the device opened (Firefox with no sound server), the raw device stream is used as before and
 the picker hides mid-Session. The picker is offered where `PlatformCapabilities.micPicker` says so: Chrome and
 Firefox, not Safari, whose media context is a visible window.
 

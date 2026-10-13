@@ -13,8 +13,10 @@
 // then goes back to the default the same way.
 //
 // With no working audio output (Firefox on a Linux box with no sound server, ./pcm.ts) the graph's context never
-// runs, and a stream it made would be silent. The source then hands out the raw device stream, as before this existed,
-// and cannot switch (`live` false): the toolbar hides the picker rather than offer a switch that would do nothing.
+// runs, and a stream it made would be silent. A context still not running GRAPH_GRACE_MS after the device opened is
+// given up on, so Start is never held for the 2 s audio-device bound. The source then hands out the raw device stream,
+// as before this existed, and cannot switch (`live` false): the toolbar hides the picker rather than offer a switch
+// that would do nothing.
 import { withTimeout } from '@inkup/core/overlay-lifetime';
 import { getUserMediaWithRetry } from '@/lib/get-user-media';
 import { AUDIO_DEVICE_TIMEOUT_MS } from './pcm';
@@ -56,6 +58,9 @@ export interface MicSourceDeps {
   /** The device the source fed went away by itself (unplugged) and the default took over. */
   onDeviceLost?: (lost: string) => void;
 }
+
+/** How long after the device opens a graph context that is not running yet is waited for. */
+export const GRAPH_GRACE_MS = 250;
 
 const BASE_AUDIO: MediaTrackConstraints = { channelCount: 1, echoCancellation: true, noiseSuppression: true };
 
@@ -101,12 +106,14 @@ const stopAll = (s: MediaStream) => {
 /** Opens the microphone (`deviceId`, or the default) as a MicSource. Rejects when no microphone opens. */
 export async function openMicSource(deviceId: string | null, deps: MicSourceDeps = {}): Promise<MicSource> {
   const warn = deps.warn ?? defaultWarn;
-  // The graph's context first, the device after: once the device opens, the caller starts the recorder and the engine
-  // at once, as it did before this graph existed (a slow resume() must not stand between the two).
+  // The graph's context resumes while the device opens. Once the device is open the caller starts the recorder and the
+  // engine at once, as it did before this graph existed, so a context still not running GRAPH_GRACE_MS later is given
+  // up on (the raw stream, below) instead of holding up Start for the full audio-device bound.
   let ctx: AudioContext | null = null;
+  let resumed: Promise<unknown> = Promise.resolve();
   try {
     ctx = deps.context ? deps.context() : new AudioContext();
-    if (ctx.state !== 'running') await withTimeout(ctx.resume(), AUDIO_DEVICE_TIMEOUT_MS, undefined);
+    if (ctx.state !== 'running') resumed = ctx.resume().catch(() => {});
   } catch (e) {
     warn(`no audio graph for the microphone (${e instanceof Error ? e.message : String(e)})`);
   }
@@ -117,6 +124,7 @@ export async function openMicSource(deviceId: string | null, deps: MicSourceDeps
     if (ctx) void withTimeout(ctx.close(), AUDIO_DEVICE_TIMEOUT_MS, undefined).catch(() => {});
     throw e;
   }
+  if (ctx && ctx.state !== 'running') await withTimeout(resumed, GRAPH_GRACE_MS, undefined);
   let raw = first.stream;
   let current = first.deviceId;
 

@@ -4,6 +4,7 @@
 // the raw stream with no switching where the audio graph never runs.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  GRAPH_GRACE_MS,
   isDeviceGone,
   listMics,
   listMicsIdle,
@@ -326,8 +327,16 @@ describe('openMicSource', () => {
     const ctx = new FakeContext();
     ctx.state = 'suspended';
     ctx.resume = vi.fn(() => new Promise<void>(() => {}));
-    const opening = openMicSource('usb-1', { gum, context: ctxOf(ctx), warn: vi.fn() });
-    await vi.advanceTimersByTimeAsync(AUDIO_DEVICE_TIMEOUT_MS);
+    let opened = false;
+    const opening = openMicSource('usb-1', { gum, context: ctxOf(ctx), warn: vi.fn() }).then((s) => {
+      opened = true;
+      return s;
+    });
+    // Start is held up GRAPH_GRACE_MS at most, not the whole audio-device bound.
+    await vi.advanceTimersByTimeAsync(GRAPH_GRACE_MS - 1);
+    expect(opened).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(opened).toBe(true);
     const src = await opening;
     expect(src.live).toBe(false);
     expect(trackOf(src.stream).device).toBe('usb-1');
