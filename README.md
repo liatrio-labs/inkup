@@ -48,7 +48,7 @@ Load Temporary Add-on and pick the zip. Firefox removes temporary add-ons when i
 You need Node 22.18 or later (the scripts run TypeScript directly), pnpm 10 or later and Chrome 153 or later.
 
 ```sh
-pnpm install     # also copies the ONNX Runtime and VAD wasm files into extensions/web/public/
+pnpm install     # also installs available pre-commit hooks and copies the ONNX Runtime and VAD wasm files into extensions/web/public/
 pnpm zip         # builds and writes extensions/web/.output/inkup-<version>-chrome.zip
 ```
 
@@ -96,7 +96,9 @@ install the CLI again. There is no Windows or Linux build yet, and the app does 
 so. `brew uninstall --zap --cask inkup` also removes the app's caches and preferences, but not the data dir it shares
 with the CLI.
 
-To run it from a checkout:
+To run it from a checkout, install the prerequisites above and Rust 1.98 or later (both Rust manifests declare
+`rust-version = "1.98"`). See [CONTRIBUTING.md](CONTRIBUTING.md#set-up) for desktop platform dependencies.
+Before your first commit in each worktree, run `pre-commit install-hooks` after installing pre-commit.
 
 ```sh
 pnpm desktop:dev                                   # the app with hot reload for its UI, on your data dir
@@ -156,7 +158,7 @@ its own, use `pnpm -C packages/core test` or `pnpm -C extensions/web test`.
 | `pnpm test` | Vitest unit and adapter tests across `packages/core`, `extensions/web`, the desktop app's UI and the repo, with stand-in models and stub servers |
 | `pnpm test:e2e` | Builds, then Playwright in headless Chromium with the extension loaded, fake media and local stubs for every vendor |
 | `pnpm test:e2e:firefox` | Builds the Firefox add-on and runs `tests/e2e-firefox` in Playwright's Firefox (the add-on is installed over Firefox's remote debugging protocol) |
-| `pnpm test:e2e:docker`, `pnpm test:e2e:firefox:docker` | The same two suites in Linux Docker, as CI runs them; recommended on macOS ([tests/e2e/README.md](tests/e2e/README.md#running-in-docker)) |
+| `pnpm test:e2e:docker`, `pnpm test:e2e:firefox:docker` | The same two suites in Linux Docker, as CI runs them; required for local e2e on macOS ([tests/e2e/README.md](tests/e2e/README.md#running-in-docker)) |
 | `pnpm test:e2e:whisper` | The local Whisper e2e, which downloads a real model from Hugging Face |
 | `pnpm eval` | The live Process eval against the Anthropic API |
 | `pnpm eval:stt` | The live transcription eval against Deepgram and ElevenLabs |
