@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/liatrio-labs/inkup/compare/inkup-v0.14.0...inkup-v0.14.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **trackers:** never send an item twice, and honour Jira's retry-after ([#93](https://github.com/liatrio-labs/inkup/issues/93)) ([9164d34](https://github.com/liatrio-labs/inkup/commit/9164d340f3037e598a64d4350255b8c83ed2fb4f))
+
 ## [0.14.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.13.1...inkup-v0.14.0) (2026-10-13)
 
 
