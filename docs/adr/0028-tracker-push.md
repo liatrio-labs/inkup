@@ -51,6 +51,13 @@ a badge: open, closed (completed), closed (not planned), or "status unavailable"
 nothing. A status is never stored, logged or exported, and InkUp never updates or closes an issue; tracker state is not
 a Resolution (ADR 0021).
 
+**Nothing makes a second issue by accident.** A Client sends one item to one tracker at most once at a time: its
+send controls and its bulk send share one in-flight set, and a row shows a send the bulk send has in flight. A bulk
+send reads the item's links again just before each item and skips one sent meanwhile. A send that fails after its issue
+exists (Jira: created, then a screenshot didn't go on) carries the issue on `TrackerError.created`; the Client records
+that link and offers Open issue instead of Retry, and passes no `retry-after`, since waiting and sending again would
+duplicate it. Only "Send again", behind its confirm, makes another issue on purpose.
+
 **A registry lists the trackers.** `TRACKERS` (`trackers/registry.ts`) describes each tracker as data: its label,
 its fields (a secret field is a token), its destination's label, its help and one-time notice, and how to build its
 adapter and credentials from the saved values, and an optional `prepare` that checks a field before it is saved
@@ -115,6 +122,10 @@ so nothing stored can send a token anywhere but `https://api.github.com`.
   don't reach the extension's review page, which doesn't read items back from the host. We thought only the
   extension's settings would check a field before saving it; now the registry has an optional `prepare`, so the
   desktop's Trackers view refuses a Jira site that isn't Atlassian Cloud too.
+- 2026-10-07: we thought a bulk send could trust the list of unsent items it started with, and that Retry was always
+  safe; now bulk send re-checks links before each item and shares an in-flight set with the cards; a partial Jira send
+  is recorded and offers Open issue instead of Retry. Jira's 429 passes its `retry-after` too. A hand send during a
+  bulk send, or a Retry after a partial Jira send, had made a second issue.
 
 ## Sources
 

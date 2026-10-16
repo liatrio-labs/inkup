@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type JiraStub, startJiraStub } from '../../../../tests/support/jira-stub';
 import {
   chooseIssueType,
+  createdIssue,
   type IssueItem,
   type JiraAdapter,
   jiraAdapter,
@@ -150,6 +151,48 @@ describe('jiraAdapter send', () => {
     expect((err as TrackerError).message).toContain('NOATT-1 was created in Jira');
     expect((err as TrackerError).message).toContain("can't add attachments");
     expect((err as TrackerError).message).toContain('https://acme.atlassian.net/browse/NOATT-1');
+    // The issue it made anyway, for the caller to record, so Retry can't make a second one.
+    expect(createdIssue(err)).toEqual({
+      tracker: 'jira',
+      destination: 'NOATT',
+      key: 'NOATT-1',
+      url: 'https://acme.atlassian.net/browse/NOATT-1',
+    });
+    expect(createdIssue(new Error('x'))).toBeNull();
+  });
+
+  it("passes Jira's retry-after on a 429, and none once the issue exists", async () => {
+    const send = async (images: string[]) =>
+      (await pushItem({
+        adapter: jira,
+        credentials: creds,
+        destination: 'ABC',
+        item: item(images),
+        session: SESSION,
+        images: images.map((id, i) => ({ id, bytes: png(i) })),
+      }).catch((e: unknown) => e)) as TrackerError;
+
+    stub.fail((r) =>
+      r.method === 'POST' && /\/issue$/.test(r.path) ? { status: 429, headers: { 'retry-after': '7' } } : undefined,
+    );
+    const limited = await send([]);
+    expect(limited).toMatchObject({ kind: 'rate_limit', status: 429, retryAfterMs: 7000 });
+    expect(createdIssue(limited)).toBeNull();
+
+    stub.fail((r) => (r.method === 'POST' && /\/issue$/.test(r.path) ? { status: 429 } : undefined));
+    expect(await send([])).toMatchObject({ kind: 'rate_limit', retryAfterMs: null });
+
+    // Limited on the screenshot: the issue exists, so waiting and sending again would duplicate it.
+    stub.fail((r) =>
+      r.method === 'POST' && /\/attachments$/.test(r.path)
+        ? { status: 429, headers: { 'retry-after': '7' } }
+        : undefined,
+    );
+    const partial = await send(['s1']);
+    expect(partial).toMatchObject({ kind: 'rate_limit', retryAfterMs: null });
+    expect(partial.message).toContain('ABC-1 was created in Jira');
+    expect(createdIssue(partial)?.key).toBe('ABC-1');
+    expect(stub.issues).toHaveLength(1);
   });
 
   it('turns a rejected token and an unreachable site into messages that say what to do', async () => {

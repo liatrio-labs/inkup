@@ -7,8 +7,15 @@
 //
 // Nothing here or in the UI that reads it names a tracker: a new tracker is an entry in core's TRACKERS and one in
 // STORES.
+//
+// Never a duplicate by accident: one item's send to one tracker is in flight at most once on this page (the cards and
+// the bulk send share the set, and the cards show it), a bulk send re-reads the links before each item and skips one
+// that is already linked, a link that couldn't be saved is kept so Retry saves it without sending again, and an issue
+// a failed send made anyway (Jira, when a screenshot didn't go on) is recorded rather than offered for Retry.
 import type { ChangeItem } from '@inkup/core/process/change-item';
+import { latestLinks, trackerLinksFor } from '@inkup/core/review-edits';
 import {
+  createdIssue,
   type Destination,
   itemImageIds,
   parseJiraSite,
@@ -23,7 +30,7 @@ import {
   trackerDefinition,
 } from '@inkup/core/trackers';
 import type { WxtStorageItem } from '@wxt-dev/storage';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { db } from '@/db';
 import { appendTrackerLink } from '@/db/review';
 import {
@@ -222,34 +229,126 @@ export interface SendInput {
   item: ChangeItem;
 }
 
+export interface SendOptions {
+  /** Where to send, for this send only; unset sends to the saved default. */
+  destination?: string;
+  /**
+   * For a bulk send: answer null, sending nothing, when the item is already linked to this tracker or is being sent
+   * to it now. Without it, a send already in flight is refused, and a linked item can be sent again (the card asks
+   * first).
+   */
+  unlessSent?: boolean;
+}
+
+/** The key of one item's send to one tracker: what the in-flight set and `unrecorded` hold. */
+export const sendKey = (runId: string, itemId: string, tracker: TrackerName): string =>
+  JSON.stringify([runId, itemId, tracker]);
+
+/** The sends running on this page now, by sendKey. Module-level, so the cards and the bulk send share it. */
+const inFlight = new Set<string>();
+let inFlightSnapshot: ReadonlySet<string> = new Set();
+const inFlightListeners = new Set<() => void>();
+function setInFlight(key: string, on: boolean) {
+  if (on) inFlight.add(key);
+  else inFlight.delete(key);
+  inFlightSnapshot = new Set(inFlight);
+  for (const listener of inFlightListeners) listener();
+}
+function subscribeInFlight(listener: () => void): () => void {
+  inFlightListeners.add(listener);
+  return () => inFlightListeners.delete(listener);
+}
+
+/** The sends running on this page now, by sendKey; re-renders when one starts or ends. */
+export function useSendsInFlight(): ReadonlySet<string> {
+  return useSyncExternalStore(subscribeInFlight, () => inFlightSnapshot);
+}
+
+/** Issues made whose link couldn't be saved, by sendKey: the next send of that item saves the link and sends nothing. */
+export const unrecorded = new Map<string, TrackerLink>();
+
+/** A send failed after its issue was made. The link is recorded; `url` is the issue, to open and finish by hand. */
+export class IssueMadeError extends Error {
+  override name = 'IssueMadeError';
+  constructor(
+    message: string,
+    readonly url: string,
+  ) {
+    super(message);
+  }
+}
+
 /**
  * Sends one Change Item to a tracker as an issue with its images, and records the link. It goes to `destination`
- * when given (a choice for this send only), else to the saved default.
+ * when given (a choice for this send only), else to the saved default. Answers the link, or null when `unlessSent`
+ * found the item already sent or being sent.
  */
 export async function sendToTracker(
   tracker: TrackerName,
   { sessionId, sessionName, runId, item }: SendInput,
-  destination?: string,
-): Promise<TrackerLink> {
+  { destination, unlessSent = false }: SendOptions = {},
+): Promise<TrackerLink | null> {
   const { def } = known(tracker);
-  const setup = await trackerSetup(tracker);
-  const target = destination?.trim() || setup?.destination;
-  const credentials = setup?.credentials ?? (await trackerCredentials(tracker));
-  if (!credentials || !target)
-    throw new Error(`Save your ${def.label} details and pick where to send in Trackers settings first.`);
-  const images = [];
-  for (const id of itemImageIds(item)) {
-    const row = await db.blobs.get(id);
-    if (row?.blob) images.push({ id, bytes: new Uint8Array(await row.blob.arrayBuffer()) });
+  const key = sendKey(runId, item.id, tracker);
+  // Checked and taken before the first await, so two sends of the same item can't both get past it.
+  if (inFlight.has(key)) {
+    if (unlessSent) return null;
+    throw new Error(`This item is already being sent to ${def.label}. Wait for that send to finish.`);
   }
-  const link = await pushItem({
-    adapter: await trackerAdapter(tracker),
-    credentials,
-    destination: target,
-    item,
-    session: { id: sessionId, name: sessionName },
-    images,
-  });
-  await appendTrackerLink(sessionId, runId, item.id, link);
-  return link;
+  setInFlight(key, true);
+  try {
+    const record = async (link: TrackerLink) => {
+      try {
+        await appendTrackerLink(sessionId, runId, item.id, link);
+      } catch (e) {
+        unrecorded.set(key, link);
+        throw new Error(
+          `The ${def.label} issue was made (${link.url}), but InkUp couldn't save its link here: ${e instanceof Error ? e.message : String(e)} Retry saves the link without making another issue.`,
+        );
+      }
+      unrecorded.delete(key);
+    };
+
+    const kept = unrecorded.get(key);
+    if (kept) {
+      await record(kept);
+      return kept;
+    }
+    if (unlessSent) {
+      const rows = await db.eventsOfType(sessionId, 'tracker_link').toArray();
+      if (latestLinks(trackerLinksFor(rows, runId).get(item.id)).some((l) => l.tracker === tracker)) return null;
+    }
+
+    const setup = await trackerSetup(tracker);
+    const target = destination?.trim() || setup?.destination;
+    const credentials = setup?.credentials ?? (await trackerCredentials(tracker));
+    if (!credentials || !target)
+      throw new Error(`Save your ${def.label} details and pick where to send in Trackers settings first.`);
+    const images = [];
+    for (const id of itemImageIds(item)) {
+      const row = await db.blobs.get(id);
+      if (row?.blob) images.push({ id, bytes: new Uint8Array(await row.blob.arrayBuffer()) });
+    }
+    let link: TrackerLink;
+    try {
+      link = await pushItem({
+        adapter: await trackerAdapter(tracker),
+        credentials,
+        destination: target,
+        item,
+        session: { id: sessionId, name: sessionName },
+        images,
+      });
+    } catch (e) {
+      // The send made its issue before it failed: record it, so neither Retry nor a bulk send makes a second one.
+      const made = createdIssue(e);
+      if (!made) throw e;
+      await record({ ...made, created_at: new Date().toISOString() }).catch(() => {});
+      throw new IssueMadeError((e as Error).message, made.url);
+    }
+    await record(link);
+    return link;
+  } finally {
+    setInFlight(key, false);
+  }
 }

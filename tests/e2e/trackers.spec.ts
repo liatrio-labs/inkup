@@ -787,6 +787,31 @@ test('a rate-limited bulk send waits for retry-after and carries on, with no ite
   }
 });
 
+test('an item sent by hand during a bulk send makes one issue: its card waits for the bulk send, and the bulk send skips it', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(120_000);
+  const stub = await startLinearStub({ key: LINEAR_KEY, teams: TEAMS, issueCreateDelayMs: 1500 });
+  try {
+    await configureTrackers(serviceWorker, { linear: stub });
+    const review = await openReview(openExtensionPage, 3);
+
+    await review.getByTestId('bulk-send-linear').click();
+    // The bulk send has item_0001 in flight, so its card can't send it too.
+    await expect(row(review, 'item_0001', 'linear').getByTestId('send-to-linear')).toBeDisabled();
+    await row(review, 'item_0003', 'linear').getByTestId('send-to-linear').click();
+
+    await expect(review.getByTestId('bulk-progress')).toHaveText('Sent 2 of 2 to Linear', { timeout: 30_000 });
+    await expect(review.getByTestId('bulk-failed')).toHaveCount(0);
+    expect(stub.issues).toHaveLength(3);
+    for (const id of ['item_0001', 'item_0002', 'item_0003'])
+      await expect(card(review, id).getByTestId('tracker-link')).toHaveCount(1);
+  } finally {
+    await stub.close();
+  }
+});
+
 // ---- Jira Cloud (spec 01 Unit 3): the same Trackers section and send control, against tests/support/jira-stub.ts through
 // the dev-only `jiraBaseUrl` override.
 
@@ -951,6 +976,48 @@ test('Send to Jira creates the issue, attaches the screenshots, then links them,
     await review.reload();
     await expect(jiraRow(review, 'item_0001').getByTestId('tracker-status')).toHaveText('Done');
     await expect(jiraRow(review, 'item_0001').getByTestId('tracker-status')).toHaveAttribute('data-category', 'done');
+  } finally {
+    await stub.close();
+  }
+});
+
+test('a Jira send whose screenshots fail after the issue exists is recorded and offers Open issue, not Retry', async ({
+  serviceWorker,
+  openExtensionPage,
+}) => {
+  test.setTimeout(90_000);
+  const stub = await startJiraStub({
+    email: JIRA.email,
+    token: JIRA.token,
+    projects: [{ key: 'ABC', name: 'Alpha', can_attach: false }],
+  });
+  try {
+    await configureJira(serviceWorker, stub);
+    const review = await openReview(openExtensionPage);
+    const first = jiraRow(review, 'item_0001');
+
+    await first.getByTestId('send-to-jira').click();
+    await expect(first.getByTestId('tracker-error')).toContainText('ABC-1 was created in Jira');
+    await expect(first.getByTestId('tracker-open-issue')).toHaveAttribute(
+      'href',
+      'https://acme.atlassian.net/browse/ABC-1',
+    );
+    await expect(first.getByTestId('tracker-retry')).toHaveCount(0);
+    await expect(first.getByTestId('tracker-link')).toHaveText('Jira ABC-1');
+    expect(stub.issues).toHaveLength(1);
+
+    // The bulk send skips the recorded item; item_0002 fails the same way and is listed with Open issue.
+    await review.getByTestId('bulk-send-jira').click();
+    const failed = review.getByTestId('bulk-failed');
+    await expect(failed).toBeVisible({ timeout: 30_000 });
+    await expect(review.getByTestId('bulk-progress')).toHaveText('Sent 0 of 1 to Jira. 1 failed.');
+    await expect(failed.getByTestId('bulk-open-issue')).toHaveAttribute(
+      'href',
+      'https://acme.atlassian.net/browse/ABC-2',
+    );
+    await expect(failed.getByTestId('bulk-retry')).toHaveCount(0);
+    await expect(jiraRow(review, 'item_0002').getByTestId('tracker-link')).toHaveText('Jira ABC-2');
+    expect(stub.issues.map((i) => i.key)).toEqual(['ABC-1', 'ABC-2']);
   } finally {
     await stub.close();
   }
