@@ -8,7 +8,7 @@
 
 pub mod panels;
 
-pub use panels::{Bounds, NativeWindow, OsPanels, PanelInfo, Panels};
+pub use panels::{Bounds, NativeWindow, Observed, OsPanels, PANEL, PanelInfo, PanelSpec, Panels};
 
 /// What a call into the crate can fail with.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -16,4 +16,13 @@ pub enum Error {
     /// The platform has no implementation: anything but macOS.
     #[error("Drawing over other apps works on macOS only.")]
     Unsupported,
+    /// AppKit calls belong on the main thread, and this one came from another.
+    #[error("InkUp tried to change its panels off the main thread.")]
+    NotMainThread,
+    /// The window handed over is not one of the app's open windows.
+    #[error("That window is not open in InkUp any more.")]
+    NoSuchWindow,
+    /// The window could not become a panel in place.
+    #[error("InkUp could not turn its window into a panel: {0}")]
+    Unconvertible(String),
 }

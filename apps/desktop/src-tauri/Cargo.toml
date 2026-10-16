@@ -34,7 +34,9 @@ qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "query"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-tauri = { version = "2", features = ["tray-icon"] }
+# macos-private-api: the overlay panels' webviews are transparent (app.macOSPrivateApi in tauri.conf.json). Developer
+# ID distribution allows it; InkUp does not ship to the Mac App Store.
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 # The webview's fetch for tracker APIs (ADR 0028), scoped to their hosts in capabilities/default.json.
 tauri-plugin-http = "2.8.0"
 # Opens a sent item's issue in the browser; https only (capabilities/default.json).

@@ -12,6 +12,13 @@ publish = false
 [dependencies]
 thiserror = "2.0.20"
 
+# The NSPanel binding: objc2 directly, the versions the app's Dock icon already uses (see the panels.rs module doc
+# for why not tauri-nspanel). Only the AppKit classes the panels touch.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSColor", "NSPanel", "NSResponder", "NSScreen", "NSUserInterfaceItemIdentification", "NSWindow"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSGeometry", "NSString"] }
+
 [lints.rust]
 # Allowed here only: inkup-desktop keeps `unsafe_code = "forbid"` and reaches AppKit through this crate's traits.
 unsafe_code = "allow"
