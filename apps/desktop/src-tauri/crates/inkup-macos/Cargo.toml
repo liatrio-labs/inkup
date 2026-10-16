@@ -1,0 +1,23 @@
+# The one crate in the desktop workspace that may use `unsafe`: every Apple framework call the app makes goes
+# through its traits. On Linux and Windows it compiles to stubs that answer `Error::Unsupported`.
+[package]
+name = "inkup-macos"
+description = "The InkUp desktop app's macOS helper: panels over every display, behind traits with stubs elsewhere"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+publish = false
+
+[dependencies]
+thiserror = "2.0.20"
+
+[lints.rust]
+# Allowed here only: inkup-desktop keeps `unsafe_code = "forbid"` and reaches AppKit through this crate's traits.
+unsafe_code = "allow"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+# Every unsafe block says why it is sound, in a `// SAFETY:` comment.
+undocumented_unsafe_blocks = "deny"

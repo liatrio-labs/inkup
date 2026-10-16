@@ -1,5 +1,7 @@
 # Its own workspace: Tauri, WebKit and GTK stay out of the host's `cargo test` and release builds (host/).
+# inkup-macos holds every Apple framework call and every `unsafe` of the app's, behind traits.
 [workspace]
+members = ["crates/inkup-macos"]
 
 [package]
 name = "inkup-desktop"
@@ -45,6 +47,8 @@ inkup-server = { path = "../../../host/crates/server" }
 inkup-store = { path = "../../../host/crates/store" }
 inkup-protocol = { path = "../../../host/crates/protocol" }
 inkup-update-check = { path = "../../../host/crates/update-check" }
+# Panels over every display: AppKit on macOS, stubs that answer Unsupported elsewhere.
+inkup-macos = { path = "crates/inkup-macos" }
 
 # The Dock icon: Tauri 2 has no API to change it at run time, so the app sets NSDockTile's content view (all safe
 # calls in objc2-app-kit 0.3).
