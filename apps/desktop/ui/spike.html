@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InkUp spike overlay</title>
+    <!-- The panel is transparent: the app underneath shows through everywhere but the ink and the label. Unlayered, so
+         it wins over the theme's body background. -->
+    <style>
+      html,
+      body {
+        background: transparent;
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/spike.tsx"></script>
+  </body>
+</html>
