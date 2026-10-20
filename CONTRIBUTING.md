@@ -112,7 +112,7 @@ connections?" prompt, so set it only when you change network mode and can answer
   through a real MCP client round trip. Record the relevant manual checks and platform limits.
 - Independent code review and QA run in parallel. Neither reviewer authored the change. QA checks out the exact
   head, runs affected checks itself and compares each acceptance criterion with actual results. Product acceptance
-  belongs to the product owner. Security review is required for any boundary trigger in the template; otherwise
+  belongs to a maintainer. Security review is required for any boundary trigger in the template; otherwise
   explain the skip. Code review confirms that decision.
 - Review comments identify the reviewer role, head SHA, verdict, findings and evidence. A new push invalidates
   previous verdicts: obtain current code review and QA approval, and Security approval when triggered.
