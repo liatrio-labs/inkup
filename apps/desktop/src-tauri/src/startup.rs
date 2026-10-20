@@ -87,6 +87,12 @@ impl Hosted {
     }
 }
 
+// `Hosted` owns the running server. A Remote Host adds a second listener, which pushes this variant
+// over clippy's size gap. The other variants stay small; boxing `Hosted` would thread through every caller.
+#[allow(
+    clippy::large_enum_variant,
+    reason = "Hosted owns the running server, including a Remote Host's control listener"
+)]
 pub enum Startup {
     /// This process hosts.
     Host { link: HostLink, hosted: Hosted },
