@@ -56,6 +56,6 @@ to `start_session`, `pause`, `resume`, `stop` or `set_draw_mode` (`command` / `c
 - 2026-09-23 (H3): items, Signals, `read_items`/`watch_items`/`resolve_item` and Resolutions.
 - 2026-09-23 (E13): `start_item` and the `in_progress` status, with the agent's name (store migration 3).
 - 2026-10-20: a Resolution's agent is `clientInfo.name` from MCP `initialize`, which the client reports about
-  itself. ADR 0030 (proposed) would name it from the Agent token on a Remote Host, because the token's name is
+  itself. 0030 (proposed) would name it from the Agent token on a Remote Host, because the token's name is
   authenticated, and would keep `clientInfo.name` beside it. Through a gateway that string is usually the AI
   client's own name (`docs/spikes/mcp-gateway.md`). This ADR's text stays as written while 0030 is proposed.
