@@ -10,8 +10,9 @@ A reviewer can run the Host off their own machine and still hand Change Items to
 (ADR 0005) binds 127.0.0.1 and lets MCP in with no token, so a reverse proxy or a gateway on the same machine is let
 in. Network mode (ADR 0006) is HTTP without TLS on a trusted LAN, found by a `.local` name. A cloud agent reaches
 neither. InkUp's authors run no servers for it (PRODUCT.md): the user runs this Host. A self-hosted MCP gateway such
-as Obot is how that agent reaches the Host's MCP. The rules below follow the public findings in #110. The page that
-records them is `docs/spikes/mcp-gateway.md`, and this ADR merges after it.
+as Obot is how that agent reaches the Host's MCP. The rules below follow the findings of the #110 spike, recorded in
+`docs/spikes/mcp-gateway.md` (#120). This ADR merges after it. Where the spike says a claim is unknown or
+unverified, this ADR does not rely on it.
 
 **The term is Remote Host.** A Remote Host is a Host reached over HTTPS from other networks. It sits beside loopback
 and Network mode, and those two keep the behaviour they have today. CONTEXT.md lists "Remote mode" and "server mode"
@@ -32,18 +33,24 @@ the user provides (#113). Remote mode refuses to start when the public URL is `h
 the address a Client stores all use the https public URL. Network mode stays unencrypted HTTP on a trusted LAN. The
 TLS decided here is the TLS ADR 0006 deferred.
 
-**Every peer is another machine, loopback included.** A proxy or gateway on the same machine connects from 127.0.0.1,
-which ADR 0005 counts as this machine. Remote mode sets `Config::every_peer_is_remote`
-(`host/crates/server/src/guard.rs`, `peer`), the switch that today exists for tests. `/mcp`, `/api/*` and `/blobs/*`
-then need `Authorization: Bearer`, a paired Client's token or an Agent token, from every address. A request with no
-known peer address still fails closed. `/health` stays open and still says only the name, version, protocol version,
+**Every peer is another machine, loopback included.** A reverse proxy, a gateway or a gateway's tunnel process on
+the same machine connects from 127.0.0.1. Today `peer` in `host/crates/server/src/guard.rs` marks a loopback peer
+local, so such a request reaches `/mcp`, `/api/*` and `/blobs/*` with no token check. The control API (`/api/host/*`)
+refuses a local peer only when it sends an Origin header. A proxied request may send none, which leaves the control
+token in `host.json` as that API's only check (ADR 0025). On a Remote Host every caller arrives that way, so this
+ADR treats loopback as no boundary at all. Remote mode sets `Config::every_peer_is_remote`, the switch that today
+exists for tests. `/mcp`, `/api/*` and `/blobs/*` then need `Authorization: Bearer`, a paired Client's token or an
+Agent token, from every address, 127.0.0.1 included. `/api/host/*` is refused to every peer. A request with no known
+peer address still fails closed. `/health` stays open and still says only the name, version, protocol version,
 capabilities and hub name, including to anyone who can reach the public URL. `/ws` keeps its handshake: a hello
 without a token is answered `pairing_code_required`, and a later hello carries the Client token.
 
 **Forwarded headers are not credentials.** `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host` and the identity
 headers `X-Forwarded-User`, `X-Forwarded-Email`, `X-Forwarded-Name` and `X-Forwarded-Access-Token` do not authenticate
-a request and do not mark a peer local. #110 found those identity headers undocumented for a remote upstream of a
-self-hosted MCP gateway such as Obot. A separate proxy project injects them. The Host ignores them for auth.
+a request and do not mark a peer local. The spike found no user identity forwarded to a remote upstream: the docs of
+a self-hosted MCP gateway such as Obot don't describe one, and the gateway source it read sets no user header. A
+separate proxy project is said to inject these identity headers, but its repository could not be fetched, so that
+claim is unverified. Either way an unsigned header proves nothing. The Host ignores them for auth.
 
 **The Host header admits the public host.** `host_allowed` keeps the loopback names, so a health check of
 `127.0.0.1` still succeeds, and it also admits the public URL's host: that name alone, or that name with the public
@@ -55,38 +62,71 @@ missing Origin is accepted. The public site's Origin gains no exception.
 
 **Agent tokens are the header the gateway sets.** An Agent token is made with `inkup token create --name <agent>`
 (or the TUI's t key) and stored as SHA-256 (`agent_tokens`, `authenticate_agent` in
-`host/crates/store/src/agents.rs`). The gateway sends it as `Authorization: Bearer` on the upstream. A self-hosted
-MCP gateway such as Obot can set that header once for everyone (a static header, optionally from a secret) or once
-per user, supplied when that user connects. One shared token and one token per user both satisfy the Host. The token
-is set on the gateway's upstream entry. #110's user docs describe that header. They leave forwarding of the client's
-own Authorization header undescribed for a remote upstream; where the gateway's code forwards headers, a static header
-wins a clash.
+`host/crates/store/src/agents.rs`). The gateway sends it on the upstream as a configured `Authorization` header whose
+value is `Bearer <token>`, scheme included, because the gateway sends the value as written. A self-hosted MCP
+gateway such as Obot can set that header once for everyone (preconfigured, optionally from a secret) or once per
+user, supplied when that user connects. One shared token and one token per user both satisfy the Host. Only per-user
+tokens let the Host tell people apart. The caller's own credential for the gateway never reaches the Host: the
+spike found the gateway drops the inbound `Authorization` header and adds the configured one. The token goes in a
+header, never in the URL.
 
 **Gateway identity and OAuth wait (#118).** Trusting an identity the gateway asserts, and speaking the MCP
 authorization spec (the Host as an OAuth 2.1 resource server), are both deferred. The gateway can already sign its
-users in and store upstream credentials for a remote server that speaks that spec. Token exchange (RFC 8693) is
-described for servers the gateway itself hosts. The Host has no accounts and no sign-in (PRODUCT.md). Identity
-headers are not a documented property of a remote upstream, so they do not stand in for a token. An Agent token
-already fits the headers the gateway documents.
+users in and store upstream credentials for a remote server that speaks that spec, but that flow does not carry an
+Agent token, which is a static secret and not an access token from an authorization server. Token exchange appears
+only in older (v0.24) gateway docs, so this ADR does not rely on it. The Host has no accounts and no sign-in
+(PRODUCT.md). Identity headers are not a documented property of a remote upstream, so they do not stand in for a
+token. An Agent token already fits the headers the gateway documents.
 
 **A Resolution names the Agent token.** `start_item` and `resolve_item` store `Resolution.agent` from
-`clientInfo.name` (`agent_name` in `mcp.rs`). A gateway sits between the coding agent and the Host, so that string
-may name the gateway's client rather than the agent. That is the open point in #117. #110 left the exact string
-unknown; an observed value belongs in `docs/spikes/mcp-gateway.md`. The naming rule stands either way. On a Remote
-Host the name on the Resolution is the Agent token's name (`AgentToken.name`). `clientInfo.name` is stored beside
-it, and the card shows the token's name. Loopback and Network mode keep ADR 0021, where the MCP client is the agent
-and the name stays `clientInfo.name`.
+`clientInfo.name` (`agent_name` in `mcp.rs`), the name an MCP client reports about itself in `initialize`. Any caller
+can send any string there. Through a gateway the spike found, from the gateway's source and unit test rather than
+a live run, that the upstream sees the connecting AI client's own name and version, and `Obot MCP Gateway` only when
+the gateway has no identity for the client. So the string is usually informative, but it is self-reported. On a
+Remote Host the Resolution is named for the Agent token that authenticated the request (`AgentToken.name`, set when
+the Host's user made the token, checked on every request). `clientInfo.name` is stored beside it as the client's
+description of itself. The card shows the token's name. With one shared token every Resolution shows the same name;
+per-user tokens tell people apart. This settles the naming point open in #117. Loopback and Network mode keep ADR
+0021, where `clientInfo.name` stays the agent's name.
 
-**Pairing against the public URL is by code.** The code rules are Network mode's (ADR 0006). A hello with no token
-is `pairing_code_required`. The Client answers with `hello{pairing_code}`. The code lasts 2 minutes
-(`pairing_code_ttl`, 120 seconds). The fifth wrong code refuses it (`MAX_WRONG_CODES` in
-`host/crates/server/src/pairing.rs`). Each machine has one waiting code, the newest. The Pair link carries the
-public URL, `inkup://pair?url=<https public URL>&code=<code>`. A headless Host has no y/n prompt. `prompt_pairing`
-(`host/crates/tui/src/lib.rs`) already prints a remote request's code, its QR code and the link on stderr, including
-when stdin is not a terminal, so the container log shows them. #113 adds `inkup pairing`, run inside the container,
-to show the same code. `--auto-approve-pairing` is refused in remote mode, as it is with `--network`
-(`host/crates/inkup/src/main.rs`). Combined with the hidden test flag `--print-pairing-codes` the process still
-starts, and even then a Client pairs only by code.
+**Pairing against the public URL is by code, but not under Network mode's limits.** These parts are settled. A
+Client with no token pairs with a 6-digit code, never by y/n. The Pair link carries the public URL,
+`inkup://pair?url=<https public URL>&code=<code>`. `--auto-approve-pairing` is refused in remote mode, as it is with
+`--network` (`host/crates/inkup/src/main.rs`). Combined with the hidden test flag `--print-pairing-codes` the process
+still starts, and even then a Client pairs only by code.
+
+Network mode's limits (ADR 0006) are not safe on a Remote Host. `PairingCodes::issue` in
+`host/crates/server/src/pairing.rs` keys a waiting code by the peer's IP address. A new hello from that address
+drops the waiting code and issues a fresh one, with its wrong-guess count back at zero. `issue_code` in
+`host/crates/server/src/ws.rs` passes the peer's address. On a LAN that address is one machine. Behind a reverse
+proxy, a gateway or a tunnel, every caller has the proxy's address. Three things follow:
+
+- Anyone who can reach the public URL can wipe the reviewer's waiting code with one hello.
+- An attacker can loop: a hello, four wrong guesses, another hello. Each turn gets a fresh code and a fresh limit of
+  five. Nothing caps the guesses overall, so the 6-digit space is open to about a million guesses on average, limited
+  only by how fast the attacker reconnects.
+- A headless Host has nobody to refuse a code early. In the TUI that is n or Esc. `prompt_pairing`
+  (`host/crates/tui/src/lib.rs`) prints a remote code, its QR code and the link on stderr and leaves the request
+  unanswered.
+
+**Open decision, for the maintainer: how a Remote Host limits pairing.** This ADR lays out the options and does not
+choose. #112 does not ship pairing from the public URL until the maintainer decides. The two options can also be
+combined.
+
+- **(A) A remote pairing limit that a new request does not reset.** For example, one Host-wide budget of wrong
+  guesses per window, or a per-code budget where a hello does not replace a waiting code. Either way, a lockout
+  after the budget is spent, and the 2-minute expiry. For: the extension's flow is unchanged (hello, then the
+  Host shows a code, then the code is typed), and #113 is not on the critical path. Against: callers still create
+  codes, so a stranger can spend the budget or hold the one waiting code, which locks the reviewer out until the
+  lockout lifts. The code still lands in the container log, which may be shipped to a log store, and someone has to
+  read it within 2 minutes. The budget, window and lockout length are new numbers to choose and test.
+- **(B) An operator-issued code from `inkup pairing` (#113).** On a Remote Host a hello without a token or a code
+  issues nothing. The Host's user runs `inkup pairing` inside the container (or wherever the data dir is), which mints
+  a one-time code with an expiry and its own small guess budget, and prints it there. For: an anonymous caller can
+  neither create nor wipe a code. A code exists only while the operator intends to pair. Nothing secret goes to the
+  log. Against: pairing needs a shell in the container (`docker exec` or equivalent). #113 moves onto the critical
+  path. The extension must offer code entry before the Host asks for it (#115). Today the prompt appears only after
+  `pairing_code_required`. Guessing against a code the operator made still needs a cap.
 
 **Evidence stays on a volume the user owns.** The store is `inkup.db` and `blobs/<id>` in the data dir
 (`host/crates/store/src/lib.rs`). In the container that directory is a volume the user owns. `get_screenshot`
@@ -98,11 +138,12 @@ leaves `get_screenshot` as it is.
 
 **A proxy may stop a body the Host would still store.** `MAX_BLOB_BYTES` in `host/crates/server/src/http.rs` is
 4 GiB. A reverse proxy often refuses a smaller body, and the audio or video upload then fails in front of the Host.
-The operator raises the proxy's limit. #110 left any cap on an image response unknown; the Host does not shrink
-screenshots to fit a cap nobody has stated. `watch_items` waits up to 600 seconds (`MAX_WATCH_SECONDS` in `mcp.rs`;
-the default is 120). The proxy and the gateway on the path to `/mcp` need an idle timeout of at least 600 seconds,
-or a long watch ends as a transport error. #110 left that timeout unknown. `docs/spikes/mcp-gateway.md` is where an
-observed value is written down.
+The operator raises the proxy's limit. The spike found no documented cap on an image response, and whether the
+gateway's audit store rejects a large one is unknown. The Host does not shrink screenshots to fit a cap nobody has
+stated. `watch_items` waits up to 600 seconds (`MAX_WATCH_SECONDS` in `mcp.rs`; the default is 120). The gateway
+source the spike read sets no tool-call deadline, but whether an ingress or proxy in front cuts the call is
+unknown, and a 600-second call was not observed. Every hop on the path to `/mcp` needs an idle timeout of at least
+600 seconds, or a long watch ends as a transport error.
 
 **One image, built from `host/`, with no self-update inside it.** #114 builds one container image from `host/`. It
 runs `inkup serve` in remote mode, as a user other than root, with the data dir on a volume and `/health` as the
@@ -112,9 +153,9 @@ it updates. Publishing the image from the release workflow is #119, and it waits
 from source.
 
 **These stay on the reviewer's machine.** Remote mode closes `/api/host/*` to every peer, loopback included, so a
-proxy on 127.0.0.1 cannot reach the control token in `host.json` (ADR 0025). Loopback and Network mode keep the
-control API as ADR 0025 describes it. `inkup token` opens
-the store on the data dir; it does not call `/api/host/*`. The TUI and the desktop app remain local front ends.
+request forwarded by a proxy on 127.0.0.1, with or without an Origin header, never reaches the control API.
+Loopback and Network mode keep the control API as ADR 0025 describes it. `inkup token` opens the store on the data
+dir; it does not call `/api/host/*`. The TUI and the desktop app remain local front ends.
 Remote mode serves neither of them. mDNS, `.local` names and Find hubs stay Network mode (ADR 0006). Remote mode
 leaves mDNS off and leaves `--network` off. Model keys and Process stay in the browser (ADR 0016). Transcription
 keys stay in the browser (`extensions/web/src/adapters/transcription/`, ADR 0014). The Host calls no model and
@@ -138,8 +179,11 @@ an omitted port omitted. A paired Remote Host is labelled encrypted. `inkup mcp 
   that opens an outbound connection and forwards to an allow-listed URL, which satisfies the gateway's private-address
   check. The browser Client still needs an https URL to pair, and the tunnel is the gateway's feature, not a second
   transport on the Host. An operator may put a tunnel in front. The Host's contract remains the public https URL.
-- Trusting gateway identity headers. They are undocumented for a remote upstream, the peer can send them itself, and
-  a later proof would be a secret the Host holds. That decision is #118.
+- Trusting gateway identity headers. No forwarded identity is documented for a remote upstream, the claim that a
+  separate proxy injects such headers is unverified, and any peer can send them itself. A later proof would be a
+  secret the Host holds. That decision is #118.
+- Naming a Resolution by `clientInfo.name` alone, as ADR 0021 does. Through a gateway it is usually the AI client's
+  own name, but it is self-reported. The Agent token's name is the one the Host authenticated.
 - OAuth on the Host now. The MCP authorization spec would make the Host a resource server and give it accounts, which
   the product does not have. The gateway already carries an Agent token as a Bearer header. OAuth waits in #118.
 
@@ -147,33 +191,43 @@ an omitted port omitted. A paired Remote Host is labelled encrypted. `inkup mcp 
 
 - #112 turns remote mode on in the Host. `guard.rs` sets `every_peer_is_remote` and `host_allowed` admits the public
   host. `mcp.rs` `service` calls `disable_allowed_hosts`. `/mcp`, `/api/*` and `/blobs/*` require a Client or Agent
-  token from every peer. `/api/host/*` is closed. `/health` stays open. `/ws` keeps its handshake.
-  `--auto-approve-pairing` is refused. On a Remote Host, `Resolution.agent` is the Agent token's name and
+  token from every peer, 127.0.0.1 included. `/api/host/*` is closed. `/health` stays open. `/ws` keeps its
+  handshake. `--auto-approve-pairing` is refused. Pairing from the public URL waits for the maintainer's choice
+  between options A and B above. On a Remote Host, `Resolution.agent` is the Agent token's name and
   `clientInfo.name` is stored beside it (`mcp.rs` `agent_name`, `Resolution` in `host/crates/store/src/items.rs`).
   Loopback and Network mode stay as they are.
-- #113 serves HTTPS from a certificate and key the user provides, and adds `inkup pairing` so a headless Host can
-  show the code `prompt_pairing` already prints to the log.
+- #113 serves HTTPS from a certificate and key the user provides, and adds `inkup pairing`. Under option A it shows
+  the waiting code. Under option B it is the only way a code is made.
 - #114 is the container image: built from `host/`, running `inkup serve` in remote mode, non-root, the data dir on a
   volume, `/health` as the check, `host.lock` unchanged, and no self-update.
 - #115 pairs the extension at an `https://` URL. `normalizeAddress` stops writing port 47823 onto a URL that omitted
-  a port. The paired Host is labelled encrypted.
+  a port. The paired Host is labelled encrypted. Under option B the extension also takes a code before the Host
+  asks for one.
 - #116 adds the term Remote Host to CONTEXT.md, and updates PRODUCT.md, PRIVACY.md (a gateway audit log may keep
   screenshots and transcript excerpts), the README, the PRD's non-goals and a manual check. The authors still run no
   servers. The user runs this Host.
 - #118, deferred: an identity the gateway asserts, or the Host as an OAuth 2.1 resource server.
 - #119, deferred: publish the image from the release workflow.
-- ADR 0005's status records the part remote mode supersedes: MCP on loopback with no token, once remote mode is on.
-  ADR 0006 and ADR 0021 keep their text while this ADR is proposed. Their History lines point here.
+- On acceptance, ADR 0005's status becomes `accepted; superseded in part by 0006 and 0030` (the part: MCP on loopback
+  with no token, once remote mode is on), and the index row follows. Until then 0005's status is unchanged. ADR
+  0005, ADR 0006 and ADR 0021 each carry a History line pointing here and keep their text while this ADR is
+  proposed.
 
 ## History
 
-- 2026-10-20: proposed, from the public findings in #110. Acceptance belongs to the maintainer. While the status stays
-  `proposed`, loopback and Network mode remain the rules in ADR 0005 and ADR 0006.
+- 2026-10-20: proposed, from the findings of the #110 spike (#120). Acceptance belongs to the maintainer. While the
+  status stays `proposed`, loopback and Network mode remain the rules in ADR 0005 and ADR 0006.
+- 2026-10-20 (review): we first kept Network mode's pairing limits for a Remote Host, recorded 0005's supersession
+  before acceptance, and assumed a gateway's own name reached the Host as `clientInfo.name`. Now pairing limits are
+  an open decision between options A and B, 0005's status waits for acceptance, and the Resolution is named for the
+  Agent token because that name is authenticated. Codes keyed by the peer's address are shared by every caller
+  behind a proxy, and the spike found the upstream sees the AI client's own name.
 
 ## Sources
 
-- #110, and the findings page `docs/spikes/mcp-gateway.md` that this ADR merges after:
-  <https://github.com/liatrio-labs/inkup/issues/110>
+- #110, and its findings page `docs/spikes/mcp-gateway.md` (#120), which this ADR merges after. This ADR follows its
+  labels (documented, source, unknown, unverified): <https://github.com/liatrio-labs/inkup/issues/110>,
+  <https://github.com/liatrio-labs/inkup/pull/120>
 - #111, this decision: <https://github.com/liatrio-labs/inkup/issues/111>
 - #117, the epic, including the open naming point: <https://github.com/liatrio-labs/inkup/issues/117>
 - What a self-hosted MCP gateway such as Obot documents for a remote upstream (transports, headers, private addresses,
@@ -183,9 +237,11 @@ an omitted port omitted. A paired Remote Host is labelled encrypted. `inkup mcp 
   <https://docs.obot.ai/configuration/mcp-server-gitops/>,
   <https://docs.obot.ai/functionality/mcp-tunnels/>,
   <https://docs.obot.ai/concepts/architecture/>
-- Identity headers are a finding in #110: a separate proxy injects them, and the gateway docs linked above
-  do not describe them for a remote upstream.
+- Identity headers: the claim that a separate proxy project injects them is unverified, because its repository
+  could not be fetched. The gateway docs linked above do not describe them for a remote upstream
+  (`docs/spikes/mcp-gateway.md`, Identity).
 - MCP authorization (OAuth 2.1 resource server), deferred here:
   <https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization>
-- Token exchange, for servers the gateway hosts: <https://www.rfc-editor.org/rfc/rfc8693>
+- The pairing code store and how a hello issues a code: `host/crates/server/src/pairing.rs` (`PairingCodes::issue`,
+  `redeem`) and `host/crates/server/src/ws.rs` (`issue_code`).
 - ADR 0005, ADR 0006, ADR 0014, ADR 0016, ADR 0021, ADR 0025 and ADR 0027.
