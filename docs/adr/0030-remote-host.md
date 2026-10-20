@@ -102,8 +102,8 @@ that carries no token and no code gets no code back: it does not call `PairingCo
 prints it there, and sets its expiry and its own small guess budget. A hello with no Client token is
 answered `pairing_denied`: the message says the code comes from the operator running `inkup pairing`. A dedicated
 error code waits for #115, so this does not raise the protocol version (ADR 0007). The Client sends
-`hello{pairing_code}`. The
-Pair link carries the public URL, `inkup://pair?url=<https public URL>&code=<code>`. `--auto-approve-pairing` is
+`hello{pairing_code}`. The Pair link carries the public URL,
+`inkup://pair?url=<https public URL>&code=<code>`. `--auto-approve-pairing` is
 refused on a Remote Host, as it is with `--network` (`host/crates/inkup/src/main.rs`). Combined with the hidden test
 flag `--print-pairing-codes` the process still starts, and even then a Client pairs only by a code the operator
 issued. The extension offers a place to type that code before the Host asks for one (#115).
