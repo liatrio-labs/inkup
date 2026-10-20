@@ -96,9 +96,12 @@ pub struct Resolution {
     pub note: String,
     /// `mcp` (an agent) or `host` (the Host's user).
     pub source: String,
-    /// The agent's MCP client name (clientInfo), when an agent sent it.
+    /// The name on the card. The MCP client's name (clientInfo), or on a Remote Host the Agent token's name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,
+    /// The MCP client's own name (clientInfo.name) when a Remote Host named `agent` for the Agent token.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_name: Option<String>,
     pub created_at: i64,
 }
 
@@ -320,7 +323,7 @@ fn matches_origin(url: Option<&str>, wanted: Option<&str>) -> bool {
 }
 
 const ITEM_COLUMNS: &str = "i.seq, i.session_id, i.run_id, i.item_id, i.body, i.position, i.created_at, i.updated_at,
-     i.withdrawn_at, s.url, s.client_id, r.id, r.status, r.note, r.source, r.created_at, r.agent
+     i.withdrawn_at, s.url, s.client_id, r.id, r.status, r.note, r.source, r.created_at, r.agent, r.client_name
      FROM items i JOIN sessions s ON s.id = i.session_id
      LEFT JOIN resolutions r ON r.seq = (SELECT MAX(seq) FROM resolutions WHERE item_seq = i.seq)";
 
@@ -332,6 +335,7 @@ fn item_from_row(row: &Row<'_>) -> rusqlite::Result<(Item, String)> {
             note: row.get(13)?,
             source: row.get(14)?,
             agent: row.get(16)?,
+            client_name: row.get(17)?,
             created_at: row.get(15)?,
         }),
         None => None,
@@ -570,7 +574,8 @@ impl Store {
     pub fn resolutions(&self, item_seq: i64) -> Result<Vec<Resolution>> {
         let conn = self.conn();
         let mut stmt = conn.prepare(
-            "SELECT id, status, note, source, created_at, agent FROM resolutions WHERE item_seq = ?1 ORDER BY seq",
+            "SELECT id, status, note, source, created_at, agent, client_name FROM resolutions
+             WHERE item_seq = ?1 ORDER BY seq",
         )?;
         let rows = stmt.query_map([item_seq], |row| {
             Ok(Resolution {
@@ -579,6 +584,7 @@ impl Store {
                 note: row.get(2)?,
                 source: row.get(3)?,
                 agent: row.get(5)?,
+                client_name: row.get(6)?,
                 created_at: row.get(4)?,
             })
         })?;
@@ -588,7 +594,14 @@ impl Store {
     /// Records that an agent started on an item (`in_progress`). Idempotent: when the item is already in progress
     /// its current record comes back as `Unchanged`. An item already resolved or won't-fixed is `Refused`; one
     /// that needs info can be started again.
-    pub fn start_item(&self, seq: i64, note: &str, source: &str, agent: Option<&str>) -> Result<StartItem> {
+    pub fn start_item(
+        &self,
+        seq: i64,
+        note: &str,
+        source: &str,
+        agent: Option<&str>,
+        client_name: Option<&str>,
+    ) -> Result<StartItem> {
         let Some(item) = self.item(seq)? else { return Ok(StartItem::NoItem) };
         match item.resolution {
             Some(r) if matches!(r.status, ResolutionStatus::Resolved | ResolutionStatus::WontFix) => {
@@ -596,7 +609,7 @@ impl Store {
             }
             Some(r) if r.status == ResolutionStatus::InProgress => Ok(StartItem::Unchanged(r)),
             _ => Ok(self
-                .resolve_item(seq, ResolutionStatus::InProgress, note, source, agent)?
+                .resolve_item(seq, ResolutionStatus::InProgress, note, source, agent, client_name)?
                 .map_or(StartItem::NoItem, StartItem::Started)),
         }
     }
@@ -609,6 +622,7 @@ impl Store {
         note: &str,
         source: &str,
         agent: Option<&str>,
+        client_name: Option<&str>,
     ) -> Result<Option<ItemResolution>> {
         let id = format!("r-{}", random_hex(8)?);
         let now = now_ms();
@@ -625,9 +639,9 @@ impl Store {
             return Ok(None);
         };
         conn.execute(
-            "INSERT INTO resolutions (id, item_seq, status, note, source, agent, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![id, seq, status.as_str(), note, source, agent, now],
+            "INSERT INTO resolutions (id, item_seq, status, note, source, agent, client_name, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![id, seq, status.as_str(), note, source, agent, client_name, now],
         )?;
         Ok(Some(ItemResolution {
             resolution: Resolution {
@@ -636,6 +650,7 @@ impl Store {
                 note: note.to_owned(),
                 source: source.to_owned(),
                 agent: agent.map(str::to_owned),
+                client_name: client_name.map(str::to_owned),
                 created_at: now,
             },
             item_seq: seq,
@@ -651,7 +666,7 @@ impl Store {
         let conn = self.conn();
         let mut stmt = conn.prepare(
             "SELECT r.id, r.status, r.note, r.source, r.created_at, i.seq, i.session_id, i.run_id, i.item_id, s.client_id,
-                r.agent
+                r.agent, r.client_name
              FROM resolutions r JOIN items i ON i.seq = r.item_seq JOIN sessions s ON s.id = i.session_id
              WHERE s.client_id = ?1 ORDER BY r.seq",
         )?;
@@ -663,6 +678,7 @@ impl Store {
                     note: row.get(2)?,
                     source: row.get(3)?,
                     agent: row.get(10)?,
+                    client_name: row.get(11)?,
                     created_at: row.get(4)?,
                 },
                 item_seq: row.get(5)?,

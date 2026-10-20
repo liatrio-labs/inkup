@@ -8,9 +8,13 @@
 //!   (`chrome-extension://`, `moz-extension://`, `safari-web-extension://`) and clients with no Origin pass.
 //!   /mcp refuses web page origins too; agents send no Origin.
 //! - Another machine: /mcp, /api and /blobs need a Bearer token, a paired Client's or an agent token. From this
-//!   machine /mcp needs none (a local process can read the data dir anyway).
+//!   machine /mcp needs none (a local process can read the data dir anyway). A Remote Host treats every peer that
+//!   way, 127.0.0.1 included (ADR 0030): a proxy on the same machine is not a boundary.
 //! - The control API (`/api/host/*`, control.rs) is refused to another machine whatever token it brings, in network
-//!   mode too, and to any request with an Origin: web pages and extensions have no business there.
+//!   mode too, and to any request with an Origin: web pages and extensions have no business there. On a Remote Host
+//!   it is not on the public listener at all.
+//! - `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-User` (and the other forwarded
+//!   identity headers) are not read. They do not authenticate a request and do not mark a peer local.
 
 use std::net::{IpAddr, SocketAddr};
 
@@ -19,9 +23,12 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
+use inkup_store::Bearer;
+
 use crate::AppState;
 use crate::http::{ApiError, bearer};
 use crate::network::Network;
+use crate::remote::PublicUrl;
 use crate::ws::blocking;
 
 const LOOPBACK_NAMES: &[&str] = &["127.0.0.1", "localhost", "[::1]"];
@@ -35,8 +42,14 @@ pub(crate) struct Peer {
     pub remote: bool,
 }
 
+/// The Client or Agent token the guard already accepted. MCP reads it from the request parts instead of
+/// checking the header again (ADR 0030: a Resolution is named for the Agent token).
+#[derive(Debug, Clone)]
+pub(crate) struct Authenticated(pub Bearer);
+
 pub(crate) async fn guard(State(state): State<AppState>, mut request: Request, next: Next) -> Response {
-    if !host_allowed(request.headers(), state.port, state.network.as_deref()) {
+    let public = state.config.remote.as_ref().map(|remote| &remote.public_url);
+    if !host_allowed(request.headers(), state.port, state.network.as_deref(), public) {
         tracing::warn!(host = ?request.headers().get(header::HOST), "refused a request for a Host name not ours");
         return (StatusCode::FORBIDDEN, "Host not allowed").into_response();
     }
@@ -47,17 +60,22 @@ pub(crate) async fn guard(State(state): State<AppState>, mut request: Request, n
         return (StatusCode::FORBIDDEN, "Origin not allowed").into_response();
     }
     let peer = peer(&request, state.config.every_peer_is_remote);
-    if is_control(&path) && (peer.remote || request.headers().contains_key(header::ORIGIN)) {
+    let control = is_control(&path);
+    // A Remote Host does not mount `/api/host/*` on the public listener. Leaving the path alone lets the router
+    // answer 404, which is how a test can tell the routes are absent. The control listener has `remote: None`.
+    if control && state.config.remote.is_none() && (peer.remote || request.headers().contains_key(header::ORIGIN)) {
         tracing::warn!(peer = %peer.ip, path, "refused a control API request from another machine or a web origin");
         return (StatusCode::FORBIDDEN, "the control API is for this machine only").into_response();
     }
-    if peer.remote && (mcp || path.starts_with("/api/") || path.starts_with("/blobs/")) {
+    if peer.remote && (mcp || (!control && path.starts_with("/api/")) || path.starts_with("/blobs/")) {
         let known = match bearer(request.headers()) {
             Some(token) => blocking(&state.store, move |store| store.authenticate_bearer(&token)).await,
             None => Ok(None),
         };
         match known {
-            Ok(Some(_)) => {}
+            Ok(Some(bearer)) => {
+                request.extensions_mut().insert(Authenticated(bearer));
+            }
             Ok(None) => {
                 tracing::info!(peer = %peer.ip, path, "refused a request from another machine without a known token");
                 let mut refused = ApiError::Unauthorized.into_response();
@@ -89,11 +107,14 @@ fn peer(request: &Request, every_peer_is_remote: bool) -> Peer {
     }
 }
 
-fn host_allowed(headers: &HeaderMap, port: u16, network: Option<&Network>) -> bool {
+fn host_allowed(headers: &HeaderMap, port: u16, network: Option<&Network>, public: Option<&PublicUrl>) -> bool {
     let Some(host) = headers.get(header::HOST).and_then(|h| h.to_str().ok()) else {
         return false;
     };
     if is_loopback_authority(host, port) {
+        return true;
+    }
+    if public.is_some_and(|public| public.admits_host_header(host)) {
         return true;
     }
     let Some(network) = network else { return false };
@@ -133,15 +154,32 @@ mod tests {
     #[test]
     fn only_loopback_names_on_our_port_are_served() {
         for ok in ["127.0.0.1:47823", "localhost:47823", "LOCALHOST:47823", "[::1]:47823"] {
-            assert!(host_allowed(&headers(&[(header::HOST, ok)]), 47823, None), "{ok}");
+            assert!(host_allowed(&headers(&[(header::HOST, ok)]), 47823, None, None), "{ok}");
         }
         for bad in ["evil.example:47823", "127.0.0.1", "127.0.0.1:80", "localhost.evil.example:47823", "0.0.0.0:47823"]
         {
-            assert!(!host_allowed(&headers(&[(header::HOST, bad)]), 47823, None), "{bad}");
+            assert!(!host_allowed(&headers(&[(header::HOST, bad)]), 47823, None, None), "{bad}");
         }
-        assert!(!host_allowed(&HeaderMap::new(), 47823, None));
+        assert!(!host_allowed(&HeaderMap::new(), 47823, None, None));
         // Without network mode the .local name is not ours.
-        assert!(!host_allowed(&headers(&[(header::HOST, "inkup.local:47823")]), 47823, None));
+        assert!(!host_allowed(&headers(&[(header::HOST, "inkup.local:47823")]), 47823, None, None));
+    }
+
+    #[test]
+    fn a_remote_host_admits_its_public_name_and_not_a_forwarded_one() {
+        let public = PublicUrl::parse("https://review.example").unwrap();
+        for ok in ["review.example", "review.example:443", "127.0.0.1:47823"] {
+            assert!(host_allowed(&headers(&[(header::HOST, ok)]), 47823, None, Some(&public)), "{ok}");
+        }
+        for bad in ["review.example:47823", "inkup.local:47823", "evil.example", "evil.example:443"] {
+            assert!(!host_allowed(&headers(&[(header::HOST, bad)]), 47823, None, Some(&public)), "{bad}");
+        }
+        // A forwarded host is not the Host header, so it does not admit the name.
+        let forwarded = headers(&[
+            (header::HOST, "evil.example"),
+            (header::HeaderName::from_static("x-forwarded-host"), "review.example"),
+        ]);
+        assert!(!host_allowed(&forwarded, 47823, None, Some(&public)));
     }
 
     #[test]
@@ -151,7 +189,7 @@ mod tests {
         {
             assert!(origin_allowed(&headers(&[(header::ORIGIN, ok)]), 47823), "{ok}");
         }
-        for bad in ["https://evil.example", "http://localhost:3000", "null"] {
+        for bad in ["https://evil.example", "https://review.example", "http://localhost:3000", "null"] {
             assert!(!origin_allowed(&headers(&[(header::ORIGIN, bad)]), 47823), "{bad}");
         }
         assert!(origin_allowed(&HeaderMap::new(), 47823));

@@ -118,6 +118,13 @@ impl PairingCodes {
         self.ttl
     }
 
+    /// Codes still waiting, after expired and refused ones are dropped.
+    pub(crate) fn waiting(&self) -> usize {
+        let mut waiting = self.lock();
+        self.prune(&mut waiting);
+        waiting.len()
+    }
+
     /// A new code for a Client on another machine, unless too many machines are waiting. Returns its id (for
     /// `expire`). The machine's earlier code, if one waits, is dropped: its Client asked again (Connect clicked
     /// twice, the options page reopened), and stacking its codes would refuse its fifth ask as if the user had.

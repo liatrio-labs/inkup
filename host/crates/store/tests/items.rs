@@ -107,10 +107,11 @@ fn resolutions_set_the_status_and_reach_the_owning_client() {
     let a = store.put_items(c1, "s1", "run-1", &[item("item_0001", "A")]).unwrap().added[0];
     let b = store.put_items(c2, "s2", "run-2", &[item("item_0001", "B")]).unwrap().added[0];
 
-    let resolved = store.resolve_item(a, ResolutionStatus::NeedsInfo, "Which size?", "mcp", None).unwrap().unwrap();
+    let resolved =
+        store.resolve_item(a, ResolutionStatus::NeedsInfo, "Which size?", "mcp", None, None).unwrap().unwrap();
     assert_eq!((resolved.run_id.as_str(), resolved.item_id.as_str()), ("run-1", "item_0001"));
-    store.resolve_item(a, ResolutionStatus::Resolved, "Done in Hero.tsx", "mcp", None).unwrap();
-    assert!(store.resolve_item(999, ResolutionStatus::Resolved, "", "mcp", None).unwrap().is_none());
+    store.resolve_item(a, ResolutionStatus::Resolved, "Done in Hero.tsx", "mcp", None, None).unwrap();
+    assert!(store.resolve_item(999, ResolutionStatus::Resolved, "", "mcp", None, None).unwrap().is_none());
 
     assert_eq!(store.item(a).unwrap().unwrap().status(), ItemStatus::Resolved);
     assert_eq!(store.resolutions(a).unwrap().len(), 2);
@@ -135,14 +136,16 @@ fn start_item_marks_an_item_in_progress_once_and_never_reopens_a_done_one() {
     let added = store.put_items(c1, "s1", "run-1", &[item("item_0001", "A"), item("item_0002", "B")]).unwrap().added;
     let (a, b) = (added[0], added[1]);
 
-    let StartItem::Started(started) = store.start_item(a, "", "mcp", Some("claude-code")).unwrap() else {
+    let StartItem::Started(started) = store.start_item(a, "", "mcp", Some("claude-code"), Some("cursor")).unwrap()
+    else {
         panic!("not started")
     };
     assert_eq!(started.resolution.status, ResolutionStatus::InProgress);
     assert_eq!(started.resolution.agent.as_deref(), Some("claude-code"));
+    assert_eq!(started.resolution.client_name.as_deref(), Some("cursor"));
     // Idempotent: the same record comes back and nothing new is stored.
     assert_eq!(
-        store.start_item(a, "", "mcp", Some("claude-code")).unwrap(),
+        store.start_item(a, "", "mcp", Some("claude-code"), Some("cursor")).unwrap(),
         StartItem::Unchanged(started.resolution.clone())
     );
     assert_eq!(store.resolutions(a).unwrap().len(), 1);
@@ -154,7 +157,7 @@ fn start_item_marks_an_item_in_progress_once_and_never_reopens_a_done_one() {
     assert_eq!(open.iter().map(|i| i.seq).collect::<Vec<_>>(), [b]);
 
     // Latest wins; the history keeps both.
-    store.resolve_item(a, ResolutionStatus::Resolved, "Done in Hero.tsx", "mcp", Some("claude-code")).unwrap();
+    store.resolve_item(a, ResolutionStatus::Resolved, "Done in Hero.tsx", "mcp", Some("claude-code"), None).unwrap();
     assert_eq!(store.item(a).unwrap().unwrap().status(), ItemStatus::Resolved);
     let history = store.resolutions(a).unwrap();
     assert_eq!(
@@ -162,13 +165,13 @@ fn start_item_marks_an_item_in_progress_once_and_never_reopens_a_done_one() {
         [ResolutionStatus::InProgress, ResolutionStatus::Resolved]
     );
     assert!(
-        matches!(store.start_item(a, "", "mcp", None).unwrap(), StartItem::Refused(r) if r.status == ResolutionStatus::Resolved)
+        matches!(store.start_item(a, "", "mcp", None, None).unwrap(), StartItem::Refused(r) if r.status == ResolutionStatus::Resolved)
     );
 
     // Needs info can be picked up again; an unknown item is said so.
-    store.resolve_item(b, ResolutionStatus::NeedsInfo, "Which size?", "mcp", None).unwrap();
-    assert!(matches!(store.start_item(b, "", "mcp", None).unwrap(), StartItem::Started(_)));
-    assert_eq!(store.start_item(999, "", "mcp", None).unwrap(), StartItem::NoItem);
+    store.resolve_item(b, ResolutionStatus::NeedsInfo, "Which size?", "mcp", None, None).unwrap();
+    assert!(matches!(store.start_item(b, "", "mcp", None, None).unwrap(), StartItem::Started(_)));
+    assert_eq!(store.start_item(999, "", "mcp", None, None).unwrap(), StartItem::NoItem);
 }
 
 #[test]

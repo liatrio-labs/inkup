@@ -174,24 +174,29 @@ struct ResolveItemArgs {
 pub(crate) struct Mcp {
     store: Arc<Store>,
     hub: Arc<Hub>,
+    /// A Remote Host names a Resolution for the Agent token, and keeps clientInfo.name beside it.
+    remote: bool,
     #[allow(dead_code, reason = "read by the tool_handler macro")]
     tool_router: ToolRouter<Self>,
 }
 
+pub(crate) type Service = StreamableHttpService<Mcp, LocalSessionManager>;
+
 /// The `/mcp` service. It stops serving when `shutdown` is cancelled.
+/// `allow_any_host` turns off rmcp's loopback-only Host check; guard.rs admits the public name and the `.local` names.
 pub(crate) fn service(
     store: Arc<Store>,
     hub: Arc<Hub>,
     shutdown: CancellationToken,
-    network: bool,
-) -> StreamableHttpService<Mcp, LocalSessionManager> {
+    allow_any_host: bool,
+    remote: bool,
+) -> Service {
     let mut config = StreamableHttpServerConfig::default().with_cancellation_token(shutdown);
-    // rmcp's own Host check knows loopback names only; in network mode guard.rs checks the Host's other names.
-    if network {
+    if allow_any_host {
         config = config.disable_allowed_hosts();
     }
     StreamableHttpService::new(
-        move || Ok(Mcp { store: Arc::clone(&store), hub: Arc::clone(&hub), tool_router: Mcp::tool_router() }),
+        move || Ok(Mcp { store: Arc::clone(&store), hub: Arc::clone(&hub), remote, tool_router: Mcp::tool_router() }),
         Arc::default(),
         config,
     )
@@ -293,6 +298,9 @@ pub(crate) fn agent_item(item: &Item) -> Value {
         if let Some(agent) = &r.agent {
             view["resolution"]["agent"] = json!(agent);
         }
+        if let Some(client_name) = &r.client_name {
+            view["resolution"]["client_name"] = json!(client_name);
+        }
     }
     view
 }
@@ -308,9 +316,35 @@ fn with_tracker_links(body: Value, links: &[inkup_store::TrackerLink]) -> Value 
     body
 }
 
+/// What a Resolution records about who did the work.
+struct ResolutionNames {
+    /// The card's name: clientInfo.name, or on a Remote Host the Agent token's name.
+    agent: Option<String>,
+    /// clientInfo.name when `agent` is the Agent token's name.
+    client_name: Option<String>,
+}
+
 /// The connected agent's name, as its MCP client said in `initialize` (clientInfo.name).
 fn agent_name(context: &RequestContext<RoleServer>) -> Option<String> {
     context.peer.peer_info().map(|info| info.client_info.name.trim().to_owned()).filter(|name| !name.is_empty())
+}
+
+/// On a Remote Host an Agent token names the Resolution. Loopback and Network mode keep clientInfo.name (ADR 0021).
+fn resolution_names(context: &RequestContext<RoleServer>, remote: bool) -> ResolutionNames {
+    let client = agent_name(context);
+    let token = remote.then(|| agent_token_name(context)).flatten();
+    match token {
+        Some(agent) => ResolutionNames { agent: Some(agent), client_name: client },
+        None => ResolutionNames { agent: client, client_name: None },
+    }
+}
+
+fn agent_token_name(context: &RequestContext<RoleServer>) -> Option<String> {
+    let parts = context.extensions.get::<axum::http::request::Parts>()?;
+    match parts.extensions.get::<crate::guard::Authenticated>() {
+        Some(crate::guard::Authenticated(inkup_store::Bearer::Agent(agent))) => Some(agent.name.clone()),
+        _ => None,
+    }
 }
 
 fn page<T>(all: Vec<T>, offset: usize, limit: usize) -> Vec<T> {
@@ -468,7 +502,8 @@ impl Mcp {
 
     #[tool(description = "Wait for new open Change Items or Signals, then return them (the same shape as \
         read_items, only what is new). Blocks up to timeout_seconds (default 120, at most 600); with nothing new \
-        it returns timed_out: true, and you call it again. Pass the cursor from your last read_items or \
+        it returns timed_out: true, and you call it again. Behind a gateway, pass a shorter timeout_seconds if a \
+        proxy may cut the call off before then. Pass the cursor from your last read_items or \
         watch_items so nothing that arrived in between is missed. Pass url (your app's origin) or session_id to \
         watch only those.")]
     async fn watch_items(&self, Parameters(args): Parameters<WatchItemsArgs>) -> Result<CallToolResult, ErrorData> {
@@ -537,10 +572,13 @@ impl Mcp {
             return tool_error(format!("{} is not an item id; ids look like item-12", args.id));
         };
         let note = args.note.unwrap_or_default().trim().to_owned();
-        let agent = agent_name(&context);
-        let outcome = blocking(&self.store, move |store| store.start_item(seq, &note, "mcp", agent.as_deref()))
-            .await
-            .map_err(failed)?;
+        let names = resolution_names(&context, self.remote);
+        let (agent, client_name) = (names.agent, names.client_name);
+        let outcome = blocking(&self.store, move |store| {
+            store.start_item(seq, &note, "mcp", agent.as_deref(), client_name.as_deref())
+        })
+        .await
+        .map_err(failed)?;
         let resolution = match outcome {
             StartItem::NoItem => return tool_error(format!("no item {}", args.id)),
             StartItem::Refused(r) => {
@@ -588,11 +626,13 @@ impl Mcp {
             return tool_error("write a note: what you changed and where, why not, or your question");
         }
         let status: ResolutionStatus = args.status.into();
-        let agent = agent_name(&context);
-        let resolved =
-            blocking(&self.store, move |store| store.resolve_item(seq, status, &note, "mcp", agent.as_deref()))
-                .await
-                .map_err(failed)?;
+        let names = resolution_names(&context, self.remote);
+        let (agent, client_name) = (names.agent, names.client_name);
+        let resolved = blocking(&self.store, move |store| {
+            store.resolve_item(seq, status, &note, "mcp", agent.as_deref(), client_name.as_deref())
+        })
+        .await
+        .map_err(failed)?;
         let Some(resolved) = resolved else {
             return tool_error(format!("no item {}", args.id));
         };
