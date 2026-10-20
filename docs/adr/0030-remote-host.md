@@ -41,8 +41,10 @@ token in `host.json` as that API's only check (ADR 0025). On a Remote Host every
 ADR treats loopback as no boundary at all. A Remote Host sets `Config::every_peer_is_remote`, the switch that today
 exists for tests. `/mcp`, `/api/*` and `/blobs/*` then need `Authorization: Bearer`, a paired Client's token or an
 Agent token, from every address, 127.0.0.1 included. `/api/host/*` is refused to every peer. A request with no known
-peer address still fails closed. `/ws` keeps its handshake: a hello without a token is answered
-`pairing_code_required`, and a later hello carries the Client token.
+peer address still fails closed. `/ws` keeps its handshake: a hello with no Client token is answered
+`pairing_denied`, sent through `protocol::error`. The message says the code comes from the operator running
+`inkup pairing`. A dedicated code is deferred to #115, so this does not raise the protocol version (ADR 0007).
+A later hello carries the Client token.
 
 **`/health` is reachable from the internet.** It stays open, with no token: a Client reads it before pairing, and
 the container uses it as its health check (`host/crates/server/src/http.rs`, `health`). Anyone who can open the
