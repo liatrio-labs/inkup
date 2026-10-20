@@ -31,7 +31,7 @@ pages no longer say the same thing. Full URLs are in [Sources](#sources).
 | MCP OAuth to the upstream | Spec-conformant remote OAuth works, including a pre-registered client id and secret. The client receives a gateway token. Upstream credentials stay on the gateway. That flow does not carry an already-issued InkUp agent token | documented |
 | End-user identity on the upstream | Not described for a remote upstream. The gateway source that was read does not set a user header. A separate proxy project is sometimes cited for identity headers; its repository returned HTTP 404, so that behavior is unverified | unknown |
 | `clientInfo.name` the upstream sees | Not in the user docs. With forwarding on, the composite's unit test shows the connecting client's name and version. If that identity is missing, the configured fallback is `Obot MCP Gateway` | source |
-| Private, loopback, and link-local upstreams | Refused by default. An admin can turn each check off. The documented alternative is an MCP tunnel from inside the network | documented |
+| Private, loopback, and link-local upstreams | Refused by default. An admin can turn each check off. The gateway docs also describe an MCP tunnel. A tunnel on the Host's machine that dials 127.0.0.1 is a local peer and needs no token | documented; local peer is source |
 | Tool-call timeout (`watch_items`, up to 600 s) | No user-doc deadline for a tool call. The proxy's HTTP client timeout is unset, and the composite treats a non-positive server timeout as no deadline. Whether an ingress cuts the call is unknown | source; ingress unknown |
 | Response size (`get_screenshot`) | No user-doc cap. The proxy rejects a request body over 10 MiB. The audit reader copies the response with no size check in the file that was read. A database limit was not found | source; storage unknown |
 | Audit of requests and responses | The gateway records MCP requests and responses, including full payloads for the Auditor role. A screenshot or a transcript excerpt in a tool result is stored. Application-level encryption is off by default. Retention defaults to 90 days | documented |
@@ -135,21 +135,30 @@ two clients of one Obot user was not checked beyond that unit test, which uses a
 
 **documented.** By default the gateway refuses an upstream on localhost, a private IP, or a link-local address. The
 switches, each defaulting to disallow, are `OBOT_SERVER_DISALLOW_LOCALHOST_MCP`,
-`OBOT_SERVER_DISALLOW_PRIVATE_IPMCP`, and `OBOT_SERVER_DISALLOW_LINK_LOCAL_MCP`. Set one to `false` only when the
-gateway runtime is supposed to reach that class of address. The remote-server page says not to turn the checks off
-globally just to reach an arbitrary endpoint. **source**: the proxy client applies the same three blocks.
+`OBOT_SERVER_DISALLOW_PRIVATE_IPMCP`, and `OBOT_SERVER_DISALLOW_LINK_LOCAL_MCP`. The configuration reference says to
+set one to `false` only when the gateway runtime is supposed to reach that class of address. The remote-server page
+says not to turn the checks off globally just to reach an arbitrary endpoint. **source**: the proxy client applies
+the same three blocks.
 
-The documented way to reach a server the gateway cannot route to is an MCP tunnel. An `obot tunnel` process on a
-machine that can see the server opens an outbound WebSocket to the gateway and forwards HTTP and streaming responses
-to an allow-listed URL. It is not a general TCP tunnel. For a tunneled target the localhost, private, and link-local
-checks do not apply, because the tunnel machine dials the server. The catalog URL has to be an exact URL or hostname.
-A URL template cannot be combined with a tunnel. The tunnel's allowed-URL list is the boundary.
+The gateway docs also describe an MCP tunnel for an upstream the gateway cannot route to. An `obot tunnel` process
+on a machine that can see the server opens an outbound WebSocket to the gateway and forwards HTTP and streaming
+responses to an allow-listed URL. It is not a general TCP tunnel. For a tunneled target the localhost, private, and
+link-local checks do not apply, because the tunnel machine dials the server. The catalog URL has to be an exact URL
+or hostname. A URL template cannot be combined with a tunnel. The tunnel's allowed-URL list is the boundary. That is
+what the gateway documents. It is not a recommendation to run the tunnel beside the Host.
 
-A Host on loopback, or on a private address, is refused until an admin sets the matching flag or publishes it through
-a tunnel. The Host's `every_peer_is_remote` flag does not change that. It only changes how the Host classifies
-peers. A tunnel, or a gateway on another machine, is a remote peer, so the Host then requires an agent token
-(ADR 0006). The URL's host must also be a name the Host accepts: a loopback name, or, in network mode, its `.local`
-name or a LAN address.
+**source**, `host/crates/server/src/guard.rs`. A peer is local when its address is loopback. `peer` sets `remote`
+only when `every_peer_is_remote` is set or the address is not loopback (`guard.rs:86`). `every_peer_is_remote` is a
+test-only field on `Config` (`host/crates/server/src/lib.rs`: "Treat every peer, loopback too, as another machine.
+Tests only"). It is not a user-facing flag. The default is false, and the CLI does not set it. A tunnel or a gateway
+on the Host's machine that connects to 127.0.0.1 is that loopback peer. `/mcp`, `/api/*` and `/blobs/*` then need no
+token. The control API (`/api/host` and below) is refused when the peer is remote or the request has an `Origin`
+header (`guard.rs:50`), so a loopback request with no `Origin` is accepted. A same-machine tunnel exposes that
+unauthenticated local surface, including the control API. What to do about it belongs to ADR 0030 (#111). This page
+does not propose a fix, and it does not suggest placing a tunnel next to the Host to make the peer remote.
+
+A caller on another machine, whose address is not loopback, is a remote peer. Then `/mcp`, `/api/*` and `/blobs/*`
+need `Authorization: Bearer` (ADR 0006). The `Host` header still has to be one of the names that ADR allows.
 
 ## Limits
 
@@ -190,26 +199,39 @@ once the call goes through the gateway.
 ## What was not run
 
 The optional local check, the public gateway image against `inkup serve` on loopback, was not run. `clientInfo.name`,
-a 600 second `watch_items`, and the image-size behavior are therefore not observed. Reaching a loopback Host from
-the gateway also requires `OBOT_SERVER_DISALLOW_LOCALHOST_MCP=false`, or a tunnel. The default refuses loopback.
+a 600 second `watch_items`, and the image-size behavior are therefore not observed. The gateway refuses a loopback
+upstream unless `OBOT_SERVER_DISALLOW_LOCALHOST_MCP=false`, or a tunnel dials that URL. A tunnel on the Host's
+machine is the local peer in [Network reach](#network-reach), not a remote one.
 
-## What this means for the Host
+## Inputs to ADR 0030 (#111)
 
-- Keep serving Streamable HTTP at `/mcp`. Do not add stdio, or a legacy SSE-only endpoint, for this gateway.
-- Put the agent token in a gateway header named `Authorization` whose value is `Bearer <token>`. Preconfigured is
-  one shared token. Provided at connection is one token per user. A Kubernetes Secret can hold the value. Do not put
-  the token in the URL.
-- Do not expect the client's gateway login, or MCP OAuth, to present an InkUp agent token. The Host does not
-  implement MCP OAuth.
-- Do not trust an unsigned user header. The agent token is the check. Per-user tokens are how the Host tells people
-  apart.
-- Expect `clientInfo.name` on a user session to be the AI client's name, and `Obot MCP Gateway` only when the
-  gateway has no frontend identity. That name is what a Resolution shows. This is source, not a live capture.
-- A Host on a private or loopback address is unreachable until an admin relaxes that check or runs a tunnel beside
-  the Host. Off loopback the Host requires the token.
-- Assume `watch_items` can still be cut by something in front of the gateway. The gateway code that was read sets
-  no tool-call deadline.
-- Assume `get_screenshot` bytes, and transcript excerpts, are stored in the gateway audit log.
+This page records what the gateway docs and the current Host do. It does not choose a deployment. ADR 0030 (#111)
+is the decision. The facts that decision has to weigh:
+
+- The Host already serves Streamable HTTP at `/mcp`. A remote catalog entry is that transport. The gateway docs use
+  stdio, and a legacy SSE-only endpoint, for other shapes of server.
+- When the peer is another machine, an agent token is a configured `Authorization` header whose value is
+  `Bearer <token>`. Preconfigured is one shared token. Provided at connection is one token per user. A Kubernetes
+  Secret can hold the value. The public catalog rules keep the token out of the URL. The client's gateway credential
+  and MCP OAuth do not present an InkUp agent token. The Host does not implement MCP OAuth.
+- The gateway docs do not give the upstream a signed end-user identity. Per-user agent tokens are the split the Host
+  can already see. An unsigned user header is not that check.
+- In the source that was read, `clientInfo.name` on a user session is the AI client's name, and `Obot MCP Gateway`
+  when the gateway has no frontend identity. ADR 0021 names a Resolution from that field. This was not captured on a
+  running gateway.
+- A same-machine tunnel or gateway that dials 127.0.0.1 is a local peer. It opens the unauthenticated local surface
+  (`/mcp`, `/api/*`, `/blobs/*` with no token, and the control API when the request has no `Origin`). Running a
+  tunnel beside the Host does not make that peer remote.
+- A peer that is not loopback is remote use, and it runs past limits ADR 0006 already sets:
+  - Network mode is plaintext HTTP and WebSocket, with no TLS. Everything on the path can read it.
+  - It is for a trusted LAN only.
+  - The `Host` header allowlist is small. Loopback names on the Host's own port are served. In network mode,
+    `serves_name` also admits the `.local` names this Host could hold (its base name, and `-2` through `-5`) and its
+    own LAN IPv4 addresses. Any other name is refused (`guard.rs`, ADR 0006).
+- The gateway code that was read sets no tool-call deadline, so a 600 second `watch_items` can still be cut by
+  something in front of the gateway.
+- A proxied `get_screenshot`, and transcript excerpts in `read_items` or `watch_items`, are stored in the gateway
+  audit log.
 
 ## Sources
 
