@@ -36,6 +36,7 @@ down. The H1 of each file states the decision; the body says where it lives in t
 | [0027](0027-lockstep-releases-and-host-updates.md) | Lockstep releases cut by release-please, and Host self-update | accepted | 2026-09-25 |
 | [0028](0028-tracker-push.md) | Sending Change Items to issue trackers | accepted | 2026-10-07 |
 | [0029](0029-ui-standard-shadcn-shared-package.md) | The UI standard: React, Tailwind and shadcn/ui from the shared `@inkup/ui` package, in both apps | accepted | 2026-10-07 |
+| [0030](0030-remote-host.md) | A Remote Host over HTTPS: a token on every request, pairing by code | proposed | 2026-10-20 |
 
 The date is when the decision was first made. ADRs 0010 to 0024 were distilled on 2026-09-24 from the decisions log
 that the repo kept until then; their History sections carry its dates.

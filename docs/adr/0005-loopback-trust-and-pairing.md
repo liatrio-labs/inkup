@@ -48,6 +48,9 @@ local processes reach it, and those are out of scope as above.
   desktop app asks in its window, through the control API's pending list (`Server::ask_pairing_over_control`), and a
   window driving a CLI host leaves the asking to that host. The control API trusts the same boundary as this ADR:
   loopback, no web page Origin, and a token only the user can read (ADR 0025).
+- 2026-10-20: ADR 0030 (proposed) would supersede in part the rule that MCP needs no token on loopback. A Remote
+  Host sits behind a reverse proxy, gateway or tunnel that connects from 127.0.0.1, so there every peer would need
+  a token, loopback included. Until 0030 is accepted, this ADR's status and text stand as written.
 
 ## Sources
 
