@@ -1,5 +1,5 @@
 ---
-status: accepted; superseded in part by 0006 (network mode: other machines, and tokens for MCP off loopback)
+status: accepted; superseded in part by 0006 and 0030
 date: 2026-09-23
 ---
 

@@ -98,6 +98,10 @@ harnesses. Even then a Client on another machine pairs only with its code.
   was declined at the host" though nobody declined. Now each machine has one waiting code, its newest.
 - 2026-10-02: every rebuilt test binary set off the macOS "accept incoming network connections?" prompt on its
   first bind beyond loopback. Those tests now run only with `INKUP_LAN_TESTS=1`, which CI sets; elsewhere they skip.
+- 2026-10-20: we thought TLS for a Host on another machine came later, once browsers trusted a certificate for a
+  `.local` name. ADR 0030 (proposed) requires an `https://` public URL for a Remote Host, with TLS ended by a reverse
+  proxy or by the Host, because a cloud agent cannot use unencrypted HTTP on a LAN. Network mode stays as written
+  here until that ADR is accepted.
 
 ## Sources
 
