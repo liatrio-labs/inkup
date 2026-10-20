@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.14.1...inkup-v0.15.0) (2026-10-20)
+
+
+### Features
+
+* **host:** serve a Remote Host at an https public URL ([#135](https://github.com/liatrio-labs/inkup/issues/135)) ([cb7afdd](https://github.com/liatrio-labs/inkup/commit/cb7afdd2664781eb3876a4be61da1399866b540f))
+
 ## [0.14.1](https://github.com/liatrio-labs/inkup/compare/inkup-v0.14.0...inkup-v0.14.1) (2026-10-16)
 
 
