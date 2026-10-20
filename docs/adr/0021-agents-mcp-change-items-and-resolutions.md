@@ -59,3 +59,6 @@ to `start_session`, `pause`, `resume`, `stop` or `set_draw_mode` (`command` / `c
   itself. 0030 (proposed) would name it from the Agent token on a Remote Host, because the token's name is
   authenticated, and would keep `clientInfo.name` beside it. Through a gateway that string is usually the AI
   client's own name (`docs/spikes/mcp-gateway.md`). This ADR's text stays as written while 0030 is proposed.
+- 2026-10-20: ADR 0030 was accepted. On a Remote Host a Resolution is named for the Agent token, and
+  `clientInfo.name` is stored beside it. Loopback and Network mode keep this ADR, where `clientInfo.name` stays the
+  agent's name. The text above stays as written.

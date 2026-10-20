@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-10-20
 supersedes: the loopback-only MCP trust in 0005
 ---
@@ -11,8 +11,8 @@ A reviewer can run the Host off their own machine and still hand Change Items to
 in. Network mode (ADR 0006) is HTTP without TLS on a trusted LAN, found by a `.local` name. A cloud agent reaches
 neither. InkUp's authors run no servers for it (PRODUCT.md): the user runs this Host. A self-hosted MCP gateway such
 as Obot is how that agent reaches the Host's MCP. The rules below follow the findings of the #110 spike, recorded in
-`docs/spikes/mcp-gateway.md` (#120). This ADR merges after it. Where the spike says a claim is unknown or
-unverified, this ADR does not rely on it.
+`docs/spikes/mcp-gateway.md` (#120). This ADR follows the findings of that spike. Where the spike says a claim is
+unknown or unverified, this ADR does not rely on it.
 
 **The term is Remote Host.** A Remote Host is a Host reached over HTTPS from other networks. It sits beside loopback
 and Network mode, and those two keep the behaviour they have today. CONTEXT.md lists "Remote mode" and "server mode"
@@ -124,10 +124,11 @@ from `get_screenshot` and the words on a Signal are kept. #116 says so in PRIVAC
 
 **A proxy may stop a body the Host would still store.** `MAX_BLOB_BYTES` in `host/crates/server/src/http.rs` is
 4 GiB. A reverse proxy often refuses a smaller body, and the audio or video upload then fails in front of the Host.
-The operator raises the proxy's limit. The gateway's user docs state no cap on an image response. Its proxy hook
-refuses a body over 10 MiB (`maxMCPProxyHookBodySize`), and that hook reads the response as well as the request, so
-a larger screenshot does not come back through it. The Host does not shrink screenshots to fit that hook. Whether
-the audit store rejects a large row is unknown. `watch_items` waits up to 600 seconds (`MAX_WATCH_SECONDS` in
+The operator raises the proxy's limit. The gateway's user docs state no cap on an image response. When hooks run,
+the gateway can refuse a non-streaming response over 10 MiB (`maxMCPProxyHookBodySize`). That hook reads the
+response as well as the request. An SSE response is not passed through that whole-body read, and with hooks off
+the limit does not apply. The Host does not shrink screenshots to fit that hook. Whether the audit store rejects
+a large row is unknown. `watch_items` waits up to 600 seconds (`MAX_WATCH_SECONDS` in
 `mcp.rs`; the default is 120). The gateway source the spike read sets no tool-call deadline, but whether an ingress
 or proxy in front cuts the call is
 unknown, and a 600-second call was not observed. Every hop on the path to `/mcp` needs an idle timeout of at least
@@ -202,10 +203,9 @@ an omitted port omitted. A paired Remote Host is labelled encrypted. `inkup mcp 
   check. The authors still run no servers. The user runs this Host.
 - #118, deferred: an identity the gateway asserts, or the Host as an OAuth 2.1 resource server.
 - #119, deferred: publish the image from the release workflow.
-- On acceptance, ADR 0005's status becomes `accepted; superseded in part by 0006 and 0030` (the part: MCP on loopback
-  with no token, once the Host is a Remote Host), and the index row follows. Until then 0005's status is unchanged. ADR
-  0005, ADR 0006 and ADR 0021 each carry a History line pointing here and keep their text while this ADR is
-  proposed.
+- ADR 0005's status is `accepted; superseded in part by 0006 and 0030` (the part: MCP on loopback
+  with no token, once the Host is a Remote Host), and the index row matches. ADR 0005, ADR 0006 and ADR 0021
+  keep their decision text. Each carries a History line recording this acceptance.
 
 ## History
 
@@ -213,10 +213,12 @@ an omitted port omitted. A paired Remote Host is labelled encrypted. `inkup mcp 
   status stays `proposed`, loopback and Network mode remain the rules in ADR 0005 and ADR 0006.
 - 2026-10-20: the maintainer chose operator-issued pairing codes. On a Remote Host, `inkup pairing` is the only way a
   code is issued. A hello on the public URL issues none, so the per-IP reset in `pairing.rs` is not reachable there.
+- 2026-10-20: accepted by the maintainer. ADR 0005's status is `accepted; superseded in part by 0006 and 0030`
+  (the part: MCP on loopback with no token, once the Host is a Remote Host), and the index row matches.
 
 ## Sources
 
-- #110, and its findings page `docs/spikes/mcp-gateway.md` (#120), which this ADR merges after. This ADR follows its
+- #110, and its findings page `docs/spikes/mcp-gateway.md` (#120), whose findings this ADR follows. This ADR follows its
   labels (documented, source, unknown, unverified): <https://github.com/liatrio-labs/inkup/issues/110>,
   <https://github.com/liatrio-labs/inkup/pull/120>
 - #111, this decision: <https://github.com/liatrio-labs/inkup/issues/111>
