@@ -1,5 +1,5 @@
 ---
-status: accepted; superseded in part by 0006 (network mode: other machines, and tokens for MCP off loopback)
+status: accepted; superseded in part by 0006 and 0030 (network mode, and a Remote Host's loopback MCP needs a token)
 date: 2026-09-23
 ---
 
@@ -51,6 +51,8 @@ local processes reach it, and those are out of scope as above.
 - 2026-10-20: ADR 0030 (proposed) would supersede in part the rule that MCP needs no token on loopback. A Remote
   Host sits behind a reverse proxy, gateway or tunnel that connects from 127.0.0.1, so there every peer would need
   a token, loopback included. Until 0030 is accepted, this ADR's status and text stand as written.
+- 2026-10-20: ADR 0030 was accepted. This status is now `accepted; superseded in part by 0006 and 0030`. The part
+  0030 supersedes is MCP on loopback with no token, once the Host is a Remote Host. The text above stays as written.
 
 ## Sources
 
