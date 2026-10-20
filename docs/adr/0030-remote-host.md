@@ -11,8 +11,8 @@ A reviewer can run the Host off their own machine and still hand Change Items to
 in. Network mode (ADR 0006) is HTTP without TLS on a trusted LAN, found by a `.local` name. A cloud agent reaches
 neither. InkUp's authors run no servers for it (PRODUCT.md): the user runs this Host. A self-hosted MCP gateway such
 as Obot is how that agent reaches the Host's MCP. The rules below follow the findings of the #110 spike, recorded in
-`docs/spikes/mcp-gateway.md` (#120). This ADR merges after it. Where the spike says a claim is unknown or
-unverified, this ADR does not rely on it.
+`docs/spikes/mcp-gateway.md` (#120). This ADR follows the findings of that spike. Where the spike says a claim is
+unknown or unverified, this ADR does not rely on it.
 
 **The term is Remote Host.** A Remote Host is a Host reached over HTTPS from other networks. It sits beside loopback
 and Network mode, and those two keep the behaviour they have today. CONTEXT.md lists "Remote mode" and "server mode"
@@ -218,7 +218,7 @@ an omitted port omitted. A paired Remote Host is labelled encrypted. `inkup mcp 
 
 ## Sources
 
-- #110, and its findings page `docs/spikes/mcp-gateway.md` (#120), which this ADR merges after. This ADR follows its
+- #110, and its findings page `docs/spikes/mcp-gateway.md` (#120), whose findings this ADR follows. This ADR follows its
   labels (documented, source, unknown, unverified): <https://github.com/liatrio-labs/inkup/issues/110>,
   <https://github.com/liatrio-labs/inkup/pull/120>
 - #111, this decision: <https://github.com/liatrio-labs/inkup/issues/111>
