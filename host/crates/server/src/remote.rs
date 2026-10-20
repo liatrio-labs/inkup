@@ -155,12 +155,15 @@ mod tests {
         let http = PublicUrl::parse("http://review.example").unwrap_err();
         assert!(http.contains("https://"), "{http}");
         assert!(http.contains("not http://review.example"), "{http}");
-        let with_secret = PublicUrl::parse("http://user:secret@review.example/private").unwrap_err();
-        assert!(with_secret.contains("http://review.example"), "{with_secret}");
-        assert!(!with_secret.contains("secret") && !with_secret.contains("user"), "{with_secret}");
-        let https_secret = PublicUrl::parse("https://user:secret@review.example").unwrap_err();
-        assert!(https_secret.contains("userinfo"), "{https_secret}");
-        assert!(!https_secret.contains("secret"), "{https_secret}");
+        // Do not format these errors into the assertion. A message that echoed userinfo would otherwise
+        // land in the failure output.
+        let http_userinfo = PublicUrl::parse("http://user:secret@review.example/private").unwrap_err();
+        assert!(http_userinfo.contains("http://review.example"));
+        assert!(!http_userinfo.contains("secret"));
+        assert!(!http_userinfo.contains("user"));
+        let https_userinfo = PublicUrl::parse("https://user:secret@review.example").unwrap_err();
+        assert!(https_userinfo.contains("userinfo"));
+        assert!(!https_userinfo.contains("secret"));
         assert!(PublicUrl::parse("https://review.example/inkup").unwrap_err().contains("no path"));
         assert!(PublicUrl::parse("review.example").unwrap_err().contains("https://"));
         assert!(PublicUrl::parse("https://").unwrap_err().contains("host"));
