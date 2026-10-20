@@ -33,7 +33,7 @@ pages no longer say the same thing. Full URLs are in [Sources](#sources).
 | `clientInfo.name` the upstream sees | Not in the user docs. With forwarding on, the composite's unit test shows the connecting client's name and version. If that identity is missing, the configured fallback is `Obot MCP Gateway` | source |
 | Private, loopback, and link-local upstreams | Refused by default. An admin can turn each check off. The gateway docs also describe an MCP tunnel. A tunnel on the Host's machine that dials 127.0.0.1 is a local peer and needs no token | documented; local peer is source |
 | Tool-call timeout (`watch_items`, up to 600 s) | No user-doc deadline for a tool call. The proxy's HTTP client timeout is unset, and the composite treats a non-positive server timeout as no deadline. Whether an ingress cuts the call is unknown | source; ingress unknown |
-| Response size (`get_screenshot`) | No user-doc cap. The proxy rejects a request body over 10 MiB. The audit reader copies the response with no size check in the file that was read. A database limit was not found | source; storage unknown |
+| Response size (`get_screenshot`) | No user-doc cap. A 10 MiB hook body limit can apply to a message the hook reader buffers, including a non-streaming response when hooks run. It is not a general request cap. A database limit was not found | source; storage unknown |
 | Audit of requests and responses | The gateway records MCP requests and responses, including full payloads for the Auditor role. A screenshot or a transcript excerpt in a tool result is stored. Application-level encryption is off by default. Retention defaults to 90 days | documented |
 
 ## Transport
@@ -127,9 +127,10 @@ missing. The HTTP component client uses the forwarded identity when the request 
 `TestCompositeUpstreamClientIdentity` connects two clients, named `first-client` and `second-client`, and fails if
 the upstream tool does not observe that same name and version.
 
-A Resolution on a user session should therefore be named after the AI client, whatever that client sends, not after
-the Obot user. A gateway-initiated connection with no frontend identity uses `Obot MCP Gateway`. Session reuse across
-two clients of one Obot user was not checked beyond that unit test, which uses a fresh composite for each connection.
+A Resolution on an MCP connection should therefore be named after the AI client, whatever that client sends, not
+after the Obot user. A gateway-initiated connection with no frontend identity uses `Obot MCP Gateway`. Reuse of one
+MCP connection across two clients of one Obot user was not checked beyond that unit test, which uses a fresh
+composite for each connection.
 
 ## Network reach
 
@@ -144,8 +145,11 @@ The gateway docs also describe an MCP tunnel for an upstream the gateway cannot 
 on a machine that can see the server opens an outbound WebSocket to the gateway and forwards HTTP and streaming
 responses to an allow-listed URL. It is not a general TCP tunnel. For a tunneled target the localhost, private, and
 link-local checks do not apply, because the tunnel machine dials the server. The catalog URL has to be an exact URL
-or hostname. A URL template cannot be combined with a tunnel. The tunnel's allowed-URL list is the boundary. That is
-what the gateway documents. It is not a recommendation to run the tunnel beside the Host.
+or hostname. A URL template cannot be combined with a tunnel. The tunnel's allowed-URL list is the boundary. The
+security notes say forwarded MCP headers may contain credentials, and that the CLI should run only on a trusted
+machine because it makes the final request to the destination. That machine handles the upstream
+`Authorization: Bearer` value, so it has to be trusted with the agent token. The CLI log does not record header
+values. That is what the gateway documents. It is not a recommendation to run the tunnel beside the Host.
 
 **source**, `host/crates/server/src/guard.rs`. A peer is local when its address is loopback. `peer` sets `remote`
 only when `every_peer_is_remote` is set or the address is not loopback (`guard.rs:86`). `every_peer_is_remote` is a
@@ -178,10 +182,15 @@ gateway docs promises that a 600 second tool call completes. The source that was
 Survival of that call was not observed.
 
 **Response size.** User docs do not state a cap on MCP response bodies or on image content. `get_screenshot` returns
-one base64 image block. **source**: the proxy refuses a request body larger than 10 MiB (`10 << 20`) before it
-forwards. A `get_screenshot` request is small. The audit wrapper copies the response body with no length check in
-`proxy_audit.go`. Whether the database rejects a large audit row was not determined, so a practical cap is
-**unknown**. A screenshot the Host returns is audited in full if that row is stored.
+one base64 image block. **source**: `maxMCPProxyHookBodySize` in `proxy_hooks.go` is `10 << 20` (10 MiB), at line 23.
+`readMCPHookBody` rejects a buffered message over that size with "MCP message exceeds N byte hook limit". It is a
+hook body limit, not a general request limit. The audit reader uses the same constant when it buffers a request.
+When hooks are enabled, `filterResponse` reads a non-streaming response through `readMCPHookBody`, so the same limit
+can apply to a response. An SSE response is not passed through that whole-body read. When hooks are disabled,
+`filterResponse` returns without reading the body, and the audit wrapper copies the response with no size check.
+Whether the database rejects a large audit row was not determined, so a practical cap beyond the hook path is
+**unknown**. A `get_screenshot` request is small. A large image in the response hits the hook limit only when that
+response is read through it.
 
 ## Audit
 
@@ -195,6 +204,11 @@ A `get_screenshot` result is image content in the response payload, so the image
 Auditor, and unencrypted unless an admin configures encryption. Transcript excerpts inside `read_items` or
 `watch_items` results land there the same way. The Host cannot keep a tool result out of the gateway's audit log
 once the call goes through the gateway.
+
+**source**: `sanitizedMCPHeaders` in `proxy_audit.go` writes `Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`,
+`X-Auth-Token`, and `Proxy-Authorization` as `[REDACTED]`. Other headers are copied. Request and response bodies are
+not passed through that function, so the payloads stay in the log after those credential headers are blanked. The
+agent token in `Authorization` is not in the stored headers. A screenshot in the tool result still is.
 
 ## What was not run
 
@@ -216,12 +230,13 @@ is the decision. The facts that decision has to weigh:
   and MCP OAuth do not present an InkUp agent token. The Host does not implement MCP OAuth.
 - The gateway docs do not give the upstream a signed end-user identity. Per-user agent tokens are the split the Host
   can already see. An unsigned user header is not that check.
-- In the source that was read, `clientInfo.name` on a user session is the AI client's name, and `Obot MCP Gateway`
-  when the gateway has no frontend identity. ADR 0021 names a Resolution from that field. This was not captured on a
-  running gateway.
+- In the source that was read, `clientInfo.name` on an MCP connection is the AI client's name, and
+  `Obot MCP Gateway` when the gateway has no frontend identity. ADR 0021 names a Resolution from that field. This
+  was not captured on a running gateway.
 - A same-machine tunnel or gateway that dials 127.0.0.1 is a local peer. It opens the unauthenticated local surface
   (`/mcp`, `/api/*`, `/blobs/*` with no token, and the control API when the request has no `Origin`). Running a
-  tunnel beside the Host does not make that peer remote.
+  tunnel beside the Host does not make that peer remote. The tunnel machine makes the final request, and forwarded
+  headers may carry the agent token, so that machine has to be trusted with it.
 - A peer that is not loopback is remote use, and it runs past limits ADR 0006 already sets:
   - Network mode is plaintext HTTP and WebSocket, with no TLS. Everything on the path can read it.
   - It is for a trusted LAN only.
@@ -231,7 +246,8 @@ is the decision. The facts that decision has to weigh:
 - The gateway code that was read sets no tool-call deadline, so a 600 second `watch_items` can still be cut by
   something in front of the gateway.
 - A proxied `get_screenshot`, and transcript excerpts in `read_items` or `watch_items`, are stored in the gateway
-  audit log.
+  audit log. `Authorization` and the other credential headers `sanitizedMCPHeaders` lists are stored as
+  `[REDACTED]`. The payloads are not.
 
 ## Sources
 
