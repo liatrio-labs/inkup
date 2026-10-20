@@ -17,6 +17,16 @@ const NEW_FILE: &str = "\
 # network = true binds every interface so other machines on this LAN can pair and send Sessions (ADR 0006).
 # The traffic is unencrypted: use it on trusted networks only. `inkup serve --network` turns it on for one
 # run; the TUI's N key switches it and writes it here.
+#
+# remote = true serves a Remote Host at public_url, which must be https://. The Host listens as HTTP for a
+# reverse proxy or a gateway to put TLS in front. Every request to /mcp, /api and /blobs needs a Client or
+# Agent token, from 127.0.0.1 too. A Client pairs with a code from `inkup pairing`, not from a hello.
+# `inkup serve --remote --public-url https://…` turns it on for one run. hub_name, when set, is what /health
+# gives; leave it unset and a Remote Host omits the machine's name. The desktop app and the TUI do not serve
+# a Remote Host.
+# remote = false
+# public_url = \"https://example.com\"
+# hub_name = \"review desk\"
 ";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,6 +35,12 @@ pub struct HostConfig {
     pub network: bool,
     /// This Host's id in mDNS TXT records, so a Client can tell two Hosts with the same name apart.
     pub hub_id: String,
+    /// A Remote Host (ADR 0030): https public URL, a token on every request, no mDNS.
+    pub remote: bool,
+    /// The https origin Clients and agents are given. Read when `remote` is set.
+    pub public_url: Option<String>,
+    /// A name the operator chose for /health. A Remote Host does not invent one from the machine.
+    pub hub_name: Option<String>,
 }
 
 impl HostConfig {
@@ -32,6 +48,9 @@ impl HostConfig {
     pub fn load(dir: &Path) -> Result<Self> {
         let mut doc = read(dir)?;
         let network = doc.get("network").and_then(|v| v.as_bool()).unwrap_or(false);
+        let remote = doc.get("remote").and_then(|v| v.as_bool()).unwrap_or(false);
+        let public_url = nonempty_str(doc.get("public_url"));
+        let hub_name = nonempty_str(doc.get("hub_name"));
         let hub_id = match doc.get("hub_id").and_then(|v| v.as_str()) {
             Some(id) if !id.is_empty() => id.to_owned(),
             _ => {
@@ -45,7 +64,7 @@ impl HostConfig {
         if header_at_bottom(&doc) {
             write(dir, &doc)?;
         }
-        Ok(Self { network, hub_id })
+        Ok(Self { network, hub_id, remote, public_url, hub_name })
     }
 
     /// Switches network mode in the file.
@@ -93,6 +112,10 @@ impl DesktopConfig {
         doc["desktop"]["dock"] = value(self.dock);
         write(dir, &doc)
     }
+}
+
+fn nonempty_str(item: Option<&Item>) -> Option<String> {
+    item.and_then(Item::as_str).map(str::trim).filter(|text| !text.is_empty()).map(str::to_owned)
 }
 
 fn read(dir: &Path) -> Result<DocumentMut> {
@@ -183,7 +206,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(CONFIG_FILE);
         std::fs::write(&path, format!("hub_id = \"abc\"\n# mine\nnetwork = true\n{NEW_FILE}")).unwrap();
-        assert_eq!(HostConfig::load(dir.path()).unwrap(), HostConfig { network: true, hub_id: "abc".into() });
+        assert_eq!(
+            HostConfig::load(dir.path()).unwrap(),
+            HostConfig { network: true, hub_id: "abc".into(), remote: false, public_url: None, hub_name: None }
+        );
         assert_eq!(text(dir.path()), format!("{NEW_FILE}\nhub_id = \"abc\"\n# mine\nnetwork = true\n"));
     }
 
@@ -207,6 +233,37 @@ mod tests {
         // Both off by hand: the Dock comes back.
         std::fs::write(dir.path().join(CONFIG_FILE), "[desktop]\nmenubar = false\ndock = false\n").unwrap();
         assert_eq!(DesktopConfig::load(dir.path()).unwrap(), DesktopConfig { menubar: false, dock: true });
+    }
+
+    #[test]
+    fn remote_settings_are_read_and_a_network_save_keeps_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(CONFIG_FILE);
+        std::fs::write(
+            &path,
+            "\
+hub_id = \"abc\"
+remote = true
+public_url = \"https://review.example\"
+hub_name = \"review desk\"
+",
+        )
+        .unwrap();
+        let loaded = HostConfig::load(dir.path()).unwrap();
+        assert_eq!(
+            loaded,
+            HostConfig {
+                network: false,
+                hub_id: "abc".into(),
+                remote: true,
+                public_url: Some("https://review.example".into()),
+                hub_name: Some("review desk".into()),
+            }
+        );
+        HostConfig::save_network(dir.path(), true).unwrap();
+        assert!(HostConfig::load(dir.path()).unwrap().remote);
+        assert!(text(dir.path()).contains("public_url = \"https://review.example\""));
+        assert!(text(dir.path()).contains("hub_name = \"review desk\""));
     }
 
     #[test]

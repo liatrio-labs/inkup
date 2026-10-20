@@ -19,6 +19,7 @@ mod mcp_install;
 mod update;
 
 use std::io::{IsTerminal, Write};
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -26,7 +27,10 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
 use inkup_protocol::Health;
-use inkup_server::{Config, Control, DEFAULT_PORT, NETWORK_WARNING, NetworkConfig, Server, VERSION, lan_addresses};
+use inkup_server::{
+    Config, Control, DEFAULT_BIND, DEFAULT_PORT, NETWORK_WARNING, NetworkConfig, PublicUrl, RemoteHost, Server,
+    VERSION, lan_addresses,
+};
 use inkup_store::instance::{HostInfo, HostKind, HostLock, LockError};
 use inkup_store::{DB_FILE, HostConfig, Store};
 use tokio::sync::watch;
@@ -64,6 +68,15 @@ enum Command {
         /// The `.local` name to claim in network mode, without `.local`. Tests use their own.
         #[arg(long, hide = true, default_value = inkup_server::DEFAULT_MDNS_NAME)]
         mdns_name: String,
+        /// Serve a Remote Host at --public-url: HTTP on the bind address, a token on every request, no mDNS.
+        #[arg(long)]
+        remote: bool,
+        /// The https URL Clients and agents use. Required with --remote unless public_url is set in config.toml.
+        #[arg(long)]
+        public_url: Option<String>,
+        /// Address to listen on. A Remote Host only; the default is 0.0.0.0.
+        #[arg(long)]
+        bind: Option<IpAddr>,
     },
     /// Agent tokens: what an agent on another machine sends to /mcp in network mode.
     Token {
@@ -141,8 +154,29 @@ async fn main() -> Result<()> {
         Some(command) => {
             tracing_subscriber::fmt().with_writer(std::io::stderr).with_env_filter(filter()).init();
             match command {
-                Command::Serve { common, auto_approve_pairing, network, print_pairing_codes, mdns_name } => {
-                    serve(common, Serve { auto_approve_pairing, network, print_pairing_codes, mdns_name }).await
+                Command::Serve {
+                    common,
+                    auto_approve_pairing,
+                    network,
+                    print_pairing_codes,
+                    mdns_name,
+                    remote,
+                    public_url,
+                    bind,
+                } => {
+                    serve(
+                        common,
+                        Serve {
+                            auto_approve_pairing,
+                            network,
+                            print_pairing_codes,
+                            mdns_name,
+                            remote,
+                            public_url,
+                            bind,
+                        },
+                    )
+                    .await
                 }
                 Command::Status { common } => status(common).await,
                 Command::Token { command } => token(command),
@@ -153,6 +187,10 @@ async fn main() -> Result<()> {
         None => {
             let dir = cli.common.data_dir()?;
             std::fs::create_dir_all(&dir).with_context(|| format!("create {}", dir.display()))?;
+            let settings = HostConfig::load(&dir).with_context(|| format!("read the config in {}", dir.display()))?;
+            if settings.remote {
+                bail!("a Remote Host has no TUI; run `inkup serve`");
+            }
             // Before the terminal check: whoever runs `inkup` where a host already runs is told so.
             let lock = lock(&dir, HostKind::Tui).await?;
             if !std::io::stdout().is_terminal() {
@@ -167,12 +205,32 @@ async fn main() -> Result<()> {
 
 const LOG_FILE: &str = "inkup.log";
 
-/// The name other machines see: `inkup on studio-mac`.
+/// The name other machines see: `inkup on studio-mac`. A Remote Host does not publish this.
 fn hub_name() -> String {
+    let host = machine_label();
+    if host.is_empty() { "inkup".into() } else { format!("inkup on {host}") }
+}
+
+/// The first label of the machine's hostname.
+fn machine_label() -> String {
     let host = gethostname::gethostname().to_string_lossy().into_owned();
     // `studio-mac.local`, `studio-mac.localdomain`: the first label is the machine's name.
-    let host = host.split('.').next().unwrap_or_default();
-    if host.is_empty() { "inkup".into() } else { format!("inkup on {host}") }
+    host.split('.').next().unwrap_or_default().to_owned()
+}
+
+/// A Remote Host omits `hub_name`, or the operator sets one that is not the machine's name.
+fn remote_hub_name(configured: Option<&str>) -> Result<Option<String>> {
+    let Some(name) = configured.map(str::trim).filter(|name| !name.is_empty()) else {
+        return Ok(None);
+    };
+    let machine = hub_name();
+    let label = machine_label();
+    if name.eq_ignore_ascii_case(&machine) || (!label.is_empty() && name.eq_ignore_ascii_case(&label)) {
+        bail!(
+            "a Remote Host does not publish the machine name ({machine}); omit hub_name or set one that is not the machine's name"
+        );
+    }
+    Ok(Some(name.to_owned()))
 }
 
 /// Takes the data dir's host lock. If another host holds it: says which (asking a desktop app to come forward
@@ -298,20 +356,83 @@ async fn host_tui(
     }
 }
 
+/// Whether this run is a Remote Host, or why the flags cannot start one.
+fn remote_requested(flag: bool, settings: &HostConfig, network_flag: bool, bind: bool) -> Result<bool> {
+    if flag && network_flag {
+        bail!("--remote and --network cannot be used together: a Remote Host leaves mDNS off");
+    }
+    if settings.remote && settings.network {
+        bail!("config.toml sets both remote and network; a Remote Host leaves network mode off");
+    }
+    if network_flag && settings.remote {
+        bail!("--network cannot start a data dir configured as a Remote Host");
+    }
+    if bind && !flag && !settings.remote {
+        bail!("--bind is only for a Remote Host");
+    }
+    if flag && settings.network {
+        tracing::warn!("network = true in config.toml is ignored for this --remote run");
+    }
+    Ok(flag || settings.remote)
+}
+
+fn remote_config(
+    common: &Common,
+    settings: &HostConfig,
+    public_url: Option<&str>,
+    bind: Option<IpAddr>,
+    control: Control,
+) -> Result<Config> {
+    let raw = public_url.or(settings.public_url.as_deref()).ok_or_else(|| {
+        anyhow::anyhow!(
+            "a Remote Host needs an https public URL: pass --public-url https://… or set public_url in config.toml"
+        )
+    })?;
+    let public_url = PublicUrl::parse(raw).map_err(|error| anyhow::anyhow!("{error}"))?;
+    Ok(Config {
+        port: common.port,
+        network: None,
+        hub_name: remote_hub_name(settings.hub_name.as_deref())?,
+        remote: Some(RemoteHost { public_url, bind: bind.unwrap_or(DEFAULT_BIND) }),
+        every_peer_is_remote: true,
+        control: Some(control),
+        ..Config::default()
+    })
+}
+
 struct Serve {
     auto_approve_pairing: bool,
     network: bool,
     print_pairing_codes: bool,
     mdns_name: String,
+    remote: bool,
+    public_url: Option<String>,
+    bind: Option<IpAddr>,
 }
 
 async fn serve(common: Common, flags: Serve) -> Result<()> {
-    let Serve { auto_approve_pairing, network, print_pairing_codes, mdns_name } = flags;
+    let Serve { auto_approve_pairing, network, print_pairing_codes, mdns_name, remote, public_url, bind } = flags;
     let dir = common.data_dir()?;
+    let settings = HostConfig::load(&dir).with_context(|| format!("read the config in {}", dir.display()))?;
+    let remote_on = remote_requested(remote, &settings, network, bind.is_some())?;
+    if public_url.is_some() && !remote_on {
+        bail!("--public-url is for a Remote Host; pass --remote or set remote = true in config.toml");
+    }
+    if remote_on && auto_approve_pairing && !print_pairing_codes {
+        bail!(
+            "--auto-approve-pairing is refused on a Remote Host: a hello does not issue a pairing code. \
+             (Tests that need the process to start pass --print-pairing-codes.)"
+        );
+    }
     let lock = lock(&dir, HostKind::Serve).await?;
     let store = Store::open(&dir).with_context(|| format!("open the store in {}", dir.display()))?;
     let mut update = update::spawn_check(&dir);
-    let mut config = Config { auto_approve_pairing, ..config(&common, &dir, network, control(&lock, &update))? };
+    let mut config = if remote_on {
+        remote_config(&common, &settings, public_url.as_deref(), bind, control(&lock, &update))?
+    } else {
+        config(&common, &dir, network, control(&lock, &update))?
+    };
+    config.auto_approve_pairing = auto_approve_pairing;
     if let Some(network) = &mut config.network {
         network.mdns_name = mdns_name;
     }
@@ -321,16 +442,31 @@ async fn serve(common: Common, flags: Serve) -> Result<()> {
              (Tests pair by code with --print-pairing-codes.)"
         );
     }
+    let banner = config.remote.clone();
     let mut server = start(Arc::new(store), config, &lock).await?;
     if auto_approve_pairing {
         tracing::warn!("--auto-approve-pairing: every pairing request from this machine is approved without asking");
     }
     let port = server.addr.port();
     // The first stdout line is the address, for scripts and test harnesses that start the host on port 0.
-    println!("inkup listening on http://127.0.0.1:{port}");
+    match &banner {
+        Some(remote) => println!("inkup listening on {}", listen_url(remote.bind, port)),
+        None => println!("inkup listening on http://127.0.0.1:{port}"),
+    }
     std::io::stdout().flush()?;
     eprintln!("data dir: {}", dir.display());
-    eprintln!("MCP for agents: http://127.0.0.1:{port}/mcp");
+    if let Some(remote) = &banner {
+        eprintln!("Remote Host: put this behind HTTPS (a reverse proxy or your gateway)");
+        eprintln!("public URL: {}", remote.public_url.origin());
+        eprintln!("MCP for agents: {}", remote.public_url.mcp());
+        eprintln!("agents need a token: inkup token create --name <agent>");
+        eprintln!("reviewers pair with a code from `inkup pairing`");
+        if let Some(control) = server.control_addr {
+            eprintln!("control API (this machine only): http://127.0.0.1:{}", control.port());
+        }
+    } else {
+        eprintln!("MCP for agents: http://127.0.0.1:{port}/mcp");
+    }
     if let Some(network) = server.network() {
         eprintln!("\n{NETWORK_WARNING}");
         for ip in lan_addresses() {
@@ -366,6 +502,13 @@ async fn serve(common: Common, flags: Serve) -> Result<()> {
     Ok(())
 }
 
+fn listen_url(ip: IpAddr, port: u16) -> String {
+    match ip {
+        IpAddr::V4(ip) => format!("http://{ip}:{port}"),
+        IpAddr::V6(ip) => format!("http://[{ip}]:{port}"),
+    }
+}
+
 /// Ctrl-C, or on Unix SIGTERM (`kill`, a service manager's stop): either way serve shuts down and gives up the data
 /// dir, host.json included.
 async fn stop_requested() -> Result<()> {
@@ -383,6 +526,22 @@ async fn stop_requested() -> Result<()> {
     Ok(())
 }
 
+/// `inkup mcp install --remote <public URL> --token <token>` when the data dir is a Remote Host.
+fn install_hint(data_dir: Option<&Path>) -> String {
+    let dir = data_dir.map(Path::to_path_buf).or_else(inkup_store::default_data_dir);
+    let origin = dir.as_deref().and_then(|dir| {
+        let settings = HostConfig::load(dir).ok()?;
+        if !settings.remote {
+            return None;
+        }
+        PublicUrl::parse(settings.public_url.as_deref()?).ok()
+    });
+    match origin {
+        Some(url) => format!("inkup mcp install --remote {} --token <token>", url.origin()),
+        None => format!("inkup mcp install --remote http://<this hub>:{DEFAULT_PORT} --token <token>"),
+    }
+}
+
 fn token(command: TokenCommand) -> Result<()> {
     let open = |dir: Option<PathBuf>| -> Result<Store> {
         let dir = match dir {
@@ -393,13 +552,12 @@ fn token(command: TokenCommand) -> Result<()> {
     };
     match command {
         TokenCommand::Create { name, data_dir } => {
+            let hint = install_hint(data_dir.as_deref());
             let made = open(data_dir)?.create_agent_token(&name)?;
             // The token alone on stdout, for scripts; the rest to stderr.
             println!("{}", made.token);
             eprintln!("agent token {} for {name}: shown once, keep it secret.", made.agent.id);
-            eprintln!(
-                "on the agent's machine: inkup mcp install --remote http://<this hub>:{DEFAULT_PORT} --token <token>"
-            );
+            eprintln!("on the agent's machine: {hint}");
         }
         TokenCommand::List { data_dir } => {
             for token in open(data_dir)?.agent_tokens()? {
@@ -485,5 +643,18 @@ mod tests {
         assert_eq!(ports.len(), 3);
         assert_ne!(ports[0], 0);
         assert!(ports.iter().all(|port| *port == ports[0]), "{ports:?}");
+    }
+
+    #[test]
+    fn a_remote_host_omits_the_machine_name_unless_the_operator_sets_another() {
+        assert_eq!(remote_hub_name(None).unwrap(), None);
+        assert_eq!(remote_hub_name(Some("  ")).unwrap(), None);
+        assert_eq!(remote_hub_name(Some("review desk")).unwrap().as_deref(), Some("review desk"));
+        let machine = hub_name();
+        assert!(remote_hub_name(Some(&machine)).is_err(), "{machine}");
+        let label = machine_label();
+        if !label.is_empty() {
+            assert!(remote_hub_name(Some(&label)).is_err(), "{label}");
+        }
     }
 }

@@ -8,8 +8,10 @@
 //!   `GET /api/state` (what the TUI shows), `POST /api/clients/{id}/commands` (drive a Client's Session): Bearer
 //!   token, a Client's from pairing or an agent token.
 //! - `/mcp`: MCP over Streamable HTTP for agents (mcp.rs). No token from this machine; from another machine (network
-//!   mode) a Bearer token. Never from a web page origin.
+//!   mode) a Bearer token. A Remote Host (remote.rs, ADR 0030) requires one from every peer, 127.0.0.1 included.
+//!   Never from a web page origin.
 //! - `/api/host/*`: the control API (control.rs). This machine only, with the control token from `host.json`.
+//!   A Remote Host does not serve it on the public listener; it listens on 127.0.0.1 apart from that bind.
 
 #[cfg(test)]
 mod contract;
@@ -20,6 +22,7 @@ mod hub;
 mod mcp;
 mod network;
 mod pairing;
+mod remote;
 mod state;
 mod ws;
 
@@ -31,7 +34,7 @@ use axum::Router;
 use axum::routing::{get, put};
 use inkup_store::Store;
 use tokio::net::TcpListener;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
@@ -41,6 +44,7 @@ pub use network::{
     DEFAULT_MDNS_NAME, MAX_NAME_SUFFIX, NETWORK_WARNING, Network, NetworkConfig, SERVICE_TYPE, lan_addresses,
 };
 pub use pairing::{PairingDecision, PairingRequest, RemotePairing};
+pub use remote::{DEFAULT_BIND, PAIRING_OPERATOR_CODE_REQUIRED, PublicUrl, RemoteHost};
 pub use state::{ClientView, HostState, ItemView, Timeline, TimelineEntry, snapshot};
 
 /// The Host's well-known port; Clients look for it here.
@@ -64,8 +68,11 @@ pub struct Config {
     pub pairing_code_ttl: Duration,
     /// How long a new connection has to send `hello`.
     pub hello_timeout: Duration,
-    /// Treat every peer, loopback too, as another machine. Tests only: the rules for other machines, without one.
+    /// Treat every peer, loopback too, as another machine. A Remote Host sets this. Tests set it without one, to
+    /// exercise the rules for other machines.
     pub every_peer_is_remote: bool,
+    /// A Remote Host (ADR 0030): the https public URL and the bind address. `None`: loopback or Network mode.
+    pub remote: Option<RemoteHost>,
     /// The control API (`/api/host/*`): its token, the host's kind and the activate hook. `None`: closed.
     pub control: Option<Control>,
 }
@@ -81,6 +88,7 @@ impl Default for Config {
             pairing_code_ttl: Duration::from_secs(120),
             hello_timeout: Duration::from_secs(10),
             every_peer_is_remote: false,
+            remote: None,
             control: None,
         }
     }
@@ -104,13 +112,17 @@ struct AppState {
 /// A running server.
 pub struct Server {
     pub addr: SocketAddr,
+    /// The loopback control API, when this is a Remote Host and `Config::control` is set. Not the public bind.
+    pub control_addr: Option<SocketAddr>,
     pairing_requests: Option<mpsc::Receiver<PairingRequest>>,
+    codes: Arc<pairing::PairingCodes>,
     hub: Arc<Hub>,
     network: Option<Arc<Network>>,
     inbox: Arc<control::PairingInbox>,
-    shutdown: oneshot::Sender<()>,
+    shutdown: CancellationToken,
     mcp_shutdown: CancellationToken,
     task: JoinHandle<std::io::Result<()>>,
+    control_task: Option<JoinHandle<std::io::Result<()>>>,
 }
 
 impl Server {
@@ -145,6 +157,11 @@ impl Server {
         self.network.as_ref()
     }
 
+    /// Pairing codes waiting to be typed. A Remote Host's hello leaves this at zero.
+    pub fn pairing_codes_waiting(&self) -> usize {
+        self.codes.waiting()
+    }
+
     /// Stops accepting connections, closes the open ones and waits for the server task.
     pub async fn shutdown(self) -> std::io::Result<()> {
         if let Some(network) = &self.network {
@@ -153,14 +170,32 @@ impl Server {
         // MCP streams stay open while an agent watches, and Client sockets while a browser is connected; end
         // them so graceful shutdown can finish and a restart finds nothing left over.
         self.mcp_shutdown.cancel();
-        let _ = self.shutdown.send(());
-        self.task.await.unwrap_or_else(|e| Err(std::io::Error::other(e)))
+        self.shutdown.cancel();
+        let public = self.task.await.unwrap_or_else(|e| Err(std::io::Error::other(e)));
+        let control = match self.control_task {
+            Some(task) => task.await.unwrap_or_else(|e| Err(std::io::Error::other(e))),
+            None => Ok(()),
+        };
+        public.and(control)
     }
 }
 
-/// Binds 127.0.0.1:`config.port` (every interface in network mode) and serves until `Server::shutdown`.
-pub async fn start(store: Arc<Store>, config: Config) -> std::io::Result<Server> {
-    let ip = if config.network.is_some() { IpAddr::V4(Ipv4Addr::UNSPECIFIED) } else { IpAddr::V4(Ipv4Addr::LOCALHOST) };
+/// Binds 127.0.0.1:`config.port` (every interface in network mode, or `RemoteHost::bind` for a Remote Host) and
+/// serves until `Server::shutdown`.
+pub async fn start(store: Arc<Store>, mut config: Config) -> std::io::Result<Server> {
+    if config.remote.is_some() && config.network.is_some() {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "a Remote Host does not use network mode"));
+    }
+    if config.remote.is_some() {
+        config.every_peer_is_remote = true;
+    }
+    let ip = if let Some(remote) = &config.remote {
+        remote.bind
+    } else if config.network.is_some() {
+        IpAddr::V4(Ipv4Addr::UNSPECIFIED)
+    } else {
+        IpAddr::V4(Ipv4Addr::LOCALHOST)
+    };
     let listener = TcpListener::bind((ip, config.port)).await?;
     let addr = listener.local_addr()?;
     let (pairing_tx, pairing_rx) = mpsc::channel(8);
@@ -171,11 +206,14 @@ pub async fn start(store: Arc<Store>, config: Config) -> std::io::Result<Server>
         Arc::new(Network::start(network, &hub_name, addr.port(), move || hub.view_changed()))
     });
     let mcp_shutdown = CancellationToken::new();
+    let shutdown = CancellationToken::new();
     let inbox = Arc::new(control::PairingInbox::default());
+    let codes = Arc::new(pairing::PairingCodes::new(config.pairing_code_ttl));
+    let remote = config.remote.is_some();
     let state = AppState {
         store,
         inbox: Arc::clone(&inbox),
-        codes: Arc::new(pairing::PairingCodes::new(config.pairing_code_ttl)),
+        codes: Arc::clone(&codes),
         config: Arc::new(config),
         port: addr.port(),
         pairing: pairing_tx,
@@ -183,33 +221,71 @@ pub async fn start(store: Arc<Store>, config: Config) -> std::io::Result<Server>
         network: network.clone(),
         closing: mcp_shutdown.child_token(),
     };
+    let (control_addr, control_task) = match (remote, state.config.control.is_some()) {
+        (true, true) => {
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let control_addr = listener.local_addr()?;
+            let control_state = control_state(&state, control_addr.port());
+            let stop = shutdown.clone();
+            let app = finish(control_routes(Router::new()), control_state, None);
+            let task = tokio::spawn(async move {
+                axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+                    .with_graceful_shutdown(async move { stop.cancelled().await })
+                    .await
+            });
+            (Some(control_addr), Some(task))
+        }
+        _ => (None, None),
+    };
     let app = router(state, mcp_shutdown.child_token());
-    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+    let stop = shutdown.clone();
     let task = tokio::spawn(async move {
         axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-            .with_graceful_shutdown(async {
-                let _ = shutdown_rx.await;
-            })
+            .with_graceful_shutdown(async move { stop.cancelled().await })
             .await
     });
-    tracing::info!(%addr, network = network.is_some(), "inkup host listening");
+    tracing::info!(%addr, ?control_addr, network = network.is_some(), remote, "inkup host listening");
     Ok(Server {
         addr,
+        control_addr,
         pairing_requests: Some(pairing_rx),
+        codes,
         hub,
         network,
         inbox,
-        shutdown: shutdown_tx,
+        shutdown,
         mcp_shutdown,
         task,
+        control_task,
     })
 }
 
+/// The control listener is loopback, and loopback is a boundary there: the public listener is the one a proxy
+/// dials, and it does not serve `/api/host/*`.
+fn control_state(state: &AppState, port: u16) -> AppState {
+    let mut config = (*state.config).clone();
+    config.every_peer_is_remote = false;
+    config.remote = None;
+    config.network = None;
+    AppState { config: Arc::new(config), port, ..state.clone() }
+}
+
 fn router(state: AppState, mcp_shutdown: CancellationToken) -> Router {
-    let network = state.network.is_some();
-    let mcp = mcp::service(Arc::clone(&state.store), Arc::clone(&state.hub), mcp_shutdown, network);
-    Router::new()
-        .route("/health", get(http::health))
+    let remote = state.config.remote.is_some();
+    let mcp = mcp::service(
+        Arc::clone(&state.store),
+        Arc::clone(&state.hub),
+        mcp_shutdown,
+        state.network.is_some() || remote,
+        remote,
+    );
+    // A Remote Host's public listener has no control routes, so a proxy on 127.0.0.1 cannot reach them.
+    let app = if remote { public_routes(Router::new()) } else { control_routes(public_routes(Router::new())) };
+    finish(app, state, Some(mcp))
+}
+
+fn public_routes(app: Router<AppState>) -> Router<AppState> {
+    app.route("/health", get(http::health))
         .route("/ws", get(ws::upgrade))
         .route("/blobs/{id}", put(http::put_blob).get(http::get_blob))
         .route("/api/sessions", get(http::sessions))
@@ -217,7 +293,10 @@ fn router(state: AppState, mcp_shutdown: CancellationToken) -> Router {
         .route("/api/items", get(http::items))
         .route("/api/state", get(http::state))
         .route("/api/clients/{id}/commands", axum::routing::post(http::command))
-        .route("/api/host/state", get(control::state))
+}
+
+fn control_routes(app: Router<AppState>) -> Router<AppState> {
+    app.route("/api/host/state", get(control::state))
         .route("/api/host/activate", axum::routing::post(control::activate))
         .route("/api/host/changes", get(control::changes))
         .route("/api/host/commands", axum::routing::post(control::command))
@@ -228,9 +307,14 @@ fn router(state: AppState, mcp_shutdown: CancellationToken) -> Router {
         .route("/api/host/items/{id}", get(control::item))
         .route("/api/host/items/{id}/tracker-links", axum::routing::post(control::record_tracker_link))
         .route("/api/host/blobs/{id}", get(control::blob))
-        .nest_service("/mcp", mcp)
-        .layer(axum::middleware::from_fn_with_state(state.clone(), guard::guard))
-        .with_state(state)
+}
+
+fn finish(app: Router<AppState>, state: AppState, mcp: Option<mcp::Service>) -> Router {
+    let app = match mcp {
+        Some(mcp) => app.nest_service("/mcp", mcp),
+        None => app,
+    };
+    app.layer(axum::middleware::from_fn_with_state(state.clone(), guard::guard)).with_state(state)
 }
 
 #[cfg(test)]
