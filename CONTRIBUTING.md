@@ -8,8 +8,9 @@ By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Report se
 
 ## Set up
 
-You need Node 22.18 or later, pnpm 10 or later, Chrome 153 or later, for the host a Rust toolchain (the version
-is in `host/Cargo.toml`, `rust-version`), and [pre-commit](https://pre-commit.com) 4 or later.
+You need Node 22.18 or later, pnpm 10 or later, Chrome 153 or later, Rust 1.98 or later for the host and desktop
+(as declared in `host/Cargo.toml` and `apps/desktop/src-tauri/Cargo.toml`), and
+[pre-commit](https://pre-commit.com) 4 or later.
 
 ```sh
 pnpm install                                  # installs the git hooks, and copies the ONNX Runtime and VAD wasm files
@@ -46,7 +47,9 @@ accessibility, so the terminal needs Accessibility access.
 The [README](README.md) lists every command and how to load the extension unpacked in Chrome, Firefox and Safari.
 
 `pnpm install` runs `pre-commit install` for you when pre-commit is on your PATH, and says so when it is not.
-Install pre-commit first, or run `pre-commit install` once after installing it.
+Install pre-commit first, or run `pre-commit install` once after installing it. Before the first commit in each
+worktree, run `pre-commit install-hooks` to prepare hook environments before they can affect its index.
+Node and pnpm versions above are documented prerequisites; the root `package.json` has no `engines` constraints.
 
 ## Before you open a pull request
 
@@ -67,8 +70,8 @@ pnpm desktop:build                            # the desktop app, as CI builds it
 ```
 
 On macOS, run the e2e in Docker. Chromium's tab and screen capture otherwise asks macOS for screen recording again and
-again, and `network-host.spec.ts` needs local-network access; Linux has neither, and CI runs Linux. The raw
-`pnpm test:e2e` and `pnpm test:e2e:firefox` still work on the machine itself. Docker needs no setup beyond Docker
+again, and `network-host.spec.ts` needs local-network access; Linux has neither, and CI runs Linux. On other platforms,
+the raw `pnpm test:e2e` and `pnpm test:e2e:firefox` run on the machine itself. Docker needs no setup beyond Docker
 itself; [tests/e2e/README.md](tests/e2e/README.md#running-in-docker) has the details.
 
 The host and desktop tests that listen beyond loopback (network mode on every interface, mDNS) skip unless
@@ -97,11 +100,34 @@ connections?" prompt, so set it only when you change network mode and can answer
 
 ## Pull requests
 
-- Keep one change per pull request, with a description of what changed and why and how you verified it.
-- CI must pass: `ci-ok`, which needs every job the change runs: lint, core, the Chrome and Firefox builds and e2e,
-  the host (cargo on Linux, macOS and Windows) and the desktop app (the same three). A job whose paths did not
-  change is skipped, and a skipped job passes (ADR 0007).
-- A maintainer from `@liatrio-labs/liatrio-labs-maintainers` reviews and merges.
+- Use one isolated worktree and branch from `origin/main` for each change. Do not work in the shared root checkout
+  or commit directly to `main`. Open a ready pull request against `main` with a Conventional Commit title.
+- Keep one outcome per PR, targeting under 400 changed lines excluding generated files, locks and fixtures.
+  Explain larger diffs and why they cannot be split in the template's exception field.
+- Fill in the [PR template](.github/pull_request_template.md): outcome, public issue (or public-safe rationale),
+  acceptance criteria, exact head SHA, proof commands/output and exit codes, risk/rollback and security triggers.
+  State checks you could not run and why. For documentation-only work, run affected Markdown and file hygiene
+  checks; product checks remain required when hooks or CI run them. Never disable or silently skip required checks.
+- Behaviour changes need real evidence: load extension changes in at least one browser; exercise host changes
+  through a real MCP client round trip. Record the relevant manual checks and platform limits.
+- Independent code review and QA run in parallel. Neither reviewer authored the change. QA checks out the exact
+  head, runs affected checks itself and compares each acceptance criterion with actual results. Product acceptance
+  belongs to a maintainer. Security review is required for any boundary trigger in the template; otherwise
+  explain the skip. Code review confirms that decision.
+- Review comments identify the reviewer role, head SHA, verdict, findings and evidence. A new push invalidates
+  previous verdicts: obtain current code review and QA approval, and Security approval when triggered.
+- Fix valid findings or track them in public-safe issues with file/PR references; give reasons for dismissals.
+  Resolve review conversations. Unresolved changes requested, security or acceptance blockers prevent merge.
+- CI must pass: `ci-ok` aggregates the jobs selected by the change, including lint, core, Chrome/Firefox builds
+  and e2e, host and desktop platform matrices, contract compatibility and site checks as applicable. A job skipped
+  by CI's path routing passes the aggregate (ADR 0007). This describes the workflow, not verified live protection.
+- A maintainer from `@liatrio-labs/liatrio-labs-maintainers` owns review and merge. Authors and reviewers do not
+  merge or enable auto-merge. Independent review comments supplement native GitHub protection: they cannot
+  satisfy a required native approval, bypass protections or authorize self-approval. Maintainers verify the active
+  gates before merging; CODEOWNERS alone does not prove owner eligibility or server enforcement.
+- This repository and its commits, PRs, issues and comments are public. Never include internal hosts or addresses,
+  tokens, customer or colleague names, private evidence or internal task links. Share sensitive security findings
+  privately through [SECURITY.md](SECURITY.md).
 
 ## License
 
