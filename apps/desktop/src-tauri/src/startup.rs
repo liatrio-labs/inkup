@@ -87,15 +87,11 @@ impl Hosted {
     }
 }
 
-// `Hosted` owns the running server. A Remote Host adds a second listener, which pushes this variant
-// over clippy's size gap. The other variants stay small; boxing `Hosted` would thread through every caller.
-#[allow(
-    clippy::large_enum_variant,
-    reason = "Hosted owns the running server, including a Remote Host's control listener"
-)]
+/// How this launch found a host. `Host` boxes the running server: `Hosted` owns the listeners, and leaving it
+/// inline makes this enum much larger than the other variants. The desktop app does not serve a Remote Host.
 pub enum Startup {
     /// This process hosts.
-    Host { link: HostLink, hosted: Hosted },
+    Host { link: HostLink, hosted: Box<Hosted> },
     /// The CLI hosts; the app drives it.
     Client { link: HostLink, holder: HostInfo },
     /// Another desktop app hosts; it was asked to come forward.
@@ -149,7 +145,7 @@ async fn host(dir: &Path, lock: HostLock, hosting: &Hosting) -> Result<Startup, 
     lock.publish(server.addr.port(), env!("CARGO_PKG_VERSION"))?;
     let link = HostLink::new(server.addr.port(), lock.control_token());
     let hosted = Hosted { server, lock, dir: dir.to_owned(), store, hosting: hosting.clone(), update };
-    Ok(Startup::Host { link, hosted })
+    Ok(Startup::Host { link, hosted: Box::new(hosted) })
 }
 
 /// Starts the server as config.toml says (network mode or this machine only), with pairing asked in the window.

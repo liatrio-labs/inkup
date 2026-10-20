@@ -29,7 +29,7 @@ use inkup_protocol::{
 };
 use inkup_store::fields::Fields;
 use inkup_store::{Client, ItemResolution, Store, StoreError, Upsert};
-use serde_json::{Value, json};
+use serde_json::Value;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
@@ -37,7 +37,6 @@ use tokio::time::timeout;
 use crate::guard::Peer;
 use crate::hub::{CommandOutcome, CommandRequest, Connected, Hub, Push};
 use crate::pairing::{MAX_WRONG_CODES, PairingDecision, PairingRequest, Redeemed, RemotePairing};
-use crate::remote::PAIRING_OPERATOR_CODE_REQUIRED;
 use crate::{AppState, VERSION};
 
 pub(crate) async fn upgrade(
@@ -67,24 +66,23 @@ struct Refusal {
     re: Option<String>,
     code: ErrorCode,
     message: String,
-    /// A Remote Host hello with no token. Sent as [`PAIRING_OPERATOR_CODE_REQUIRED`], and never by issuing a code.
-    operator: bool,
 }
 
 impl Refusal {
     fn new(re: Option<&str>, code: ErrorCode, message: impl Into<String>) -> Self {
-        Self { re: re.map(str::to_owned), code, message: message.into(), operator: false }
+        Self { re: re.map(str::to_owned), code, message: message.into() }
     }
 
     /// No pairing code, and none will be issued. The operator runs `inkup pairing`.
+    ///
+    /// `pairing_denied` is the in-schema code. A dedicated code waits for #115, which can bump the protocol
+    /// version (ADR 0007). Today's Client already shows this code.
     fn operator(re: &str) -> Self {
-        Self {
-            re: Some(re.to_owned()),
-            code: ErrorCode::PairingDenied,
-            message: "ask the Host's operator for a pairing code (`inkup pairing`); a Remote Host does not issue one"
-                .into(),
-            operator: true,
-        }
+        Self::new(
+            Some(re),
+            ErrorCode::PairingDenied,
+            "a pairing code must come from the operator running `inkup pairing`",
+        )
     }
 }
 
@@ -580,21 +578,8 @@ impl Connection {
     }
 
     async fn refuse(&mut self, refusal: Refusal) -> Result<(), String> {
-        let id = self.next_id();
-        if refusal.operator {
-            let text = serde_json::to_string(&json!({
-                "v": PROTOCOL_VERSION,
-                "type": "error",
-                "id": id,
-                "re": refusal.re,
-                "code": PAIRING_OPERATOR_CODE_REQUIRED,
-                "message": refusal.message,
-            }))
+        let message = protocol::error(&self.next_id(), refusal.re.as_deref(), refusal.code, &refusal.message)
             .map_err(|e| e.to_string())?;
-            return self.socket.send(Message::Text(text.into())).await.map_err(|e| e.to_string());
-        }
-        let message =
-            protocol::error(&id, refusal.re.as_deref(), refusal.code, &refusal.message).map_err(|e| e.to_string())?;
         self.send(message).await
     }
 

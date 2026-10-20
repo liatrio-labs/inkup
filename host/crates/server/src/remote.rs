@@ -3,14 +3,6 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 
-/// `error.code` for a `/ws` hello that has no Client token.
-///
-/// A Remote Host never calls `PairingCodes::issue` for that hello: the operator mints the code with
-/// `inkup pairing` (#113). This string is not an `ErrorCode` in the wire schema. A new enum value is breaking
-/// (ADR 0007) and would raise the protocol version for every Client, including loopback and Network mode, which
-/// never send it. An older Client drops the message. #115 adds the code when the extension shows it.
-pub const PAIRING_OPERATOR_CODE_REQUIRED: &str = "pairing_operator_code_required";
-
 /// What the operator tells people to open. `https://host` or `https://host:port`, no path and no userinfo.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublicUrl {
@@ -21,33 +13,44 @@ pub struct PublicUrl {
 }
 
 impl PublicUrl {
-    /// Parses `raw`. `http://` is refused: a forwarded header is not proof of TLS.
+    /// Parses `raw`. `http://` is refused: a forwarded header is not proof of TLS. A refusal names the host only,
+    /// never userinfo.
     pub fn parse(raw: &str) -> Result<Self, String> {
         let raw = raw.trim();
-        if let Some(rest) = raw.strip_prefix("http://") {
+        let Ok(parsed) = url::Url::parse(raw) else {
+            return Err(format!("a Remote Host's public URL must start with https:// ({})", shown_host(raw)));
+        };
+        let host = parsed.host_str().unwrap_or("").to_ascii_lowercase();
+        if parsed.scheme() == "http" {
             return Err(format!(
-                "a Remote Host's public URL must be https://, not http://{rest}: the Host does not treat a forwarded header as TLS"
+                "a Remote Host's public URL must be https://, not http://{host}: the Host does not treat a forwarded header as TLS"
             ));
         }
-        let Some(rest) = raw.strip_prefix("https://") else {
-            return Err(format!("a Remote Host's public URL must start with https:// ({raw})"));
-        };
-        if rest.is_empty() {
+        if parsed.scheme() != "https" {
+            return Err(format!("a Remote Host's public URL must start with https:// ({})", shown_host(raw)));
+        }
+        if host.is_empty() {
             return Err("a Remote Host's public URL needs a host".into());
         }
-        if rest.contains('@') {
+        if !parsed.username().is_empty() || parsed.password().is_some() {
             return Err("a Remote Host's public URL has no userinfo; a token goes in a header, never the URL".into());
         }
-        if rest.contains(['/', '?', '#', ' ', '\\']) {
+        if parsed.path() != "/" && parsed.path() != "" || parsed.query().is_some() || parsed.fragment().is_some() {
             return Err(
                 "a Remote Host's public URL is an origin (https://host or https://host:port), with no path".into()
             );
         }
-        let (host, port, explicit_port) = split_host_port(rest)?;
+        if matches!(parsed.host(), Some(url::Host::Ipv6(_))) {
+            return Err("a Remote Host's public URL host is a DNS name or an IPv4 address".into());
+        }
         if !valid_host(&host) {
             return Err(format!("a Remote Host's public URL host must be a DNS name or an IPv4 address ({host})"));
         }
-        let host = host.to_ascii_lowercase();
+        let explicit_port = parsed.port().is_some();
+        let port = parsed.port().unwrap_or(443);
+        if port == 0 {
+            return Err("a Remote Host's public URL port is not 0".into());
+        }
         let origin = if explicit_port { format!("https://{host}:{port}") } else { format!("https://{host}") };
         Ok(Self { origin, host, port })
     }
@@ -96,21 +99,15 @@ pub struct RemoteHost {
 /// A container's usual listen address. Not a name anyone is given.
 pub const DEFAULT_BIND: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 
-fn split_host_port(rest: &str) -> Result<(String, u16, bool), String> {
-    if rest.starts_with('[') {
-        return Err("a Remote Host's public URL host is a DNS name or an IPv4 address".into());
-    }
-    match rest.rsplit_once(':') {
-        Some((host, port)) if !host.is_empty() && port.chars().all(|c| c.is_ascii_digit()) => {
-            let port: u16 = port.parse().map_err(|_| format!("a Remote Host's public URL has no port {port}"))?;
-            if port == 0 {
-                return Err("a Remote Host's public URL port is not 0".into());
-            }
-            Ok((host.to_owned(), port, true))
-        }
-        Some(_) => Err(format!("a Remote Host's public URL host must be a DNS name or an IPv4 address ({rest})")),
-        None => Ok((rest.to_owned(), 443, false)),
-    }
+/// A host safe to print: no userinfo, no path. A string that is not a URL comes back unchanged only when it has
+/// no `@`.
+fn shown_host(raw: &str) -> String {
+    url::Url::parse(raw)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_owned))
+        .or_else(|| raw.rsplit_once('@').map(|(_, host)| host.split(['/', '?', '#']).next().unwrap_or(host).to_owned()))
+        .filter(|host| !host.is_empty())
+        .unwrap_or_else(|| "the host".into())
 }
 
 fn valid_host(host: &str) -> bool {
@@ -157,9 +154,14 @@ mod tests {
     fn http_and_a_path_are_refused() {
         let http = PublicUrl::parse("http://review.example").unwrap_err();
         assert!(http.contains("https://"), "{http}");
-        assert!(http.contains("not http://"), "{http}");
+        assert!(http.contains("not http://review.example"), "{http}");
+        let with_secret = PublicUrl::parse("http://user:secret@review.example/private").unwrap_err();
+        assert!(with_secret.contains("http://review.example"), "{with_secret}");
+        assert!(!with_secret.contains("secret") && !with_secret.contains("user"), "{with_secret}");
+        let https_secret = PublicUrl::parse("https://user:secret@review.example").unwrap_err();
+        assert!(https_secret.contains("userinfo"), "{https_secret}");
+        assert!(!https_secret.contains("secret"), "{https_secret}");
         assert!(PublicUrl::parse("https://review.example/inkup").unwrap_err().contains("no path"));
-        assert!(PublicUrl::parse("https://user:secret@review.example").unwrap_err().contains("userinfo"));
         assert!(PublicUrl::parse("review.example").unwrap_err().contains("https://"));
         assert!(PublicUrl::parse("https://").unwrap_err().contains("host"));
     }

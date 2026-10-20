@@ -44,7 +44,7 @@ pub use network::{
     DEFAULT_MDNS_NAME, MAX_NAME_SUFFIX, NETWORK_WARNING, Network, NetworkConfig, SERVICE_TYPE, lan_addresses,
 };
 pub use pairing::{PairingDecision, PairingRequest, RemotePairing};
-pub use remote::{DEFAULT_BIND, PAIRING_OPERATOR_CODE_REQUIRED, PublicUrl, RemoteHost};
+pub use remote::{DEFAULT_BIND, PublicUrl, RemoteHost};
 pub use state::{ClientView, HostState, ItemView, Timeline, TimelineEntry, snapshot};
 
 /// The Host's well-known port; Clients look for it here.

@@ -322,6 +322,28 @@ fn config_toml_starts_a_remote_host_and_can_set_the_hub_name() {
 }
 
 #[test]
+fn token_create_honors_a_remote_flag_without_config() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = Command::new(BIN)
+        .args([
+            "token",
+            "create",
+            "--name",
+            "reviewer-a",
+            "--remote",
+            "--public-url",
+            "https://review.example",
+            "--data-dir",
+        ])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("inkup mcp install --remote https://review.example --token <token>"), "{stderr}");
+}
+
+#[test]
 fn token_create_names_the_public_url_when_a_remote_host_is_configured() {
     let dir = tempfile::tempdir().unwrap();
     write_remote(dir.path(), "remote = true\npublic_url = \"https://review.example\"\n");

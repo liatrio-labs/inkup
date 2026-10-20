@@ -99,7 +99,10 @@ per-user tokens tell people apart. This settles the naming point open in #117. L
 **A Remote Host pairs only with a code the operator issued.** The maintainer chose this. A hello on the public URL
 that carries no token and no code gets no code back: it does not call `PairingCodes::issue`. The operator runs
 `inkup pairing` (#113) inside the container, or wherever the data dir is, and that command mints the one-time code,
-prints it there, and sets its expiry and its own small guess budget. The Client sends `hello{pairing_code}`. The
+prints it there, and sets its expiry and its own small guess budget. A hello with no Client token is
+answered `pairing_denied`: the message says the code comes from the operator running `inkup pairing`. A dedicated
+error code waits for #115, so this does not raise the protocol version (ADR 0007). The Client sends
+`hello{pairing_code}`. The
 Pair link carries the public URL, `inkup://pair?url=<https public URL>&code=<code>`. `--auto-approve-pairing` is
 refused on a Remote Host, as it is with `--network` (`host/crates/inkup/src/main.rs`). Combined with the hidden test
 flag `--print-pairing-codes` the process still starts, and even then a Client pairs only by a code the operator
@@ -213,10 +216,12 @@ an omitted port omitted. A paired Remote Host is labelled encrypted. `inkup mcp 
   status stays `proposed`, loopback and Network mode remain the rules in ADR 0005 and ADR 0006.
 - 2026-10-20: the maintainer chose operator-issued pairing codes. On a Remote Host, `inkup pairing` is the only way a
   code is issued. A hello on the public URL issues none, so the per-IP reset in `pairing.rs` is not reachable there.
+- 2026-10-20: a tokenless hello on a Remote Host is refused with `pairing_denied`. A dedicated code is deferred to
+  #115 to avoid an ADR 0007 protocol bump.
 
 ## Sources
 
-- #110, and its findings page `docs/spikes/mcp-gateway.md` (#120), which this ADR merges after. This ADR follows its
+- #110, and its findings page `docs/spikes/mcp-gateway.md` (#120). This ADR merges after that page and uses its
   labels (documented, source, unknown, unverified): <https://github.com/liatrio-labs/inkup/issues/110>,
   <https://github.com/liatrio-labs/inkup/pull/120>
 - #111, this decision: <https://github.com/liatrio-labs/inkup/issues/111>

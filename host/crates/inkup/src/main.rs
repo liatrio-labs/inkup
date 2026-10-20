@@ -112,6 +112,12 @@ enum TokenCommand {
         name: String,
         #[arg(long, env = "INKUP_DATA_DIR")]
         data_dir: Option<PathBuf>,
+        /// The data dir is a Remote Host. Uses `--public-url` or `public_url` in config.toml for the install hint.
+        #[arg(long)]
+        remote: bool,
+        /// The Remote Host's https public URL, for the install hint. Overrides `public_url` in config.toml.
+        #[arg(long)]
+        public_url: Option<String>,
     },
     /// The tokens that work.
     List {
@@ -299,13 +305,25 @@ fn config(common: &Common, dir: &Path, network_flag: bool, control: Control) -> 
 
 /// Starts the server and writes `host.json` for it.
 async fn start(store: Arc<Store>, config: Config, lock: &HostLock) -> Result<Server> {
-    let (port, network) = (config.port, config.network.is_some());
-    let bind = if network { "0.0.0.0" } else { "127.0.0.1" };
-    let server = inkup_server::start(store, config)
-        .await
-        .with_context(|| format!("listen on {bind}:{port} (is another host running?)"))?;
+    let failed = listen_failure(&config);
+    let server = inkup_server::start(store, config).await.with_context(|| failed)?;
     lock.publish(server.addr.port(), VERSION).context("write host.json")?;
     Ok(server)
+}
+
+/// What a failed bind says. A Remote Host names `--bind`, because that flag chose the address.
+fn listen_failure(config: &Config) -> String {
+    let bind = match &config.remote {
+        Some(remote) => remote.bind.to_string(),
+        None if config.network.is_some() => "0.0.0.0".into(),
+        None => "127.0.0.1".into(),
+    };
+    let port = config.port;
+    if config.remote.is_some() {
+        format!("listen on {bind}:{port} (--bind; is another host running?)")
+    } else {
+        format!("listen on {bind}:{port} (is another host running?)")
+    }
 }
 
 async fn tui(common: Common, network_flag: bool, dir: PathBuf, lock: HostLock) -> Result<()> {
@@ -526,17 +544,18 @@ async fn stop_requested() -> Result<()> {
     Ok(())
 }
 
-/// `inkup mcp install --remote <public URL> --token <token>` when the data dir is a Remote Host.
-fn install_hint(data_dir: Option<&Path>) -> String {
-    let dir = data_dir.map(Path::to_path_buf).or_else(inkup_store::default_data_dir);
-    let origin = dir.as_deref().and_then(|dir| {
-        let settings = HostConfig::load(dir).ok()?;
-        if !settings.remote {
-            return None;
-        }
-        PublicUrl::parse(settings.public_url.as_deref()?).ok()
-    });
-    match origin {
+/// `inkup mcp install --remote <public URL> --token <token>` when this is a Remote Host.
+/// `--public-url` wins, then a `--remote` flag with `public_url` in config.toml, then `remote = true` there.
+fn install_hint(data_dir: Option<&Path>, remote_flag: bool, public_url: Option<&str>) -> String {
+    let from_flag = public_url.and_then(|url| PublicUrl::parse(url).ok());
+    let from_file = data_dir
+        .map(Path::to_path_buf)
+        .or_else(inkup_store::default_data_dir)
+        .and_then(|dir| HostConfig::load(&dir).ok())
+        .filter(|settings| remote_flag || settings.remote)
+        .and_then(|settings| settings.public_url)
+        .and_then(|url| PublicUrl::parse(&url).ok());
+    match from_flag.or(from_file) {
         Some(url) => format!("inkup mcp install --remote {} --token <token>", url.origin()),
         None => format!("inkup mcp install --remote http://<this hub>:{DEFAULT_PORT} --token <token>"),
     }
@@ -551,8 +570,8 @@ fn token(command: TokenCommand) -> Result<()> {
         Store::open(&dir).with_context(|| format!("open the store in {}", dir.display()))
     };
     match command {
-        TokenCommand::Create { name, data_dir } => {
-            let hint = install_hint(data_dir.as_deref());
+        TokenCommand::Create { name, data_dir, remote, public_url } => {
+            let hint = install_hint(data_dir.as_deref(), remote, public_url.as_deref());
             let made = open(data_dir)?.create_agent_token(&name)?;
             // The token alone on stdout, for scripts; the rest to stderr.
             println!("{}", made.token);
@@ -656,5 +675,22 @@ mod tests {
         if !label.is_empty() {
             assert!(remote_hub_name(Some(&label)).is_err(), "{label}");
         }
+    }
+
+    #[test]
+    fn a_remote_listen_error_names_bind() {
+        let config = Config {
+            port: 47823,
+            remote: Some(RemoteHost {
+                public_url: PublicUrl::parse("https://review.example").unwrap(),
+                bind: "192.0.2.10".parse().unwrap(),
+            }),
+            ..Config::default()
+        };
+        let message = listen_failure(&config);
+        assert!(message.contains("--bind"), "{message}");
+        assert!(message.contains("192.0.2.10:47823"), "{message}");
+        let local = Config { port: 47823, ..Config::default() };
+        assert!(!listen_failure(&local).contains("--bind"));
     }
 }

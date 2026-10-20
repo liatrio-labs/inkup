@@ -60,11 +60,14 @@ pub(crate) async fn guard(State(state): State<AppState>, mut request: Request, n
         return (StatusCode::FORBIDDEN, "Origin not allowed").into_response();
     }
     let peer = peer(&request, state.config.every_peer_is_remote);
-    if is_control(&path) && (peer.remote || request.headers().contains_key(header::ORIGIN)) {
+    let control = is_control(&path);
+    // A Remote Host does not mount `/api/host/*` on the public listener. Leaving the path alone lets the router
+    // answer 404, which is how a test can tell the routes are absent. The control listener has `remote: None`.
+    if control && state.config.remote.is_none() && (peer.remote || request.headers().contains_key(header::ORIGIN)) {
         tracing::warn!(peer = %peer.ip, path, "refused a control API request from another machine or a web origin");
         return (StatusCode::FORBIDDEN, "the control API is for this machine only").into_response();
     }
-    if peer.remote && (mcp || path.starts_with("/api/") || path.starts_with("/blobs/")) {
+    if peer.remote && (mcp || (!control && path.starts_with("/api/")) || path.starts_with("/blobs/")) {
         let known = match bearer(request.headers()) {
             Some(token) => blocking(&state.store, move |store| store.authenticate_bearer(&token)).await,
             None => Ok(None),

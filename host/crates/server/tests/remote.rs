@@ -4,9 +4,9 @@ mod common;
 use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
-use common::{Host, fixture, lan_tests_enabled, send};
-use futures_util::StreamExt;
-use inkup_server::{Config, Control, PAIRING_OPERATOR_CODE_REQUIRED, PublicUrl, RemoteHost};
+use common::{Host, fixture, lan_tests_enabled, recv, send};
+use inkup_protocol::{ErrorCode, ServerMessage};
+use inkup_server::{Config, Control, PublicUrl, RemoteHost};
 use inkup_store::instance::HostKind;
 use rmcp::ServiceExt;
 use rmcp::model::{CallToolRequestParams, ClientCapabilities, ClientConfig, Implementation};
@@ -52,16 +52,6 @@ fn initialize(host: &str, extra: &str) -> String {
         "POST /mcp HTTP/1.1\r\nHost: {host}\r\nAccept: application/json, text/event-stream\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n{extra}\r\n{body}",
         body.len()
     )
-}
-
-async fn text_frame(host: &Host) -> String {
-    let mut ws = host.connect().await;
-    send(&mut ws, fixture("hello.unpaired.json")).await;
-    let next = tokio::time::timeout(Duration::from_secs(5), ws.next()).await.unwrap().unwrap().unwrap();
-    match next {
-        tokio_tungstenite::tungstenite::Message::Text(text) => text.to_string(),
-        other => panic!("expected text, got {other:?}"),
-    }
 }
 
 #[tokio::test]
@@ -120,7 +110,11 @@ async fn the_control_api_is_on_loopback_and_not_on_the_public_listener() {
         .await
         .unwrap()
         .status();
-    assert_eq!(public_status, 403, "the public listener refuses the control API, loopback included");
+    assert_eq!(public_status, 404, "the public listener does not mount the control API");
+    for path in ["/api/host/state", "/api/host/activate", "/api/host/tokens", "/api/host/network"] {
+        let status = reqwest::Client::new().get(host.url(path)).bearer_auth(CONTROL).send().await.unwrap().status();
+        assert_eq!(status, 404, "{path} is not mounted on the public listener");
+    }
 
     let control = host.server.control_addr.expect("a loopback control listener");
     let url = format!("http://{control}/api/host/state");
@@ -186,22 +180,24 @@ async fn a_hello_never_issues_a_pairing_code() {
     let mut requests = host.server.take_pairing_requests().unwrap();
 
     for _ in 0..6 {
-        let reply = text_frame(&host).await;
-        assert!(reply.contains(&format!(r#""code":"{PAIRING_OPERATOR_CODE_REQUIRED}""#)), "{reply}");
-        assert!(reply.contains("inkup pairing"), "{reply}");
-        assert!(!reply.contains("inkup://pair"), "{reply}");
-        assert!(!reply.contains("pairing_code_required"), "{reply}");
+        let mut ws = host.connect().await;
+        send(&mut ws, fixture("hello.unpaired.json")).await;
+        match recv(&mut ws).await {
+            ServerMessage::ErrorMessage(error) => {
+                assert_eq!(error.code, ErrorCode::PairingDenied, "{}", error.message);
+                assert!(error.message.contains("operator running `inkup pairing`"), "{}", error.message);
+            }
+            other => panic!("expected pairing_denied, got {other:?}"),
+        }
     }
     let mut hello = fixture("hello.pairing_code.json");
     hello["pairing_code"] = json!("000000");
     let mut ws = host.connect().await;
     send(&mut ws, hello).await;
-    let next = tokio::time::timeout(Duration::from_secs(5), ws.next()).await.unwrap().unwrap().unwrap();
-    let reply = match next {
-        tokio_tungstenite::tungstenite::Message::Text(text) => text.to_string(),
-        other => panic!("{other:?}"),
-    };
-    assert!(reply.contains(PAIRING_OPERATOR_CODE_REQUIRED), "{reply}");
+    match recv(&mut ws).await {
+        ServerMessage::ErrorMessage(error) => assert_eq!(error.code, ErrorCode::PairingDenied, "{}", error.message),
+        other => panic!("expected pairing_denied, got {other:?}"),
+    }
     assert_eq!(host.server.pairing_codes_waiting(), 0, "nothing a caller sends fills the pairing store");
     let arrived = tokio::time::timeout(Duration::from_millis(200), requests.recv()).await;
     assert!(arrived.is_err(), "no pairing request is shown");
