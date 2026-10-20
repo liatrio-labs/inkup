@@ -16,6 +16,8 @@
 //!
 //! The panel spike (spec 03, Unit 1, throwaway): the tray's "Spike overlay", "Spike: catch pointer" and "Spike:
 //! close" open a transparent, non-activating panel on every display through `inkup_macos::Panels` ([`spike`]).
+//! Those tray items, their menu handling and their commands are registered only in a development build
+//! ([`icon::DEVELOPMENT`], true when `INKUP_RELEASE_BUILD` is unset). A release build does not ship them.
 
 #[cfg(unix)]
 pub mod cli;
@@ -38,7 +40,7 @@ use inkup_server::{ActivateHook, NetworkHook};
 use inkup_store::DesktopConfig;
 use serde::{Deserialize, Serialize};
 use tauri::image::Image;
-use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent, Wry};
 
@@ -196,8 +198,21 @@ struct TrayItems {
     status: MenuItem<Wry>,
     menubar: CheckMenuItem<Wry>,
     dock: CheckMenuItem<Wry>,
-    /// "Spike: catch pointer": checked while the spike panels catch the pointer.
-    spike_catch: CheckMenuItem<Wry>,
+    /// "Spike: catch pointer", present only while [`spike::surface`] lists it (a development build).
+    spike_catch: Option<CheckMenuItem<Wry>>,
+}
+
+impl TrayItems {
+    fn set_spike_catch(&self, on: bool) {
+        if let Some(item) = &self.spike_catch {
+            let _ = item.set_checked(on);
+        }
+    }
+
+    /// The check flipped on click: this is the new state. Absent in a release build.
+    fn spike_catch_checked(&self) -> bool {
+        self.spike_catch.as_ref().is_some_and(|item| item.is_checked().unwrap_or(false))
+    }
 }
 
 fn text(error: impl std::fmt::Display) -> String {
@@ -534,31 +549,7 @@ pub fn run(launch: Launch) -> Result<()> {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
         .manage(desktop)
-        .invoke_handler(tauri::generate_handler![
-            host_state,
-            host_view,
-            host_changes,
-            send_command,
-            create_token,
-            revoke_token,
-            set_network,
-            answer_pairing,
-            pairing_qr,
-            host_here,
-            desktop_toggles,
-            set_desktop_toggles,
-            cli_status,
-            install_cli,
-            uninstall_cli,
-            host_item,
-            host_screenshot,
-            record_tracker_link,
-            keychain::tracker_secret,
-            keychain::set_tracker_secret,
-            spike_overlay_show,
-            spike_overlay_catch,
-            spike_overlay_close,
-        ])
+        .invoke_handler(command_handler(icon::DEVELOPMENT))
         .setup(move |app| {
             let _ = handle.set(app.handle().clone());
             let items = tray(app.handle(), &status, toggles)?;
@@ -610,65 +601,125 @@ fn theme_override(app: &AppHandle) {
     }
 }
 
-/// The tray: Show InkUp, where the host is, the menu bar and Dock switches, the panel spike's three items, Quit.
+/// The app's commands. The panel spike's three are registered only when [`spike::surface`] lists them: a
+/// development build (`icon::DEVELOPMENT`) and not a release build (`INKUP_RELEASE_BUILD` set).
+fn command_handler(development: bool) -> impl Fn(tauri::ipc::Invoke<Wry>) -> bool + Send + Sync + 'static {
+    macro_rules! commands {
+        ($($spike:ident),*) => {
+            tauri::generate_handler![
+                host_state,
+                host_view,
+                host_changes,
+                send_command,
+                create_token,
+                revoke_token,
+                set_network,
+                answer_pairing,
+                pairing_qr,
+                host_here,
+                desktop_toggles,
+                set_desktop_toggles,
+                cli_status,
+                install_cli,
+                uninstall_cli,
+                host_item,
+                host_screenshot,
+                record_tracker_link,
+                keychain::tracker_secret,
+                keychain::set_tracker_secret,
+                $($spike),*
+            ]
+        };
+    }
+    // The runtime is known only once the closure is typed: `invoke_handler` infers it, a bare `let` does not.
+    let release: Box<dyn Fn(tauri::ipc::Invoke<Wry>) -> bool + Send + Sync> = Box::new(commands!());
+    let with_spike: Box<dyn Fn(tauri::ipc::Invoke<Wry>) -> bool + Send + Sync> =
+        Box::new(commands!(spike_overlay_show, spike_overlay_catch, spike_overlay_close));
+    // `surface` is the gate: an empty command list means the release handler, which has no spike commands.
+    let include_spike = spike::surface(development).has_commands();
+    move |invoke| if include_spike { with_spike(invoke) } else { release(invoke) }
+}
+
+/// The tray: Show InkUp, where the host is, the menu bar and Dock switches, and Quit. A development build also has
+/// the panel spike's three items; [`spike::surface`] leaves them out of a release build.
 fn tray(app: &AppHandle, status: &str, toggles: Toggles) -> tauri::Result<TrayItems> {
     let show = MenuItem::with_id(app, "show", "Show InkUp", true, None::<&str>)?;
     let status = MenuItem::with_id(app, "status", status, false, None::<&str>)?;
     let menubar = CheckMenuItem::with_id(app, "menubar", "Show in Menu Bar", true, toggles.menubar, None::<&str>)?;
     let dock = CheckMenuItem::with_id(app, "dock", "Show in Dock", true, toggles.dock, None::<&str>)?;
-    let spike_show_item = MenuItem::with_id(app, "spike-show", "Spike overlay", true, None::<&str>)?;
-    let spike_catch_item =
-        CheckMenuItem::with_id(app, "spike-catch", "Spike: catch pointer", true, false, None::<&str>)?;
-    let spike_close_item = MenuItem::with_id(app, "spike-close", "Spike: close", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit InkUp", true, None::<&str>)?;
-    let separator = || PredefinedMenuItem::separator(app);
-    let menu = Menu::with_items(
-        app,
-        &[
-            &show,
-            &status,
-            &separator()?,
-            &menubar,
-            &dock,
-            &separator()?,
-            &spike_show_item,
-            &spike_catch_item,
-            &spike_close_item,
-            &separator()?,
-            &quit,
-        ],
-    )?;
+    let sep_status = PredefinedMenuItem::separator(app)?;
+    let sep_toggles = PredefinedMenuItem::separator(app)?;
+    // The spike items exist only when the surface lists them. A release build's menu ends at Quit.
+    let spike = spike::surface(icon::DEVELOPMENT);
+    let spike_show_item = spike
+        .has_tray("spike-show")
+        .then(|| MenuItem::with_id(app, "spike-show", "Spike overlay", true, None::<&str>))
+        .transpose()?;
+    let spike_catch_item = spike
+        .has_tray("spike-catch")
+        .then(|| CheckMenuItem::with_id(app, "spike-catch", "Spike: catch pointer", true, false, None::<&str>))
+        .transpose()?;
+    let spike_close_item = spike
+        .has_tray("spike-close")
+        .then(|| MenuItem::with_id(app, "spike-close", "Spike: close", true, None::<&str>))
+        .transpose()?;
+    let sep_spike = if spike.tray.is_empty() { None } else { Some(PredefinedMenuItem::separator(app)?) };
+
+    let mut items: Vec<&dyn IsMenuItem<Wry>> = vec![&show, &status, &sep_status, &menubar, &dock, &sep_toggles];
+    if let Some(item) = &spike_show_item {
+        items.push(item);
+    }
+    if let Some(item) = &spike_catch_item {
+        items.push(item);
+    }
+    if let Some(item) = &spike_close_item {
+        items.push(item);
+    }
+    if let Some(item) = &sep_spike {
+        items.push(item);
+    }
+    items.push(&quit);
+    let menu = Menu::with_items(app, &items)?;
     let icon = app.state::<Desktop>().icons.tray.get(Dot::None).clone();
     // Not a template image: macOS would draw a template in the menu bar's one colour, and the dot has to stay green
     // (and the development stripes yellow). The full-colour app icon reads on light and dark menu bars as it is.
     let tray = TrayIconBuilder::with_id(TRAY).tooltip("InkUp").menu(&menu).show_menu_on_left_click(true);
     let tray = tray.icon(icon).icon_as_template(false);
-    tray.on_menu_event(|app, event| match event.id().as_ref() {
-        "show" => show_main(app),
-        "quit" => app.exit(0),
-        // Menu events come on the main thread, where the panels are made. Each logs its own outcome.
-        "spike-show" => drop(spike_show(app)),
-        "spike-catch" => {
-            // The check flipped on click: it is the new state.
-            let on =
-                app.state::<Desktop>().tray.get().is_some_and(|items| items.spike_catch.is_checked().unwrap_or(false));
-            drop(spike_catch(app, on));
-        }
-        "spike-close" => drop(spike_close(app)),
-        id @ ("menubar" | "dock") => {
-            let mut toggles = app.state::<Desktop>().toggles();
-            if id == "menubar" {
-                toggles.menubar = !toggles.menubar;
-            } else {
-                toggles.dock = !toggles.dock;
+    tray.on_menu_event(|app, event| {
+        let id = event.id().as_ref();
+        // Same gate as the items: a release build's surface lists no spike ids, so these arms never run.
+        if spike::surface(icon::DEVELOPMENT).has_tray(id) {
+            match id {
+                // Menu events come on the main thread, where the panels are made. Each logs its own outcome.
+                "spike-show" => drop(spike_show(app)),
+                "spike-catch" => {
+                    let on = app.state::<Desktop>().tray.get().is_some_and(TrayItems::spike_catch_checked);
+                    drop(spike_catch(app, on));
+                }
+                "spike-close" => drop(spike_close(app)),
+                _ => {}
             }
-            if let Err(error) = apply_toggles(app, toggles) {
-                tracing::warn!(%error, "menu bar and Dock settings not saved");
-                // The check flipped on click: put it back.
-                show_icons(app, app.state::<Desktop>().toggles());
-            }
+            return;
         }
-        _ => {}
+        match id {
+            "show" => show_main(app),
+            "quit" => app.exit(0),
+            id @ ("menubar" | "dock") => {
+                let mut toggles = app.state::<Desktop>().toggles();
+                if id == "menubar" {
+                    toggles.menubar = !toggles.menubar;
+                } else {
+                    toggles.dock = !toggles.dock;
+                }
+                if let Err(error) = apply_toggles(app, toggles) {
+                    tracing::warn!(%error, "menu bar and Dock settings not saved");
+                    // The check flipped on click: put it back.
+                    show_icons(app, app.state::<Desktop>().toggles());
+                }
+            }
+            _ => {}
+        }
     })
     .build(app)?;
     Ok(TrayItems { status, menubar, dock, spike_catch: spike_catch_item })
@@ -802,7 +853,7 @@ fn spike_show(app: &AppHandle) -> Result<Vec<SpikePanel>, String> {
         spike::show(&OsPanels, generation, &displays, |label, display| spike_window(app, label, display))
     })();
     if let Some(items) = app.state::<Desktop>().tray.get() {
-        let _ = items.spike_catch.set_checked(false);
+        items.set_spike_catch(false);
     }
     match result {
         Ok(shown) => {
@@ -824,7 +875,7 @@ fn spike_show(app: &AppHandle) -> Result<Vec<SpikePanel>, String> {
 fn spike_catch(app: &AppHandle, on: bool) -> Result<(), String> {
     let result = spike::catch(&OsPanels, on);
     if let Some(items) = app.state::<Desktop>().tray.get() {
-        let _ = items.spike_catch.set_checked(on && result.is_ok());
+        items.set_spike_catch(on && result.is_ok());
     }
     match &result {
         Ok(()) if on => eprintln!("InkUp desktop: spike panels catch the pointer"),
@@ -840,7 +891,7 @@ fn spike_close(app: &AppHandle) -> Result<(), String> {
     let result = spike::close(&OsPanels);
     destroy_spike_windows(app);
     if let Some(items) = app.state::<Desktop>().tray.get() {
-        let _ = items.spike_catch.set_checked(false);
+        items.set_spike_catch(false);
     }
     match &result {
         Ok(()) => {
@@ -896,8 +947,43 @@ async fn spike_overlay_close(app: AppHandle) -> Result<(), String> {
 ///
 /// The logic is generic over [`Panels`] and takes the displays and a window maker, so a test drives it with a
 /// recording double; the app passes [`inkup_macos::OsPanels`], Tauri's monitors and a webview window per display.
+///
+/// [`surface`] is what a build ships. The app registers commands, adds tray items and handles their menu events
+/// only for what it returns, and a release build (`icon::DEVELOPMENT` false) gets nothing.
 pub mod spike {
     use inkup_macos::{Bounds, NativeWindow, PanelInfo, Panels};
+
+    /// Command names and tray ids the spike adds.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct Surface {
+        pub commands: &'static [&'static str],
+        pub tray: &'static [&'static str],
+    }
+
+    const COMMANDS: &[&str] = &["spike_overlay_show", "spike_overlay_catch", "spike_overlay_close"];
+    const TRAY: &[&str] = &["spike-show", "spike-catch", "spike-close"];
+
+    /// What this build ships of the spike.
+    ///
+    /// `development` is [`crate::icon::DEVELOPMENT`]: true when `INKUP_RELEASE_BUILD` is unset (debug builds,
+    /// `desktop:dev`, a local release build) and false for the release workflow's build. False leaves both lists
+    /// empty. The app registers commands, adds tray items and handles menu events only from this, so removing the
+    /// `development` check here would ship the spike.
+    pub fn surface(development: bool) -> Surface {
+        if development { Surface { commands: COMMANDS, tray: TRAY } } else { Surface { commands: &[], tray: &[] } }
+    }
+
+    impl Surface {
+        /// The invoke handler registers the spike commands only when this is true.
+        pub fn has_commands(self) -> bool {
+            !self.commands.is_empty()
+        }
+
+        /// The tray adds an item, and the menu handler runs it, only when this is true.
+        pub fn has_tray(self, id: &str) -> bool {
+            self.tray.contains(&id)
+        }
+    }
 
     /// Spike windows are labelled `spike-<generation>-<n>` (capabilities/spike.json): n counts the displays from 0,
     /// and each show is a new generation, so a window still being torn down never holds a label a new one needs.
@@ -1110,6 +1196,24 @@ pub mod spike {
             );
             let broken = PanelInfo { observed: Observed { level: 0, main: true, ..panel.observed }, ..panel };
             assert!(describe(&broken).ends_with("rules broken: wrong window level, took main window status"));
+        }
+
+        #[test]
+        fn spike_surface_ships_nothing_unless_the_build_is_a_development_build() {
+            // The same flag `icon::DEVELOPMENT` is: unset means development, set means the release workflow.
+            let release = surface(crate::icon::is_development(Some("1")));
+            assert!(release.commands.is_empty(), "a release build must not register the spike commands");
+            assert!(release.tray.is_empty(), "a release build must not add the spike tray items");
+            assert!(!release.has_commands());
+            for id in ["spike-show", "spike-catch", "spike-close"] {
+                assert!(!release.has_tray(id), "{id} would ship in a release build");
+            }
+
+            let dev = surface(crate::icon::is_development(None));
+            assert_eq!(dev.commands, ["spike_overlay_show", "spike_overlay_catch", "spike_overlay_close"]);
+            assert_eq!(dev.tray, ["spike-show", "spike-catch", "spike-close"]);
+            assert!(dev.has_commands());
+            assert!(dev.tray.iter().all(|id| dev.has_tray(id)));
         }
     }
 }
