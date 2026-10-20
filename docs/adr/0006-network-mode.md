@@ -102,6 +102,8 @@ harnesses. Even then a Client on another machine pairs only with its code.
   `.local` name. ADR 0030 (proposed) would require an `https://` public URL for a Remote Host, with TLS ended by a
   reverse proxy or by the Host, because a cloud agent cannot use unencrypted HTTP on a LAN. Network mode stays as
   written here until that ADR is accepted.
+- 2026-10-20: ADR 0030 was accepted. A Remote Host requires an `https://` public URL, with TLS ended by a reverse
+  proxy or by the Host. Network mode stays as written here: unencrypted HTTP on a trusted LAN.
 
 ## Sources
 

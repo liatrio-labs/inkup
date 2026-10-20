@@ -187,10 +187,10 @@ one base64 image block. **source**: `maxMCPProxyHookBodySize` in `proxy_hooks.go
 hook body limit, not a general request limit. The audit reader uses the same constant when it buffers a request.
 When hooks are enabled, `filterResponse` reads a non-streaming response through `readMCPHookBody`, so the same limit
 can apply to a response. An SSE response is not passed through that whole-body read. When hooks are disabled,
-`filterResponse` returns without reading the body, and the audit wrapper copies the response with no size check.
-Whether the database rejects a large audit row was not determined, so a practical cap beyond the hook path is
-**unknown**. A `get_screenshot` request is small. A large image in the response hits the hook limit only when that
-response is read through it.
+`filterResponse` returns without reading the body. The audit wrapper copies the response with no size check whether
+hooks are on or off. Whether the database rejects a large audit row was not determined, so a practical cap beyond
+the hook path is **unknown**. A `get_screenshot` request is small. A large image in the response hits the hook limit
+only when that response is read through it.
 
 ## Audit
 
