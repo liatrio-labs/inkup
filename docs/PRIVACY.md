@@ -82,9 +82,10 @@ policies govern what it does with received data.
 
 ## Sharing and sale
 
-InkUp sends no review data to its authors and includes no advertising or data-sale service. Configured providers,
-paired hosts and tracker destinations receive data as described above; their handling and sharing rules apply to
-those copies.
+InkUp's authors never receive your data, and do not sell or share it. Review data is never sold. It is never
+used for advertising, creditworthiness, or lending, and it is used only to provide the feature you turned on.
+Configured providers, paired hosts and tracker destinations receive data as described above; their handling and
+sharing rules apply to those copies.
 
 ## Deleting your data
 
@@ -97,4 +98,4 @@ recipient's own deletion and retention controls.
 
 Questions: open an issue at <https://github.com/liatrio-labs/inkup/issues>.
 
-Last updated 2026-10-11.
+Last updated 2026-10-20.
