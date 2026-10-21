@@ -16,18 +16,19 @@ services:
       dockerfile: docker/host.Dockerfile
     environment:
       INKUP_PUBLIC_URL: https://inkup.example.com
-      # After #113 ships, the Host can serve HTTPS from a certificate and key
-      # (both paths, or neither). Until that binary accepts --tls-cert and
-      # --tls-key, leave these unset and terminate TLS at your own proxy.
+      # The Host serves HTTPS from a certificate when both are set. inkup-host maps
+      # INKUP_TLS_CERT and INKUP_TLS_KEY to --tls-cert and --tls-key. Both or
+      # neither. Leave them unset to end TLS at your own proxy (ADR 0030).
       # INKUP_TLS_CERT: /certs/fullchain.pem
       # INKUP_TLS_KEY: /certs/privkey.pem
     volumes:
       - inkup-data:/data
       # - ./certs:/certs:ro
-    # Plain HTTP stays on loopback. ADR 0030 ends TLS at a reverse proxy and does
-    # not advertise this listen address. Publishing 47823 on every interface would
-    # send bearer tokens in cleartext. A proxy on the compose network reaches the
-    # Host as host:47823 without this mapping being open to the LAN.
+    # Without those two variables the process speaks plain HTTP, so this publish
+    # stays on loopback. ADR 0030 does not advertise that listen address.
+    # Publishing 47823 on every interface would send bearer tokens in cleartext.
+    # A proxy on the compose network reaches the Host as host:47823. With both
+    # TLS variables set, the Host serves HTTPS on that port from the certificate.
     ports:
       - "127.0.0.1:47823:47823"
     restart: unless-stopped

@@ -44,8 +44,8 @@ RUN apt-get update \
 COPY --from=build --chmod=755 /out/inkup /usr/local/bin/inkup
 
 # Maps INKUP_PUBLIC_URL to --public-url. The binary does not read that variable.
-# INKUP_TLS_CERT and INKUP_TLS_KEY become --tls-cert and --tls-key once #113 lands;
-# they are passed only when set, so this image runs before those flags exist.
+# INKUP_TLS_CERT and INKUP_TLS_KEY map to --tls-cert and --tls-key when both are
+# set, and the Host serves HTTPS itself (ADR 0030). Unset, TLS stays at the proxy.
 # exec leaves inkup as PID 1, so SIGTERM from `docker stop` reaches serve.
 COPY --chmod=755 <<'EOF' /usr/local/bin/inkup-host
 #!/bin/sh
