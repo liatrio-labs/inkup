@@ -33,6 +33,18 @@ install-updater = true
 create-release = false
 # No release CI on pull requests; host-dist-check.yml checks this config on host changes instead.
 pr-run-mode = "skip"
+# Global jobs share the cached dist binary, so plan, build-global-artifacts, host and announce move
+# together. ubuntu-22.04-arm is GitHub-hosted arm64 with the same glibc baseline as ubuntu-22.04.
+# x86_64-unknown-linux-gnu and x86_64-pc-windows-msvc stay on dist's native defaults (ubuntu-22.04
+# and windows-2022). Intel macOS runners retire after August 2027, so the x86_64 macOS binary is
+# cross-compiled on Apple silicon: macos-14 is aarch64, and the host form is dist's cross-compile
+# syntax (https://axodotdev.github.io/cargo-dist/book/ci/customizing.html#cross-compilation).
+[dist.github-custom-runners]
+global = "ubuntu-22.04-arm"
+
+[dist.github-custom-runners.x86_64-apple-darwin]
+runner = "macos-14"
+host = "aarch64-apple-darwin"
 
 # Actions pinned by commit, as in the repo's other workflows. Keep these in step with ci.yml and release.yml.
 [dist.github-action-commits]
