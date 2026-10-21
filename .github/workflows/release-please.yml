@@ -22,7 +22,7 @@ concurrency:
 jobs:
   release-please:
     name: release-please
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     # Only used by the github.token fallback. RELEASE_PLEASE_TOKEN carries its own permissions.
     permissions:

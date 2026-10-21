@@ -30,7 +30,7 @@ jobs:
   build:
     name: build
     if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'inkup-v') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
       contents: read
@@ -67,7 +67,7 @@ jobs:
   deploy:
     name: deploy
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
       pages: write
