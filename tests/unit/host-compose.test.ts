@@ -34,9 +34,14 @@ function publishedPortSpecs(yaml: string): string[] {
 /** Where a compose short syntax port listens. No address means every interface (0.0.0.0). */
 function hostBind(spec: string): { address: string | null; containerPort: string } {
   const parts = spec.replace(/\/(tcp|udp)$/, '').split(':');
-  if (parts.length === 1) return { address: null, containerPort: parts[0] };
-  if (parts.length === 2) return { address: null, containerPort: parts[1] };
-  if (parts.length === 3) return { address: parts[0], containerPort: parts[2] };
+  const containerPort = parts.at(-1);
+  if (containerPort === undefined || containerPort === '') throw new Error(`cannot read port spec ${spec}`);
+  if (parts.length === 1 || parts.length === 2) return { address: null, containerPort };
+  if (parts.length === 3) {
+    const address = parts[0];
+    if (address === undefined) throw new Error(`cannot read port spec ${spec}`);
+    return { address, containerPort };
+  }
   throw new Error(`cannot read port spec ${spec}`);
 }
 
