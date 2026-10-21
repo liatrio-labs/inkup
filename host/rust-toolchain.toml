@@ -1,3 +1,8 @@
+# x86_64 macOS is cross-compiled on Apple silicon (dist-workspace.toml). cargo-dist 0.33.0 runs
+# `rustup target add` from the repo root, the dist workspace, so the std lands on the runner's
+# default toolchain and not on this channel. Listing the target makes rustup install it when cargo
+# runs in this directory.
 [toolchain]
 channel = "1.98"
 components = ["rustfmt", "clippy"]
+targets = ["x86_64-apple-darwin"]

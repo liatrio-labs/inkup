@@ -62,14 +62,15 @@ on it, and a newer one acts on it.
 | Path | Runs |
 | --- | --- |
 | `contract/**` | both sides, the desktop app, and `contract-compat` |
-| `host/**` | the host: `cargo` on three platforms, and the Chrome e2e; and the desktop app, which builds the host's crates |
+| `host/**` | the host: `cargo` on three platforms, the x86_64 macOS cross build on `macos-14`, and the Chrome e2e; and the desktop app, which builds the host's crates |
+| `dist-workspace.toml` | the x86_64 macOS cross build, and the extension side (it is a root file) |
 | `apps/desktop/**` | the desktop app: `desktop` on three platforms (ADR 0025) |
 | `apps/site/**`, `.github/workflows/site.yml` | the marketing site: `site` alone (ADR 0026) |
 | `extensions/`, `packages/`, `scripts/`, `tests/`, `fixtures/`, root files | the extension side: `core`, `extension-chrome`, `extension-firefox`, and the Chrome e2e. `packages/`, `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` also run the desktop app, whose UI imports `@inkup/protocol`; the last three run the site too |
 | `.release-please-manifest.json` | the site, which shows the released versions |
 | `*.md`, `docs/**`, `LICENSE`, `release-please-config.json` | lint only |
 | The site's capture inputs: `fixtures/site/demo-store.html`, its font, `site-demo` speech, `site-captures.yml` | lint only; `site-captures.yml` records them on the pull request (ADR 0026) |
-| `.github/workflows/ci.yml`, any other path | everything |
+| `.github/workflows/ci.yml`, `.github/workflows/inkup-v-release.yml`, any other path | everything, including the x86_64 macOS cross build |
 
 The Chrome e2e builds the real Host and drives the extension against it (`tests/e2e/host.spec.ts`). It is the one test
 of both sides together, so it runs when either changes. `ci-ok`, the one required check, needs `contract-compat` as
@@ -109,3 +110,6 @@ well as every other job; a skipped job passes it.
   install files and release-please's manifest. Nothing else runs for a site-only change.
 - 2026-09-25 (ADR 0026): what only the site's captures read runs lint alone. We had it on the extension side, as
   `fixtures/`; but no e2e test reads it, and `site-captures.yml` records it on the pull request instead.
+- 2026-10-21: `host/**`, `dist-workspace.toml` and any path that already runs everything also run the x86_64 macOS
+  cross build on `macos-14`. The 0.16.0 host release cross-compiled that binary without the rustup target for the
+  pinned toolchain, and nothing in CI built it.

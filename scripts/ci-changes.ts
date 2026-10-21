@@ -6,11 +6,20 @@
 // itself and its deploy workflow, the workspace's install files and release-please's manifest, whose versions it
 // shows, and nothing else runs for it. What only the site's captures read (the demo page, its font, its scripted
 // speech, and site-captures.yml, which records them on the pull request itself), docs and the rest of release-please's
-// files run lint alone, and a path no rule knows runs everything. Prints `extension=`, `host=`, `contract=`,
-// `desktop=` and `site=` lines for $GITHUB_OUTPUT.
+// files run lint alone, and a path no rule knows runs everything. The x86_64 macOS cross build runs for
+// host/, for dist-workspace.toml, and for any path that already runs everything (the release workflow
+// included). Prints `extension=`, `host=`, `contract=`, `desktop=`, `site=` and `x64_macos=` lines for
+// $GITHUB_OUTPUT.
 import { readFileSync } from 'node:fs';
 
-export type Sides = { extension: boolean; host: boolean; contract: boolean; desktop: boolean; site: boolean };
+export type Sides = {
+  extension: boolean;
+  host: boolean;
+  contract: boolean;
+  desktop: boolean;
+  site: boolean;
+  x64_macos: boolean;
+};
 
 const DOCS = /\.md$|^LICENSE$|^docs\//;
 // release-please's own files: the versions it recorded and its config. They build nothing.
@@ -23,12 +32,22 @@ const EXTENSION = /^(extensions|packages|scripts|tests|fixtures)\/|^[^/]+$/;
 const DESKTOP_TOO = /^packages\/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$/;
 // What the site is built from besides apps/site: the workspace's install files, and the versions it shows.
 const SITE_TOO = /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.release-please-manifest\.json)$/;
+// The x86_64 macOS binary is cross-compiled. host/ is the crate; dist-workspace.toml picks the runner.
+const X64_MACOS = /^host\/|^dist-workspace\.toml$/;
 
 export function classify(files: string[]): Sides {
-  const sides: Sides = { extension: false, host: false, contract: false, desktop: false, site: false };
+  const sides: Sides = {
+    extension: false,
+    host: false,
+    contract: false,
+    desktop: false,
+    site: false,
+    x64_macos: false,
+  };
   for (const file of files) {
     if (SITE_TOO.test(file)) sides.site = true;
     if (!file || DOCS.test(file) || RELEASE.test(file) || CAPTURES.test(file)) continue;
+    if (X64_MACOS.test(file)) sides.x64_macos = true;
     if (file.startsWith('contract/'))
       Object.assign(sides, { extension: true, host: true, contract: true, desktop: true });
     else if (file.startsWith('host/')) Object.assign(sides, { host: true, desktop: true });
@@ -37,7 +56,7 @@ export function classify(files: string[]): Sides {
     else if (EXTENSION.test(file)) {
       sides.extension = true;
       if (DESKTOP_TOO.test(file)) sides.desktop = true;
-    } else Object.assign(sides, { extension: true, host: true, desktop: true, site: true });
+    } else Object.assign(sides, { extension: true, host: true, desktop: true, site: true, x64_macos: true });
   }
   return sides;
 }

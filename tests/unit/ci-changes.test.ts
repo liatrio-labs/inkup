@@ -2,14 +2,18 @@
 import { describe, expect, it } from 'vitest';
 import { classify, render } from '../../scripts/ci-changes.ts';
 
-const none = { extension: false, host: false, contract: false, desktop: false, site: false };
-const all = { extension: true, host: true, contract: true, desktop: true, site: false };
+const none = { extension: false, host: false, contract: false, desktop: false, site: false, x64_macos: false };
+const all = { extension: true, host: true, contract: true, desktop: true, site: false, x64_macos: false };
 
 describe('ci-changes', () => {
   it.each<[string, string[], typeof none]>([
     ['docs only', ['docs/adr/0007-central-contract.md', 'README.md', 'host/README.md', 'LICENSE'], none],
     // The desktop app builds the host crates from source.
-    ['host only', ['host/crates/server/src/ws.rs', 'host/Cargo.lock'], { ...none, host: true, desktop: true }],
+    [
+      'host only',
+      ['host/crates/server/src/ws.rs', 'host/Cargo.lock'],
+      { ...none, host: true, desktop: true, x64_macos: true },
+    ],
     ['extension only', ['extensions/web/src/entrypoints/background.ts'], { ...none, extension: true }],
     [
       'desktop only',
@@ -75,20 +79,30 @@ describe('ci-changes', () => {
       },
     ],
     ['repo scripts and e2e', ['scripts/gen-schema.ts', 'tests/e2e/host.spec.ts'], { ...none, extension: true }],
+    ['dist config only', ['dist-workspace.toml'], { ...none, extension: true, x64_macos: true }],
     [
       'the CI workflow',
       ['.github/workflows/ci.yml'],
-      { ...none, extension: true, host: true, desktop: true, site: true },
+      { ...none, extension: true, host: true, desktop: true, site: true, x64_macos: true },
     ],
-    ['an unknown path', ['tools/new-thing.sh'], { ...none, extension: true, host: true, desktop: true, site: true }],
+    [
+      'the host release workflow',
+      ['.github/workflows/inkup-v-release.yml'],
+      { ...none, extension: true, host: true, desktop: true, site: true, x64_macos: true },
+    ],
+    [
+      'an unknown path',
+      ['tools/new-thing.sh'],
+      { ...none, extension: true, host: true, desktop: true, site: true, x64_macos: true },
+    ],
     ['no files', [''], none],
   ])('%s', (_, files, sides) => {
     expect(classify(files)).toEqual(sides);
   });
 
   it('renders $GITHUB_OUTPUT lines', () => {
-    expect(render({ extension: true, host: false, contract: false, desktop: true, site: false })).toBe(
-      'extension=true\nhost=false\ncontract=false\ndesktop=true\nsite=false\n',
+    expect(render({ extension: true, host: false, contract: false, desktop: true, site: false, x64_macos: true })).toBe(
+      'extension=true\nhost=false\ncontract=false\ndesktop=true\nsite=false\nx64_macos=true\n',
     );
   });
 });

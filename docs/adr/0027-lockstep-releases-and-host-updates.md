@@ -84,8 +84,9 @@ publish job and `desktop-macos`'s cask step), and `inkup update` does not offer 
 **cargo-dist releases the host.** `dist-workspace.toml` at the repo root configures it, and `dist generate` writes
 `inkup-v-release.yml` (dist names it after the tag prefix) from that file. Any change goes into the config, never into
 the workflow, and a path-filtered `host-dist-check.yml` runs `dist generate --check` so the two cannot drift. It builds
-on native runners for `aarch64-apple-darwin`, `x86_64-apple-darwin`, `aarch64-unknown-linux-gnu`,
-`x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc`. It ships a shell installer, a PowerShell installer and sha256
+`aarch64-apple-darwin`, `aarch64-unknown-linux-gnu`, `x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc` on
+native runners. `x86_64-apple-darwin` is cross-compiled on Apple silicon (`macos-14`, host
+`aarch64-apple-darwin`). It ships a shell installer, a PowerShell installer and sha256
 checksums. Actions are pinned by commit through dist's `github-action-commits`. Code signing the host's binaries is
 out of scope for now: dist's `macos-sign` and Windows signing settings are where it will plug in.
 
@@ -255,6 +256,10 @@ Clients behind.
 - 2026-10-02: we thought every release submits to the Chrome Web Store. Now at most one review is in flight, and a
   daily sync submits the newest release once it clears, because rapid releases failed the upload ("You may not edit
   or publish an item that is in review") or would have queued a review each.
+- 2026-10-21: x86_64 macOS is cross-compiled on Apple silicon. We thought every target had a native runner; Intel
+  macOS runners retire after August 2027, so `macos-14` builds that binary. `host/rust-toolchain.toml` lists the
+  rustup target the pinned channel needs, because cargo-dist 0.33.0 installs it from the repo root and that does
+  not see the file.
 
 ## Sources
 
