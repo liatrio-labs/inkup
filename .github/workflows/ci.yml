@@ -23,7 +23,8 @@ jobs:
   # Which side of the contract the change touches (scripts/ci-changes.ts, ADR 0007): contract/ runs both sides and
   # the breaking-change guard, host/ the host, the rest of the workspace the extension, docs lint alone. The desktop
   # app runs for apps/desktop and for what it is built from (host/, packages/, the lockfile); the site (apps/site, ADR
-  # 0026) for apps/site, the lockfile and release-please's manifest, and nothing else for it. A push with no usable
+  # 0026) for apps/site, the lockfile and release-please's manifest, and nothing else for it. The x86_64 macOS cross
+  # build runs for host/, dist-workspace.toml, and any path that runs everything. A push with no usable
   # base runs everything. A release pull request (release-please--*) runs nothing: it only bumps versions and
   # changelogs of code that was tested on its own pull request (ADR 0027), so every job skips and ci-ok passes.
   changes:
@@ -37,6 +38,7 @@ jobs:
       contract: ${{ steps.diff.outputs.contract }}
       desktop: ${{ steps.diff.outputs.desktop }}
       site: ${{ steps.diff.outputs.site }}
+      x64_macos: ${{ steps.diff.outputs.x64_macos }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,7 +55,7 @@ jobs:
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! files=$(git diff --name-only "$BASE...$HEAD"); then
             echo "No base to diff against; running everything."
-            printf 'extension=true\nhost=true\ncontract=false\ndesktop=true\nsite=true\n' | tee -a "$GITHUB_OUTPUT"
+            printf 'extension=true\nhost=true\ncontract=false\ndesktop=true\nsite=true\nx64_macos=true\n' | tee -a "$GITHUB_OUTPUT"
             exit 0
           fi
           printf '%s\n' "$files"
@@ -396,11 +398,59 @@ jobs:
       - name: The site was built
         run: ls -l apps/site/dist/index.html apps/site/dist/sitemap-index.xml apps/site/dist/robots.txt
 
+  # x86_64 macOS is cross-compiled on Apple silicon (dist-workspace.toml). cargo-dist 0.33.0 runs
+  # `rustup target add` from the repo root, so the std is installed for the runner's default toolchain
+  # and not for the channel in host/rust-toolchain.toml. This job builds inkup the way that release does:
+  # no `rustup target add`, and no toolchain action, which would set RUSTUP_TOOLCHAIN and ignore the file.
+  # It fails when the targets line is missing. macos-14 is the release runner and is arm64; an Intel runner
+  # already has this target as its host, so the check would pass there without the fix.
+  x64-macos:
+    name: x86_64 macOS cross
+    needs: changes
+    if: needs.changes.outputs.x64_macos == 'true'
+    runs-on: macos-14
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: host
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Apple silicon runner
+        run: |
+          machine=$(uname -m)
+          echo "uname -m: $machine"
+          test "$machine" = arm64
+      - name: The pinned toolchain installs the cross target
+        run: |
+          rustc --version --verbose
+          rustup show
+          rustup target list --installed
+          rustup target list --installed | grep -qx x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: host
+          key: x86_64-apple-darwin
+      - name: Cross-build inkup
+        run: cargo build -p inkup --locked --target x86_64-apple-darwin
+      - name: The binary is a single x86_64 slice
+        run: |
+          bin=target/x86_64-apple-darwin/debug/inkup
+          lipo -info "$bin"
+          file "$bin"
+          lipo -info "$bin" | grep -F 'architecture: x86_64'
+          file "$bin" | grep -F 'x86_64'
+          if lipo -info "$bin" | grep -Eq 'arm64|universal'; then
+            echo "expected a single x86_64 slice"
+            exit 1
+          fi
+
   # The one required check. Skipped jobs pass; a failed or cancelled one fails it.
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop, site]
+    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop, site, x64-macos]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     steps:

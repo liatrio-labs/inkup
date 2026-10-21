@@ -234,7 +234,10 @@ The tag is dist's `<package>-v<version>` form, and the package is the `inkup` cr
 
 - plans the release and fails if the tag's version is not the `inkup` crate's version,
 - builds `inkup` for `aarch64-apple-darwin`, `x86_64-apple-darwin`, `aarch64-unknown-linux-gnu`,
-  `x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc`, each on a native runner, with the `dist` cargo profile,
+  `x86_64-unknown-linux-gnu` and `x86_64-pc-windows-msvc`, with the `dist` cargo profile.
+  `x86_64-apple-darwin` is cross-compiled on `macos-14` (Apple silicon, host `aarch64-apple-darwin`);
+  the other four run on native runners. The cross target is listed in `host/rust-toolchain.toml`:
+  cargo-dist 0.33.0 runs `rustup target add` from the repo root, which does not select that channel,
 - builds `inkup-installer.sh`, `inkup-installer.ps1` and `sha256` checksums,
 - writes `protocol-version.txt` from the `PROTOCOL_VERSION` constant, for `inkup update`'s skew guard,
 - uploads all of them to release-please's draft release and publishes it (`create-release = false` in

@@ -16,7 +16,8 @@ rules:
   template-injection:
     ignore:
       - inkup-v-release.yml
-  # `container:` comes from dist's plan and is null for every target this repo builds (all run on native runners).
+  # `container:` comes from dist's plan and is null for every target this repo builds. x86_64 macOS is
+  # cross-compiled on an arm64 runner (macos-14); that build is not a container.
   unpinned-images:
     ignore:
       - inkup-v-release.yml
