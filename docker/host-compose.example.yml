@@ -1,0 +1,40 @@
+# A Remote Host with its data dir on a named volume, and a commented reverse proxy.
+# Placeholder names only (inkup.example.com). Bring your own DNS, certificates and proxy.
+#
+# From the repo root:
+#   docker compose -f docker/host-compose.example.yml up --build
+#
+# One Host per volume (ADR 0025): a second container on inkup-data exits 1.
+
+name: inkup-host
+
+services:
+  host:
+    image: inkup-host
+    build:
+      context: ..
+      dockerfile: docker/host.Dockerfile
+    environment:
+      INKUP_PUBLIC_URL: https://inkup.example.com
+      # HTTPS from a certificate on the Host (#113). Both paths, or neither.
+      # Leave them unset to speak HTTP and terminate TLS at the proxy.
+      # INKUP_TLS_CERT: /certs/fullchain.pem
+      # INKUP_TLS_KEY: /certs/privkey.pem
+    volumes:
+      - inkup-data:/data
+      # - ./certs:/certs:ro
+    ports:
+      - "47823:47823"
+    restart: unless-stopped
+
+  # proxy:
+  #   image: caddy:2
+  #   depends_on:
+  #     - host
+  #   ports:
+  #     - "443:443"
+  #   # Terminate TLS for the placeholder inkup.example.com and reverse_proxy to host:47823.
+  #   # Raise the proxy body limit for audio and video uploads, and the idle timeout for a long watch.
+
+volumes:
+  inkup-data:
