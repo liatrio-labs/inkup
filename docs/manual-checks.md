@@ -3,7 +3,8 @@
 Automated e2e runs in Playwright's bundled Chromium. That build has no on-device speech pack, so the e2e
 tests use the `scripted` transcript adapter. It also cannot show a real side panel or a real permission
 prompt. These checks cover what automation cannot. Run them in installed Chrome (153 or later) before a
-release, in the order below. Later checks reuse Sessions and settings from earlier ones.
+release, in the order below. Later checks reuse Sessions and settings from earlier ones. The host release
+check at the end is separate: run it once, on the next `inkup-v*` release, not in Chrome.
 
 ## The checklist
 
@@ -585,3 +586,15 @@ host that Firefox uses works in Safari.
 | 3 | On the review tab, look at the Annotation and play the audio. | The Annotation and its screenshot are there. The audio plays what you said up to about 5 s before the close: the recorder writes every 5 s in Safari, and what it had not written yet goes with the window. The Sessions page lists the Session as ended, and its end reason in an export is `panel_closed`. |
 | 4 | Start again from the toolbar (click the extension's icon on the fixture tab, then Start), and close the recorder window. | The same: the Session stops and the review tab opens. |
 | 5 | Start again and Stop normally. | The recorder window closes by itself, and the Session is **not** stopped twice (one review tab, one `session_end`). |
+
+## Host release: arm64 runners and the Intel macOS binary
+
+cargo-dist's global jobs run on GitHub-hosted `ubuntu-22.04-arm`, and the x86_64 macOS host binary is
+cross-compiled on Apple silicon (`macos-14`, host `aarch64-apple-darwin`) instead of an Intel runner. The
+next host release is the check that every asset still publishes and that the cross-compiled binary runs on
+Intel.
+
+| # | Step | Expected |
+| --- | --- | --- |
+| 1 | Open the published `inkup-v*` GitHub Release and count its assets. | All 27 host assets publish, the same set as `inkup-v0.15.0`: the five target archives and their `.sha256` files, the five `inkup-*-update` binaries, `inkup-installer.sh`, `inkup-installer.ps1`, `sha256.sum`, `dist-manifest.json`, `protocol-version.txt`, `source.tar.gz` and its `.sha256`, the four Homebrew bottles, and `InkUp_<version>_universal.dmg`. |
+| 2 | Open that tag's Homebrew formula workflow run and read `verify (macos-15-intel)`. | The job is green. Homebrew poured the x86_64 macOS bottle and `inkup` ran on Intel. |
