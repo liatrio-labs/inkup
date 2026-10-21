@@ -39,6 +39,8 @@ pr-run-mode = "skip"
 # and windows-2022). Intel macOS runners retire after August 2027, so the x86_64 macOS binary is
 # cross-compiled on Apple silicon: macos-14 is aarch64, and the host form is dist's cross-compile
 # syntax (https://axodotdev.github.io/cargo-dist/book/ci/customizing.html#cross-compilation).
+# host/rust-toolchain.toml lists x86_64-apple-darwin. dist 0.33.0 runs `rustup target add` in this
+# directory, not in host/, so that command does not install the target for the pinned channel.
 [dist.github-custom-runners]
 global = "ubuntu-22.04-arm"
 

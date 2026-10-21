@@ -590,11 +590,13 @@ host that Firefox uses works in Safari.
 ## Host release: arm64 runners and the Intel macOS binary
 
 cargo-dist's global jobs run on GitHub-hosted `ubuntu-22.04-arm`, and the x86_64 macOS host binary is
-cross-compiled on Apple silicon (`macos-14`, host `aarch64-apple-darwin`) instead of an Intel runner. The
-next host release is the check that every asset still publishes and that the cross-compiled binary runs on
-Intel.
+cross-compiled on Apple silicon (`macos-14`, host `aarch64-apple-darwin`) instead of an Intel runner. A pull
+request that touches the host release config cross-compiles that binary on `macos-14` and checks the slice
+with `lipo` and `file`. The next host release is still the check that every asset publishes, and that the
+published x86_64 archive is x86_64 and runs on Intel.
 
 | # | Step | Expected |
 | --- | --- | --- |
 | 1 | Open the published `inkup-v*` GitHub Release and count its assets. | All 27 host assets publish, the same set as `inkup-v0.15.0`: the five target archives and their `.sha256` files, the five `inkup-*-update` binaries, `inkup-installer.sh`, `inkup-installer.ps1`, `sha256.sum`, `dist-manifest.json`, `protocol-version.txt`, `source.tar.gz` and its `.sha256`, the four Homebrew bottles, and `InkUp_<version>_universal.dmg`. |
 | 2 | Open that tag's Homebrew formula workflow run and read `verify (macos-15-intel)`. | The job is green. Homebrew poured the x86_64 macOS bottle and `inkup` ran on Intel. |
+| 3 | Download `inkup-x86_64-apple-darwin.tar.xz` from that release and unpack it. Run `lipo -info` and `file` on the `inkup` binary. On an Intel Mac, or under Rosetta (`arch -x86_64`), run `inkup --version`. | `lipo -info` says the binary is architecture `x86_64` (not arm64, and not a universal binary). `file` says x86_64. `inkup --version` prints the release's version. |
