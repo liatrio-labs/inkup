@@ -557,12 +557,14 @@ fn a_certificate_serves_https_and_the_banner_names_it() {
     assert!(banner.contains(&expected), "{banner}");
     assert!(!banner.contains("put this behind HTTPS"), "{banner}");
 
+    // TOML treats `\` as an escape, and Windows paths are full of them. Forward slashes load on every OS.
+    let toml_path = |path: &std::path::Path| path.to_string_lossy().replace('\\', "/");
     write_remote(
         dir.path(),
         &format!(
             "remote = true\npublic_url = \"https://review.example\"\ntls_cert = \"{}\"\ntls_key = \"{}\"\n",
-            cert.display(),
-            key.display()
+            toml_path(&cert),
+            toml_path(&key)
         ),
     );
     drop(host);
