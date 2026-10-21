@@ -3,7 +3,7 @@ name: Host dist check
 # Checks the host's dist config on pull requests that touch it: inkup-v-release.yml must match what `dist generate`
 # writes from dist-workspace.toml, and `dist plan` must succeed for a sample host tag. Not a required check, and not
 # part of ci.yml's ci-ok gate. inkup-v-release.yml itself runs only on inkup-v* tags. Skipped on release pull requests,
-# like ci.yml.
+# like ci.yml. Runs on a GitHub-hosted arm64 runner and installs the cargo-dist build for the runner architecture.
 on:
   pull_request:
     paths:
@@ -23,26 +23,49 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Keep in step with cargo-dist-version in dist-workspace.toml.
+  # Keep in step with cargo-dist-version in dist-workspace.toml. Digests are the official release assets for this
+  # version (sha256.sum): x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.
   DIST_VERSION: "0.33.0"
-  DIST_SHA256: "4b3f0a5f0ebbdb798f6db649d01b32ba1518376b6f7a0502b7d92b75cc2c8293"
+  DIST_SHA256_X86_64: "4b3f0a5f0ebbdb798f6db649d01b32ba1518376b6f7a0502b7d92b75cc2c8293"
+  DIST_SHA256_AARCH64: "9c554ab21a58ad46eb9b6710f89633ccb26bc2577cf4b0c2d18a5b826a31913e"
 
 jobs:
   dist:
     name: dist
     if: ${{ !startsWith(github.head_ref, 'release-please--') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # uname -m is the runner architecture (x86_64 or aarch64; GitHub's runner.arch is X64 or ARM64). An unknown
+      # architecture, a missing pin, or a checksum mismatch fails the job.
       - name: Install dist (checksum-verified release binary)
         run: |
-          archive=cargo-dist-x86_64-unknown-linux-gnu.tar.xz
+          machine="$(uname -m)"
+          case "$machine" in
+            x86_64)
+              target=x86_64-unknown-linux-gnu
+              sha="${DIST_SHA256_X86_64}"
+              ;;
+            aarch64)
+              target=aarch64-unknown-linux-gnu
+              sha="${DIST_SHA256_AARCH64}"
+              ;;
+            *)
+              echo "::error::unsupported runner architecture: ${machine}"
+              exit 1
+              ;;
+          esac
+          if [ -z "${sha}" ]; then
+            echo "::error::no pinned SHA-256 for ${target}"
+            exit 1
+          fi
+          archive="cargo-dist-${target}.tar.xz"
           curl --proto '=https' --tlsv1.2 -fsSLO "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/${archive}"
-          echo "${DIST_SHA256}  ${archive}" | sha256sum -c -
-          tar -xJf "$archive" --strip-components=1 -C "$RUNNER_TEMP" cargo-dist-x86_64-unknown-linux-gnu/dist
+          echo "${sha}  ${archive}" | sha256sum -c -
+          tar -xJf "$archive" --strip-components=1 -C "$RUNNER_TEMP" "cargo-dist-${target}/dist"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - name: inkup-v-release.yml is up to date
         run: dist generate --check
