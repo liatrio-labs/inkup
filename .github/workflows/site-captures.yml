@@ -2,8 +2,9 @@ name: Site captures
 
 # Records the marketing site's product media (apps/site/src/assets/captures) from the real extension:
 # tests/e2e/site-captures.spec.ts on fixtures/site/demo-store.html, with the scripted mic and transcript and the local
-# Anthropic stub, so no paid API is called. It runs on Linux only (on a Mac desktop the fake media raise
-# screen-recording prompts). A pull request that changes the capture's inputs records them and uploads the set as an
+# Anthropic stub, so no paid API is called. It runs on GitHub-hosted ubuntu-24.04-arm (native arm64, not a
+# self-hosted runner). On a Mac desktop the fake media raise screen-recording prompts. A pull request that
+# changes the capture's inputs records them and uploads the set as an
 # artifact to look at. By hand, and when an extension release (inkup-extension-v*) is published, it also opens or
 # updates the pull request "chore(site): refresh product captures" against main. The same run remakes the Chrome Web
 # Store listing images from the new captures (scripts/store-assets.ts) and puts them in that pull request too.
@@ -34,7 +35,7 @@ jobs:
   capture:
     name: capture
     if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'inkup-extension-v') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,7 +82,7 @@ jobs:
     name: pull-request
     needs: capture
     if: ${{ github.event_name != 'pull_request' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     # Only used by the github.token fallback. RELEASE_PLEASE_TOKEN carries its own permissions.
     permissions:

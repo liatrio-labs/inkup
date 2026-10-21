@@ -2380,6 +2380,7 @@ dependencies = [
  "futures-util",
  "gethostname",
  "image",
+ "inkup-macos",
  "inkup-protocol",
  "inkup-server",
  "inkup-store",
@@ -2405,8 +2406,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "inkup-macos"
+version = "0.1.0"
+dependencies = [
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "inkup-protocol"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "regress",
  "serde",
@@ -2415,7 +2426,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-server"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -2441,7 +2452,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-store"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "directories",
  "getrandom 0.4.3",
@@ -2456,7 +2467,7 @@ dependencies = [
 
 [[package]]
 name = "inkup-update-check"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "anyhow",
  "axoupdater",

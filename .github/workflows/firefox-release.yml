@@ -23,7 +23,7 @@ env:
 jobs:
   build:
     name: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     outputs:
       prerelease: ${{ steps.tag.outputs.prerelease }}
@@ -83,7 +83,7 @@ jobs:
   github-release:
     name: github-release
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: write
     steps:
@@ -114,7 +114,7 @@ jobs:
     needs: build
     # Release candidates stay on GitHub: only a final version goes to the store.
     if: needs.build.outputs.prerelease == 'false'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     # Environment is restricted to inkup-extension-v* and inkup-firefox-v* tags; see docs/releasing.md.
     environment: firefox-amo
     env:

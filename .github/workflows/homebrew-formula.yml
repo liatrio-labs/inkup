@@ -46,7 +46,7 @@ jobs:
   # run publishes: a tag push of a stable release, or a dispatch with dry_run off for a stable release.
   tag:
     name: tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
@@ -90,7 +90,7 @@ jobs:
   bottles:
     name: bottles
     needs: tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
       TAG: ${{ needs.tag.outputs.tag }}
@@ -210,7 +210,7 @@ jobs:
     name: publish
     needs: [tag, bottles, verify]
     if: ${{ needs.tag.outputs.publish == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
       # gh release upload, to the tag's release.
