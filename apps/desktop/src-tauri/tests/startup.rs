@@ -51,6 +51,7 @@ async fn nobody_on_the_data_dir_so_the_app_hosts() {
     let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting()).await.unwrap() else {
         panic!("expected host mode");
     };
+    let hosted = *hosted;
     let published = holder(dir.path()).unwrap().expect("host.json");
     assert_eq!(published.kind, HostKind::Desktop);
     assert_eq!(published.port, link.port());
@@ -93,6 +94,7 @@ async fn a_second_app_on_the_data_dir_brings_the_first_forward() {
     let Startup::Host { hosted, .. } = find_or_host(dir.path(), &with_activate(hook)).await.unwrap() else {
         panic!("expected host mode");
     };
+    let hosted = *hosted;
     let Startup::Activated(first) = find_or_host(dir.path(), &hosting()).await.unwrap() else {
         panic!("expected the second launch to hand over");
     };
@@ -145,6 +147,7 @@ async fn once_the_cli_host_quits_the_app_can_host_here() {
     let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting()).await.unwrap() else {
         panic!("expected host mode");
     };
+    let hosted = *hosted;
     assert_eq!(holder(dir.path()).unwrap().unwrap().kind, HostKind::Desktop);
     assert_eq!(link.state(None).await.unwrap().kind.to_string(), "desktop");
     hosted.shutdown().await;
@@ -177,6 +180,7 @@ async fn the_app_hosting_asks_about_pairing_in_the_window() {
     let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting()).await.unwrap() else {
         panic!("expected host mode");
     };
+    let hosted = *hosted;
     let (mut ws, pending) = ask_to_pair(&link).await;
     assert!(pending.remote.is_none());
     let approve = PairingAnswer { decision: PairingAnswerDecision::Approve };
@@ -195,6 +199,7 @@ async fn pairing_ids_are_not_reused_after_a_network_restart() {
     let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting()).await.unwrap() else {
         panic!("expected host mode");
     };
+    let hosted = *hosted;
     let (_before_ws, before) = ask_to_pair(&link).await;
     let hosted = hosted.switch_network(false).await.unwrap();
     let (mut ws, after) = ask_to_pair(&link).await;
@@ -230,6 +235,7 @@ async fn network_mode_restarts_the_server_on_the_same_port() {
     let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting).await.unwrap() else {
         panic!("expected host mode");
     };
+    let hosted = *hosted;
     let state = link.state(None).await.unwrap();
     assert!(state.network_switch && state.network.is_none());
     // The window asks through the control API; the hook is the app's cue to restart.
@@ -255,6 +261,7 @@ async fn network_mode_restarts_the_server_on_the_same_port() {
     let Startup::Host { hosted, .. } = find_or_host(dir.path(), &hosting).await.unwrap() else {
         panic!("expected host mode");
     };
+    let hosted = *hosted;
     assert!(hosted.server.addr.ip().is_unspecified());
     hosted.shutdown().await;
 }
@@ -269,6 +276,7 @@ async fn the_app_hosting_checks_for_updates() {
     let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting).await.unwrap() else {
         panic!("expected host mode");
     };
+    let hosted = *hosted;
     let update = tokio::time::timeout(std::time::Duration::from_secs(5), async {
         loop {
             if let Some(update) = link.state(None).await.unwrap().update {

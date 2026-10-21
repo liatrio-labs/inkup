@@ -120,8 +120,14 @@ async fn an_agent_watches_implements_and_resolves() {
     let instructions = info.instructions.as_deref().unwrap_or_default();
     assert!(instructions.contains("start_item(id) before you touch the code"), "{instructions}");
     assert!(instructions.contains("resolve_item"));
-    let mut tools: Vec<String> =
-        agent.list_all_tools().await.unwrap().into_iter().map(|t| t.name.to_string()).collect();
+    let listed = agent.list_all_tools().await.unwrap();
+    let watch = listed.iter().find(|tool| tool.name == "watch_items").expect("watch_items");
+    let watch_description = watch.description.as_deref().unwrap_or("");
+    assert!(
+        watch_description.contains("shorter timeout_seconds"),
+        "agents behind a gateway need a shorter wait: {watch_description}"
+    );
+    let mut tools: Vec<String> = listed.into_iter().map(|tool| tool.name.to_string()).collect();
     tools.sort();
     assert_eq!(
         tools,

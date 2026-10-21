@@ -114,6 +114,7 @@ async fn the_dot_follows_the_clients_when_the_app_hosts() {
     let Startup::Host { link, hosted } = find_or_host(dir.path(), &hosting()).await.unwrap() else {
         panic!("expected host mode");
     };
+    let hosted = *hosted;
     let (dot, shown) = driver();
     assert_eq!(read(&link, &dot).await, Clients::Unpaired);
     assert!(shown.lock().unwrap().is_empty(), "no Client, no dot");

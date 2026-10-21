@@ -301,7 +301,7 @@ async fn host_here(app: AppHandle, desktop: State<'_, Desktop>) -> Result<HostVi
     let data_dir = desktop.data_dir.display().to_string();
     let current = match find_or_host(&desktop.data_dir, &desktop.hosting).await.map_err(text)? {
         Startup::Host { link, hosted: started } => {
-            *hosted = Some(started);
+            *hosted = Some(*started);
             let view = host_view_of(&link, data_dir);
             Current { link, view }
         }
@@ -524,7 +524,7 @@ pub fn run(launch: Launch) -> Result<()> {
         }
         Startup::Host { link, hosted } => {
             let view = host_view_of(&link, data_dir);
-            (Current { link, view }, Some(hosted))
+            (Current { link, view }, Some(*hosted))
         }
         Startup::Client { link, holder } => {
             let view = HostView { mode: "client", kind: holder.kind, address: link.address(), data_dir };

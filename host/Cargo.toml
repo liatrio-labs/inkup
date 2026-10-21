@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.14.1"
+version = "0.15.0"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
@@ -52,6 +52,7 @@ tokio-tungstenite = "0.30.0"
 toml_edit = "0.25.11"
 tokio-util = { version = "0.7.19", features = ["io"] }
 tracing = "0.1.44"
+url = "2.5.8"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 typify = { version = "0.8.0", default-features = false }
 

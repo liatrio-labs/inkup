@@ -1,0 +1,21 @@
+# Existing documented maintainer team. Admin must verify repository write access and team visibility.
+# Ownership routes review; it does not prove branch protection or native approval enforcement.
+* @liatrio-labs/liatrio-labs-maintainers
+
+/.github/ @liatrio-labs/liatrio-labs-maintainers
+/host/ @liatrio-labs/liatrio-labs-maintainers
+/extensions/web/ @liatrio-labs/liatrio-labs-maintainers
+/extensions/web/wxt.config.ts @liatrio-labs/liatrio-labs-maintainers
+/scripts/ @liatrio-labs/liatrio-labs-maintainers
+
+# Dependency manifests and locks at any depth, including both Rust workspaces.
+package.json @liatrio-labs/liatrio-labs-maintainers
+pnpm-lock.yaml @liatrio-labs/liatrio-labs-maintainers
+pnpm-workspace.yaml @liatrio-labs/liatrio-labs-maintainers
+Cargo.toml @liatrio-labs/liatrio-labs-maintainers
+Cargo.lock @liatrio-labs/liatrio-labs-maintainers
+
+# Public documentation and site; the catch-all also covers extensionless root documents.
+*.md @liatrio-labs/liatrio-labs-maintainers
+/docs/ @liatrio-labs/liatrio-labs-maintainers
+/apps/site/ @liatrio-labs/liatrio-labs-maintainers

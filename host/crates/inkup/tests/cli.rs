@@ -234,3 +234,146 @@ fn host_json_names_the_holder_and_status_prints_it() {
     assert!(status.status.success(), "{stdout}");
     assert!(stdout.contains(&format!("host: inkup serve, pid {}, port {port}", host.0.id())), "{stdout}");
 }
+
+fn write_remote(dir: &std::path::Path, extra: &str) {
+    std::fs::create_dir_all(dir).unwrap();
+    std::fs::write(dir.join("config.toml"), extra).unwrap();
+}
+
+#[test]
+fn remote_without_https_or_with_auto_approve_exits_1() {
+    let dir = tempfile::tempdir().unwrap();
+    let (status, stderr) = refused(&["serve", "--remote", "--port", "0"], dir.path());
+    assert_eq!(status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("https public URL"), "{stderr}");
+
+    let (status, stderr) =
+        refused(&["serve", "--remote", "--public-url", "http://review.example", "--port", "0"], dir.path());
+    assert_eq!(status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("must be https://"), "{stderr}");
+    assert!(stderr.contains("not http://"), "{stderr}");
+
+    let (status, stderr) = refused(
+        &["serve", "--remote", "--public-url", "https://review.example", "--auto-approve-pairing", "--port", "0"],
+        dir.path(),
+    );
+    assert_eq!(status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("--auto-approve-pairing is refused on a Remote Host"), "{stderr}");
+
+    let (status, stderr) = refused(
+        &["serve", "--remote", "--network", "--public-url", "https://review.example", "--port", "0"],
+        dir.path(),
+    );
+    assert_eq!(status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("--remote and --network"), "{stderr}");
+}
+
+#[test]
+fn a_remote_host_prints_the_public_url_and_omits_the_machine_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut host = serve(dir.path(), &["--remote", "--public-url", "https://review.example", "--bind", "127.0.0.1"]);
+    let mut stdout = BufReader::new(host.0.stdout.take().unwrap());
+    let mut line = String::new();
+    stdout.read_line(&mut line).unwrap();
+    assert!(line.starts_with("inkup listening on http://127.0.0.1:"), "{line}");
+    let port: u16 = line.trim().rsplit(':').next().unwrap().parse().unwrap();
+    let mut stderr = String::new();
+    let mut err = BufReader::new(host.0.stderr.take().unwrap());
+    let mut banner = String::new();
+    while !banner.contains("inkup pairing") {
+        let mut next = String::new();
+        assert!(err.read_line(&mut next).unwrap() > 0, "banner ended early: {banner}");
+        banner += &next;
+    }
+    stderr.clone_from(&banner);
+    assert!(banner.contains("Remote Host: put this behind HTTPS (a reverse proxy or your gateway)"), "{stderr}");
+    assert!(banner.contains("public URL: https://review.example\n"), "{stderr}");
+    assert!(banner.contains("MCP for agents: https://review.example/mcp"), "{stderr}");
+    assert!(banner.contains("inkup token create --name <agent>"), "{stderr}");
+    assert!(banner.contains(&format!("data dir: {}", dir.path().display())), "{stderr}");
+    assert!(!banner.contains("inkup://pair"), "{stderr}");
+
+    let mut sock = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+    use std::io::{Read, Write};
+    write!(sock, "GET /health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n").unwrap();
+    let mut body = String::new();
+    sock.read_to_string(&mut body).unwrap();
+    assert!(!body.contains("hub_name"), "{body}");
+    let status = Command::new(BIN).args(["status", "--data-dir"]).arg(dir.path()).output().unwrap();
+    assert!(status.status.success(), "{}", String::from_utf8_lossy(&status.stderr));
+}
+
+#[test]
+fn config_toml_starts_a_remote_host_and_can_set_the_hub_name() {
+    let dir = tempfile::tempdir().unwrap();
+    write_remote(dir.path(), "remote = true\npublic_url = \"https://review.example\"\nhub_name = \"review desk\"\n");
+    let mut host = serve(dir.path(), &["--bind", "127.0.0.1"]);
+    let mut line = String::new();
+    BufReader::new(host.0.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    assert!(line.starts_with("inkup listening on http://127.0.0.1:"), "{line}");
+    let port: u16 = line.trim().rsplit(':').next().unwrap().parse().unwrap();
+    let mut sock = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+    use std::io::{Read, Write};
+    write!(sock, "GET /health HTTP/1.1\r\nHost: review.example\r\nConnection: close\r\n\r\n").unwrap();
+    let mut body = String::new();
+    sock.read_to_string(&mut body).unwrap();
+    assert!(body.contains("\"hub_name\":\"review desk\""), "{body}");
+    assert!(!body.contains("review.example\""), "{body}");
+}
+
+#[test]
+fn token_create_honors_a_remote_flag_without_config() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = Command::new(BIN)
+        .args([
+            "token",
+            "create",
+            "--name",
+            "reviewer-a",
+            "--remote",
+            "--public-url",
+            "https://review.example",
+            "--data-dir",
+        ])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("inkup mcp install --remote https://review.example --token <token>"), "{stderr}");
+}
+
+#[test]
+fn token_create_names_the_public_url_when_a_remote_host_is_configured() {
+    let dir = tempfile::tempdir().unwrap();
+    write_remote(dir.path(), "remote = true\npublic_url = \"https://review.example\"\n");
+    let output = Command::new(BIN)
+        .args(["token", "create", "--name", "reviewer-a", "--data-dir"])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("inkup mcp install --remote https://review.example --token <token>"), "{stderr}");
+}
+
+#[test]
+fn the_tui_refuses_a_remote_host() {
+    let dir = tempfile::tempdir().unwrap();
+    write_remote(dir.path(), "remote = true\npublic_url = \"https://review.example\"\n");
+    let (status, stderr) = refused(&["--port", "0"], dir.path());
+    assert_eq!(status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("no TUI"), "{stderr}");
+}
+
+#[test]
+fn the_default_remote_bind_is_every_interface() {
+    if !lan::lan_tests_enabled() {
+        return;
+    }
+    let dir = tempfile::tempdir().unwrap();
+    let mut host = serve(dir.path(), &["--remote", "--public-url", "https://review.example"]);
+    let mut line = String::new();
+    BufReader::new(host.0.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    assert!(line.starts_with("inkup listening on http://0.0.0.0:"), "{line}");
+}

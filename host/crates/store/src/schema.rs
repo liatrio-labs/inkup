@@ -144,6 +144,9 @@ const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX tracker_links_by_item ON tracker_links(item_seq, seq);
     ",
+    // 7: Remote Host (ADR 0030). When the request carried an Agent token, `agent` is that token's name and
+    // `client_name` is the MCP client's own name (clientInfo.name). Both stay null otherwise.
+    "ALTER TABLE resolutions ADD COLUMN client_name TEXT;",
 ];
 
 pub(crate) fn known_version() -> i64 {

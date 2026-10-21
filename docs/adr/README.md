@@ -11,7 +11,7 @@ down. The H1 of each file states the decision; the body says where it lives in t
 | [0002](0002-screen-picker-over-tab-capture.md) | The screen picker over `chrome.tabCapture` | accepted | 2026-09-22 |
 | [0003](0003-all-sites-host-permission.md) | `<all_urls>` host permission, and the permissions added since | accepted | 2026-09-22 |
 | [0004](0004-rust-host-with-extension-clients.md) | A Rust Host with browser extensions as Clients | accepted | 2026-09-23 |
-| [0005](0005-loopback-trust-and-pairing.md) | Loopback trust and pairing | accepted; superseded in part by 0006 | 2026-09-23 |
+| [0005](0005-loopback-trust-and-pairing.md) | Loopback trust and pairing | accepted; superseded in part by 0006 and 0030 | 2026-09-23 |
 | [0006](0006-network-mode.md) | Network mode | accepted | 2026-09-23 |
 | [0007](0007-central-contract.md) | One versioned contract in `contract/` | accepted | 2026-09-24 |
 | [0008](0008-independent-releases-and-host-updates.md) | Independent releases cut by release-please, and Host self-update | superseded by 0027 | 2026-09-24 |
@@ -36,6 +36,7 @@ down. The H1 of each file states the decision; the body says where it lives in t
 | [0027](0027-lockstep-releases-and-host-updates.md) | Lockstep releases cut by release-please, and Host self-update | accepted | 2026-09-25 |
 | [0028](0028-tracker-push.md) | Sending Change Items to issue trackers | accepted | 2026-10-07 |
 | [0029](0029-ui-standard-shadcn-shared-package.md) | The UI standard: React, Tailwind and shadcn/ui from the shared `@inkup/ui` package, in both apps | accepted | 2026-10-07 |
+| [0030](0030-remote-host.md) | A Remote Host over HTTPS: a token on every request, pairing by code | accepted | 2026-10-20 |
 
 The date is when the decision was first made. ADRs 0010 to 0024 were distilled on 2026-09-24 from the decisions log
 that the repo kept until then; their History sections carry its dates.

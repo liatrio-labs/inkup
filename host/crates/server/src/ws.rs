@@ -72,6 +72,18 @@ impl Refusal {
     fn new(re: Option<&str>, code: ErrorCode, message: impl Into<String>) -> Self {
         Self { re: re.map(str::to_owned), code, message: message.into() }
     }
+
+    /// No pairing code, and none will be issued. The operator runs `inkup pairing`.
+    ///
+    /// `pairing_denied` is the in-schema code. A dedicated code waits for #115, which can bump the protocol
+    /// version (ADR 0007). Today's Client already shows this code.
+    fn operator(re: &str) -> Self {
+        Self::new(
+            Some(re),
+            ErrorCode::PairingDenied,
+            "a pairing code must come from the operator running `inkup pairing`",
+        )
+    }
 }
 
 enum Incoming {
@@ -338,7 +350,19 @@ impl Connection {
         let re = hello.id.to_string();
         let kind = hello.client_kind.to_string();
         let name = hello.client_name.to_string();
-        if self.peer.remote {
+        if self.state.config.remote.is_some() {
+            // Never `PairingCodes::issue`. A code exists only when the operator minted one (#113).
+            match &hello.pairing_code {
+                Some(code) => match self.state.codes.redeem(code.as_str()) {
+                    Redeemed::NoneWaiting => return Err(Refusal::operator(&re)),
+                    redeemed => self.code_result(&re, redeemed)?,
+                },
+                None => {
+                    tracing::info!("pairing refused: a Remote Host issues no code for a hello");
+                    return Err(Refusal::operator(&re));
+                }
+            }
+        } else if self.peer.remote {
             match &hello.pairing_code {
                 Some(code) => self.check_code(&re, code.as_str())?,
                 None => return Err(self.issue_code(&re, kind, name)),
@@ -390,7 +414,11 @@ impl Connection {
     }
 
     fn check_code(&self, re: &str, code: &str) -> Result<(), Refusal> {
-        match self.state.codes.redeem(code) {
+        self.code_result(re, self.state.codes.redeem(code))
+    }
+
+    fn code_result(&self, re: &str, redeemed: Redeemed) -> Result<(), Refusal> {
+        match redeemed {
             Redeemed::Paired => Ok(()),
             Redeemed::Wrong { tries_left } => Err(Refusal::new(
                 Some(re),
