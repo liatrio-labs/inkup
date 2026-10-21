@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.15.0...inkup-v0.16.0) (2026-10-21)
+
+
+### Features
+
+* **desktop:** spike a non-activating panel overlay per display ([#109](https://github.com/liatrio-labs/inkup/issues/109)) ([e51a652](https://github.com/liatrio-labs/inkup/commit/e51a6529677935dcab3be731bc5d1358059316c1))
+
 ## [0.15.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.14.1...inkup-v0.15.0) (2026-10-20)
 
 
