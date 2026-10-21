@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.16.0...inkup-extension-v0.17.0) (2026-10-21)
+
+
+### Chores
+
+* **inkup-extension:** Synchronize inkup versions
+
 ## [0.16.0](https://github.com/liatrio-labs/inkup/compare/inkup-extension-v0.15.0...inkup-extension-v0.16.0) (2026-10-21)
 
 

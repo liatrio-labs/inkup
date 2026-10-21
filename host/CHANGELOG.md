@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.17.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.16.0...inkup-v0.17.0) (2026-10-21)
+
+
+### Features
+
+* **host:** add a container image that runs the Host in remote mode ([#165](https://github.com/liatrio-labs/inkup/issues/165)) ([34c008f](https://github.com/liatrio-labs/inkup/commit/34c008f211ad42c7911fb87e111c380ec5b88063))
+
+
+### Bug Fixes
+
+* **host:** bind example compose HTTP port to loopback ([#169](https://github.com/liatrio-labs/inkup/issues/169)) ([2492fbc](https://github.com/liatrio-labs/inkup/commit/2492fbc228d76aea7bd6f62f201e73b1f1f01686))
+* **release:** install the x86_64 macOS target for the pinned toolchain ([#171](https://github.com/liatrio-labs/inkup/issues/171)) ([62a99ce](https://github.com/liatrio-labs/inkup/commit/62a99ce8aa2204f457055fb081e4e0b65584b386))
+
 ## [0.16.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.15.0...inkup-v0.16.0) (2026-10-21)
 
 
