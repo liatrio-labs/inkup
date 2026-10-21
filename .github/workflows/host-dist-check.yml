@@ -1,9 +1,10 @@
 name: Host dist check
 
 # Checks the host's dist config on pull requests that touch it: inkup-v-release.yml must match what `dist generate`
-# writes from dist-workspace.toml, and `dist plan` must succeed for a sample host tag. Not a required check, and not
-# part of ci.yml's ci-ok gate. inkup-v-release.yml itself runs only on inkup-v* tags. Skipped on release pull requests,
-# like ci.yml. Runs on a GitHub-hosted arm64 runner and installs the cargo-dist build for the runner architecture.
+# writes from dist-workspace.toml, and `dist plan` must succeed for a sample host tag. Also cross-compiles inkup for
+# x86_64-apple-darwin on macos-14 (Apple silicon, the release runner). Not a required check, and not part of ci.yml's
+# ci-ok gate. inkup-v-release.yml itself runs only on inkup-v* tags. Skipped on release pull requests, like ci.yml.
+# The dist job runs on a GitHub-hosted arm64 Linux runner and installs the cargo-dist build for that architecture.
 on:
   pull_request:
     paths:
@@ -74,3 +75,44 @@ jobs:
           version=$(cargo metadata --manifest-path host/Cargo.toml --no-deps --format-version 1 \
             | jq -r '.packages[] | select(.name == "inkup") | .version')
           dist plan --tag="inkup-v${version}"
+
+  # The 0.16.0 host release failed in build-local-artifacts (x86_64-apple-darwin): cargo-dist 0.33.0 runs
+  # `rustup target add` from the repo root, so the std lands on the runner's default toolchain. Cargo then
+  # builds in host/ on the channel in host/rust-toolchain.toml, which does not have the target unless that
+  # file lists it. This job does not run `rustup target add` and does not set RUSTUP_TOOLCHAIN (a toolchain
+  # action would), so a missing targets line fails the compile the same way. macos-14 is the release runner
+  # and is arm64. An Intel runner already has this target as its host std, so the check would pass there
+  # without the fix.
+  x64-macos:
+    name: x86_64-apple-darwin
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    runs-on: macos-14
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: host
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Apple silicon runner
+        run: |
+          machine=$(uname -m)
+          echo "uname -m: ${machine}"
+          test "$machine" = arm64
+      - name: Cross-compile inkup for x86_64-apple-darwin
+        run: |
+          rustc --version --verbose
+          rustup show
+          cargo build -p inkup --locked --target x86_64-apple-darwin
+      - name: The binary is a single x86_64 slice
+        run: |
+          bin=target/x86_64-apple-darwin/debug/inkup
+          lipo -info "$bin"
+          file "$bin"
+          lipo -info "$bin" | grep -F 'architecture: x86_64'
+          file "$bin" | grep -F x86_64
+          if file "$bin" | grep -F arm64; then
+            echo "::error::binary contains arm64"
+            exit 1
+          fi
