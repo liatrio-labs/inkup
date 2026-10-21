@@ -22,6 +22,7 @@
     "test:e2e": "pnpm build && pnpm host:build && playwright test --project=chrome",
     "test:e2e:docker": "bash scripts/e2e-docker.sh chrome",
     "host:build": "cargo build --quiet --manifest-path host/Cargo.toml -p inkup",
+    "host:image:smoke": "bash scripts/host-image-smoke.sh",
     "desktop:dev": "pnpm -C apps/desktop tauri dev --",
     "desktop:build": "pnpm -C apps/desktop tauri build --debug --no-bundle",
     "desktop:app": "pnpm -C apps/desktop tauri build --debug --bundles app",

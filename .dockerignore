@@ -1,0 +1,15 @@
+# Context for docker/host.Dockerfile (the repo root). The e2e image is built with
+# docker/ as its context, so this file does not apply to it.
+
+.git
+**/.git
+**/node_modules
+
+# Cargo output. The image compiles in its build stage.
+host/target
+
+# Extension builds (WXT).
+extensions/web/.output
+extensions/web/.wxt
+**/.output
+**/.wxt
