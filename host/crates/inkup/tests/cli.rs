@@ -377,3 +377,197 @@ fn the_default_remote_bind_is_every_interface() {
     BufReader::new(host.0.stdout.take().unwrap()).read_line(&mut line).unwrap();
     assert!(line.starts_with("inkup listening on http://0.0.0.0:"), "{line}");
 }
+
+fn run(args: &[&str], dir: &std::path::Path) -> (bool, String, String) {
+    let output = Command::new(BIN)
+        .args(args)
+        .arg("--data-dir")
+        .arg(dir)
+        .env_remove("INKUP_DATA_DIR")
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    (
+        output.status.success(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+fn pem_pair(dir: &std::path::Path, name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+    let cert = dir.join(format!("{name}-cert.pem"));
+    let key = dir.join(format!("{name}-key.pem"));
+    let output = Command::new("openssl")
+        .args(["req", "-x509", "-newkey", "rsa:2048", "-keyout"])
+        .arg(&key)
+        .arg("-out")
+        .arg(&cert)
+        .args(["-days", "1", "-nodes", "-subj", "/CN=localhost"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    (cert, key)
+}
+
+#[test]
+fn pairing_help_says_codes_live_in_memory_and_serve_help_says_no_hot_reload() {
+    let pairing = Command::new(BIN).args(["pairing", "--help"]).output().unwrap();
+    let text = String::from_utf8_lossy(&pairing.stdout);
+    assert!(pairing.status.success(), "{text}");
+    assert!(text.contains("memory"), "{text}");
+    assert!(text.to_ascii_lowercase().contains("restart"), "{text}");
+    let serve = Command::new(BIN).args(["serve", "--help"]).output().unwrap();
+    let text = String::from_utf8_lossy(&serve.stdout);
+    assert!(text.contains("hot reload"), "{text}");
+}
+
+#[test]
+fn pairing_create_fails_with_no_host_and_outside_a_remote_host() {
+    let dir = tempfile::tempdir().unwrap();
+    let (ok, _stdout, stderr) = run(&["pairing", "create"], dir.path());
+    assert!(!ok);
+    assert!(stderr.contains("no Host is running"), "{stderr}");
+
+    let (_host, _port) = serving(dir.path());
+    let (ok, _stdout, stderr) = run(&["pairing", "create"], dir.path());
+    assert!(!ok);
+    assert!(stderr.contains("loopback and Network mode keep today's pairing"), "{stderr}");
+}
+
+#[test]
+fn pairing_create_prints_a_code_a_pair_link_and_a_qr_code() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut host = serve(dir.path(), &["--remote", "--public-url", "https://review.example", "--bind", "127.0.0.1"]);
+    let mut line = String::new();
+    BufReader::new(host.0.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    assert!(line.starts_with("inkup listening on http://127.0.0.1:"), "{line}");
+    let port: u16 = line.trim().rsplit(':').next().unwrap().parse().unwrap();
+
+    let (ok, stdout, stderr) = run(&["pairing", "create", "--name", "reviewer", "--ttl", "15m"], dir.path());
+    assert!(ok, "{stderr}");
+    let code = stdout.lines().find_map(|line| line.strip_prefix("code: ")).expect("a code").to_owned();
+    let id = stdout.lines().find_map(|line| line.strip_prefix("id: ")).expect("an id").to_owned();
+    let link = format!("inkup://pair?url=https://review.example&code={code}");
+    assert!(stdout.contains(&link), "{stdout}");
+    assert!(stdout.contains('█') || stdout.contains('▀') || stdout.contains('▄'), "a QR code\n{stdout}");
+
+    let (ok, listed, stderr) = run(&["pairing", "list"], dir.path());
+    assert!(ok, "{stderr}");
+    assert!(listed.contains(&id) && listed.contains("reviewer") && listed.contains("guesses left"), "{listed}");
+    assert!(!listed.contains(&code), "{listed}");
+
+    let hello = format!(
+        r#"{{"v":1,"type":"hello","id":"m-1","client_kind":"chrome","client_name":"Reviewer","pairing_code":"{code}"}}"#
+    );
+    let url = format!("ws://127.0.0.1:{port}/ws");
+    let (mut ws, _) = tungstenite::connect(url.as_str()).unwrap();
+    ws.send(tungstenite::Message::text(hello.clone())).unwrap();
+    let reply = ws.read().unwrap().into_text().unwrap();
+    assert!(reply.contains(r#""type":"paired""#), "{reply}");
+    let (mut ws, _) = tungstenite::connect(url.as_str()).unwrap();
+    ws.send(tungstenite::Message::text(hello)).unwrap();
+    let reply = ws.read().unwrap().into_text().unwrap();
+    assert!(reply.contains("pairing_denied"), "{reply}");
+}
+
+#[test]
+fn tls_flags_fail_alone_without_remote_and_on_an_unreadable_key() {
+    let dir = tempfile::tempdir().unwrap();
+    let (cert, key) = pem_pair(dir.path(), "host");
+    let (status, stderr) = refused(
+        &[
+            "serve",
+            "--remote",
+            "--public-url",
+            "https://review.example",
+            "--tls-cert",
+            cert.to_str().unwrap(),
+            "--port",
+            "0",
+        ],
+        dir.path(),
+    );
+    assert_eq!(status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains(cert.to_str().unwrap()) && stderr.contains("both or neither"), "{stderr}");
+
+    let (status, stderr) = refused(
+        &["serve", "--tls-cert", cert.to_str().unwrap(), "--tls-key", key.to_str().unwrap(), "--port", "0"],
+        dir.path(),
+    );
+    assert_eq!(status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains("Network mode stays unencrypted"), "{stderr}");
+
+    let missing = dir.path().join("missing-key.pem");
+    let output = Command::new(BIN)
+        .args([
+            "serve",
+            "--remote",
+            "--public-url",
+            "https://review.example",
+            "--bind",
+            "127.0.0.1",
+            "--tls-cert",
+            cert.to_str().unwrap(),
+            "--tls-key",
+            missing.to_str().unwrap(),
+            "--port",
+            "0",
+            "--data-dir",
+        ])
+        .arg(dir.path())
+        .env_remove("INKUP_DATA_DIR")
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains(&missing.display().to_string()), "{stderr}");
+    assert!(!stdout.contains("inkup listening"), "{stdout}");
+}
+
+#[test]
+fn a_certificate_serves_https_and_the_banner_names_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let (cert, key) = pem_pair(dir.path(), "host");
+    let mut host = serve(
+        dir.path(),
+        &[
+            "--remote",
+            "--public-url",
+            "https://review.example",
+            "--bind",
+            "127.0.0.1",
+            "--tls-cert",
+            cert.to_str().unwrap(),
+            "--tls-key",
+            key.to_str().unwrap(),
+        ],
+    );
+    let mut line = String::new();
+    BufReader::new(host.0.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    assert!(line.starts_with("inkup listening on https://127.0.0.1:"), "{line}");
+    let mut banner = String::new();
+    let mut err = BufReader::new(host.0.stderr.take().unwrap());
+    while !banner.contains("inkup pairing") {
+        let mut next = String::new();
+        assert!(err.read_line(&mut next).unwrap() > 0, "banner ended early: {banner}");
+        banner += &next;
+    }
+    let expected = format!("HTTPS (certificate from {})", cert.display());
+    assert!(banner.contains(&expected), "{banner}");
+    assert!(!banner.contains("put this behind HTTPS"), "{banner}");
+
+    write_remote(
+        dir.path(),
+        &format!(
+            "remote = true\npublic_url = \"https://review.example\"\ntls_cert = \"{}\"\ntls_key = \"{}\"\n",
+            cert.display(),
+            key.display()
+        ),
+    );
+    drop(host);
+    let mut host = serve(dir.path(), &["--bind", "127.0.0.1"]);
+    let mut line = String::new();
+    BufReader::new(host.0.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    assert!(line.starts_with("inkup listening on https://127.0.0.1:"), "{line}");
+}

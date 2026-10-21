@@ -24,6 +24,12 @@ const NEW_FILE: &str = "\
 # `inkup serve --remote --public-url https://…` turns it on for one run. hub_name, when set, is what /health
 # gives; leave it unset and a Remote Host omits the machine's name. The desktop app and the TUI do not serve
 # a Remote Host.
+#
+# tls_cert and tls_key are PEM paths. Set both, or neither: the Host then serves HTTPS on the bind
+# address with that certificate (rustls, not OpenSSL). They are read when the Host starts. A restart
+# picks up a new file; there is no hot reload. Loopback and Network mode stay unencrypted.
+# tls_cert = \"/path/cert.pem\"
+# tls_key = \"/path/key.pem\"
 # remote = false
 # public_url = \"https://example.com\"
 # hub_name = \"review desk\"
@@ -41,6 +47,10 @@ pub struct HostConfig {
     pub public_url: Option<String>,
     /// A name the operator chose for /health. A Remote Host does not invent one from the machine.
     pub hub_name: Option<String>,
+    /// PEM certificate for a Remote Host that terminates TLS itself. With `tls_key`, or neither.
+    pub tls_cert: Option<String>,
+    /// PEM private key matching `tls_cert`.
+    pub tls_key: Option<String>,
 }
 
 impl HostConfig {
@@ -51,6 +61,8 @@ impl HostConfig {
         let remote = doc.get("remote").and_then(|v| v.as_bool()).unwrap_or(false);
         let public_url = nonempty_str(doc.get("public_url"));
         let hub_name = nonempty_str(doc.get("hub_name"));
+        let tls_cert = nonempty_str(doc.get("tls_cert"));
+        let tls_key = nonempty_str(doc.get("tls_key"));
         let hub_id = match doc.get("hub_id").and_then(|v| v.as_str()) {
             Some(id) if !id.is_empty() => id.to_owned(),
             _ => {
@@ -64,7 +76,7 @@ impl HostConfig {
         if header_at_bottom(&doc) {
             write(dir, &doc)?;
         }
-        Ok(Self { network, hub_id, remote, public_url, hub_name })
+        Ok(Self { network, hub_id, remote, public_url, hub_name, tls_cert, tls_key })
     }
 
     /// Switches network mode in the file.
@@ -208,7 +220,15 @@ mod tests {
         std::fs::write(&path, format!("hub_id = \"abc\"\n# mine\nnetwork = true\n{NEW_FILE}")).unwrap();
         assert_eq!(
             HostConfig::load(dir.path()).unwrap(),
-            HostConfig { network: true, hub_id: "abc".into(), remote: false, public_url: None, hub_name: None }
+            HostConfig {
+                network: true,
+                hub_id: "abc".into(),
+                remote: false,
+                public_url: None,
+                hub_name: None,
+                tls_cert: None,
+                tls_key: None,
+            }
         );
         assert_eq!(text(dir.path()), format!("{NEW_FILE}\nhub_id = \"abc\"\n# mine\nnetwork = true\n"));
     }
@@ -258,12 +278,35 @@ hub_name = \"review desk\"
                 remote: true,
                 public_url: Some("https://review.example".into()),
                 hub_name: Some("review desk".into()),
+                tls_cert: None,
+                tls_key: None,
             }
         );
         HostConfig::save_network(dir.path(), true).unwrap();
         assert!(HostConfig::load(dir.path()).unwrap().remote);
         assert!(text(dir.path()).contains("public_url = \"https://review.example\""));
         assert!(text(dir.path()).contains("hub_name = \"review desk\""));
+    }
+
+    #[test]
+    fn tls_paths_are_read_and_a_network_save_keeps_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(CONFIG_FILE);
+        std::fs::write(
+            &path,
+            "\
+hub_id = \"abc\"
+tls_cert = \"/tmp/cert.pem\"
+tls_key = \"/tmp/key.pem\"
+",
+        )
+        .unwrap();
+        let loaded = HostConfig::load(dir.path()).unwrap();
+        assert_eq!(loaded.tls_cert.as_deref(), Some("/tmp/cert.pem"));
+        assert_eq!(loaded.tls_key.as_deref(), Some("/tmp/key.pem"));
+        HostConfig::save_network(dir.path(), true).unwrap();
+        assert_eq!(HostConfig::load(dir.path()).unwrap().tls_cert.as_deref(), Some("/tmp/cert.pem"));
+        assert!(text(dir.path()).contains("tls_key = \"/tmp/key.pem\""));
     }
 
     #[test]

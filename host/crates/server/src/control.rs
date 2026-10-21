@@ -21,6 +21,10 @@
 //!   server). `{handled: false}` without one: the TUI switches it in its terminal.
 //! - `POST /api/host/pairing/{id}`: answers a pairing request, when the embedder has the server ask here
 //!   (`Server::ask_pairing_over_control`) rather than on its own screen.
+//! - `POST|GET /api/host/pairing/codes` and `DELETE /api/host/pairing/codes/{id}`: operator-issued pairing
+//!   codes on a Remote Host (`inkup pairing`). The CLI is the only caller. The shapes stay out of
+//!   `host-control.schema.json`, so the control API version does not move and a desktop build does not
+//!   have to know them.
 //! - `GET /api/host/items/{id}`: one stored Change Item in full, with every tracker link (ADR 0028), so the desktop
 //!   app can build its issue.
 //! - `GET /api/host/blobs/{id}`: a stored blob's bytes (a screenshot), to upload with that issue.
@@ -53,7 +57,10 @@ use crate::guard::Peer;
 use crate::http::{ApiError, bearer};
 use crate::hub::Command;
 use crate::network::lan_addresses;
-use crate::pairing::{PairingDecision, PairingRequest};
+use crate::pairing::{
+    IssueError, OPERATOR_CODE_CAP, OPERATOR_TTL_DEFAULT, OPERATOR_TTL_MAX, OPERATOR_TTL_MIN, OperatorCodeView,
+    PairingDecision, PairingRequest,
+};
 use crate::ws::blocking;
 use crate::{AppState, VERSION};
 
@@ -310,6 +317,103 @@ pub(crate) async fn network(
         None => false,
     };
     Ok(Json(NetworkSwitched { handled }))
+}
+
+fn operator_codes_only(state: &AppState) -> Result<(), ApiError> {
+    if state.operator_pairing {
+        Ok(())
+    } else {
+        Err(ApiError::BadRequest(
+            "operator-issued pairing codes are only for a Remote Host; loopback and Network mode keep today's pairing"
+                .into(),
+        ))
+    }
+}
+
+#[derive(Deserialize)]
+struct CreatePairingCode {
+    #[serde(default)]
+    label: String,
+    /// Seconds the code stays valid. Absent means 15 minutes.
+    #[serde(default)]
+    ttl_secs: Option<u64>,
+}
+
+fn code_json(code: &OperatorCodeView, secret: Option<&str>, link: Option<&str>) -> Value {
+    let mut body = json!({
+        "id": code.id,
+        "label": code.label,
+        "created_at": code.created_at,
+        "expires_at": code.expires_at,
+        "guesses_left": code.guesses_left,
+    });
+    if let Some(secret) = secret {
+        body["code"] = json!(secret);
+    }
+    if let Some(link) = link {
+        body["link"] = json!(link);
+    }
+    body
+}
+
+/// Issues one code. The value is in this response only; list never returns it.
+pub(crate) async fn create_pairing_code(
+    _: Controller,
+    State(state): State<AppState>,
+    Json(body): Json<Value>,
+) -> Result<(StatusCode, Json<Value>), ApiError> {
+    operator_codes_only(&state)?;
+    let asked: CreatePairingCode = request(body)?;
+    let ttl = match asked.ttl_secs {
+        Some(secs) => Duration::from_secs(secs),
+        None => OPERATOR_TTL_DEFAULT,
+    };
+    if ttl < OPERATOR_TTL_MIN || ttl > OPERATOR_TTL_MAX {
+        return Err(ApiError::BadRequest(
+            "a pairing code lasts from 1 second to 24 hours; the default is 15 minutes".into(),
+        ));
+    }
+    let origin = state.public_origin.clone().ok_or(ApiError::Internal)?;
+    let issued = match state.operator_codes.issue(&asked.label, ttl) {
+        Ok(issued) => issued,
+        Err(IssueError::Cap) => {
+            return Err(ApiError::BadRequest(format!(
+                "{OPERATOR_CODE_CAP} pairing codes are already outstanding; revoke one or wait for one to expire"
+            )));
+        }
+        Err(IssueError::Random) => return Err(ApiError::Internal),
+    };
+    let link = format!("inkup://pair?url={origin}&code={}", issued.code);
+    tracing::info!(id = %issued.id, label = %issued.label, "operator issued a pairing code");
+    let view = OperatorCodeView {
+        id: issued.id,
+        label: issued.label,
+        created_at: issued.created_at,
+        expires_at: issued.expires_at,
+        guesses_left: issued.guesses_left,
+    };
+    Ok((StatusCode::CREATED, Json(code_json(&view, Some(&issued.code), Some(&link)))))
+}
+
+/// Outstanding codes: id, label, created, expires, guesses left. Never the code.
+pub(crate) async fn list_pairing_codes(_: Controller, State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
+    operator_codes_only(&state)?;
+    let codes: Vec<Value> = state.operator_codes.list().iter().map(|code| code_json(code, None, None)).collect();
+    Ok(Json(json!({ "codes": codes })))
+}
+
+/// Burns one outstanding code.
+pub(crate) async fn revoke_pairing_code(
+    _: Controller,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    operator_codes_only(&state)?;
+    if !state.operator_codes.revoke(&id) {
+        return Err(ApiError::NotFound);
+    }
+    tracing::info!(%id, "operator revoked a pairing code");
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub(crate) async fn answer_pairing(

@@ -39,6 +39,11 @@ ratatui = { version = "0.30.2", default-features = false, features = ["crossterm
 regress = "0.12"
 rqrr = { version = "0.11", default-features = false }
 reqwest = { version = "0.13.5", default-features = false, features = ["json"] }
+# The same rustls the update client already builds (aws-lc-rs), plus the PEM and tokio glue a Remote Host
+# uses to terminate TLS itself. No OpenSSL.
+rustls = "0.23.45"
+rustls-pemfile = "2.2.0"
+tokio-rustls = "0.26.5"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 schemars = "0.8"
 serde = { version = "1.0.229", features = ["derive"] }

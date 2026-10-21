@@ -12,6 +12,8 @@
 //!   Never from a web page origin.
 //! - `/api/host/*`: the control API (control.rs). This machine only, with the control token from `host.json`.
 //!   A Remote Host does not serve it on the public listener; it listens on 127.0.0.1 apart from that bind.
+//!   `inkup pairing` issues codes there. With a certificate and key, a Remote Host serves HTTPS on the public
+//!   bind (rustls); the certificate is read at start and again only when the process starts over.
 
 #[cfg(test)]
 mod contract;
@@ -26,9 +28,14 @@ mod remote;
 mod state;
 mod ws;
 
+use std::fmt::Display;
+use std::io::ErrorKind;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
+
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
 use axum::Router;
 use axum::routing::{get, put};
@@ -43,7 +50,10 @@ pub use hub::{Command, CommandError, CommandOutcome, Connected, Hub, Push, Watch
 pub use network::{
     DEFAULT_MDNS_NAME, MAX_NAME_SUFFIX, NETWORK_WARNING, Network, NetworkConfig, SERVICE_TYPE, lan_addresses,
 };
-pub use pairing::{PairingDecision, PairingRequest, RemotePairing};
+pub use pairing::{
+    OPERATOR_CODE_CAP, OPERATOR_CODE_DIGITS, OPERATOR_GUESS_BUDGET, OPERATOR_TTL_DEFAULT, OPERATOR_TTL_MAX,
+    OPERATOR_TTL_MIN, PairingDecision, PairingRequest, RemotePairing,
+};
 pub use remote::{DEFAULT_BIND, PublicUrl, RemoteHost};
 pub use state::{ClientView, HostState, ItemView, Timeline, TimelineEntry, snapshot};
 
@@ -73,8 +83,18 @@ pub struct Config {
     pub every_peer_is_remote: bool,
     /// A Remote Host (ADR 0030): the https public URL and the bind address. `None`: loopback or Network mode.
     pub remote: Option<RemoteHost>,
+    /// PEM certificate and key. Set only with `remote`: the public bind then speaks HTTPS. Both paths, or
+    /// neither. Read when the process starts; a restart is what picks up a new file.
+    pub tls: Option<TlsMaterial>,
     /// The control API (`/api/host/*`): its token, the host's kind and the activate hook. `None`: closed.
     pub control: Option<Control>,
+}
+
+/// Certificate and key a Remote Host serves with. The paths are the ones the operator gave.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TlsMaterial {
+    pub cert: PathBuf,
+    pub key: PathBuf,
 }
 
 impl Default for Config {
@@ -89,6 +109,7 @@ impl Default for Config {
             hello_timeout: Duration::from_secs(10),
             every_peer_is_remote: false,
             remote: None,
+            tls: None,
             control: None,
         }
     }
@@ -101,6 +122,11 @@ struct AppState {
     port: u16,
     pairing: mpsc::Sender<PairingRequest>,
     codes: Arc<pairing::PairingCodes>,
+    operator_codes: Arc<pairing::OperatorCodes>,
+    /// True on a Remote Host, including the loopback control listener, whose `config.remote` is cleared.
+    operator_pairing: bool,
+    /// The https origin a Pair link names. Set together with `operator_pairing`.
+    public_origin: Option<String>,
     hub: Arc<Hub>,
     network: Option<Arc<Network>>,
     /// Pairing requests the control API asks about, once `Server::ask_pairing_over_control` is called.
@@ -184,8 +210,19 @@ impl Server {
 /// serves until `Server::shutdown`.
 pub async fn start(store: Arc<Store>, mut config: Config) -> std::io::Result<Server> {
     if config.remote.is_some() && config.network.is_some() {
-        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "a Remote Host does not use network mode"));
+        return Err(std::io::Error::new(ErrorKind::InvalidInput, "a Remote Host does not use network mode"));
     }
+    if config.tls.is_some() && config.remote.is_none() {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            "TLS is only for a Remote Host; Network mode stays unencrypted",
+        ));
+    }
+    // A bad certificate fails here, before the listen socket exists.
+    let tls = match &config.tls {
+        Some(material) => Some(load_tls(material)?),
+        None => None,
+    };
     if config.remote.is_some() {
         config.every_peer_is_remote = true;
     }
@@ -209,11 +246,16 @@ pub async fn start(store: Arc<Store>, mut config: Config) -> std::io::Result<Ser
     let shutdown = CancellationToken::new();
     let inbox = Arc::new(control::PairingInbox::default());
     let codes = Arc::new(pairing::PairingCodes::new(config.pairing_code_ttl));
+    let operator_codes = Arc::new(pairing::OperatorCodes::new());
     let remote = config.remote.is_some();
+    let public_origin = config.remote.as_ref().map(|remote| remote.public_url.origin().to_owned());
     let state = AppState {
         store,
         inbox: Arc::clone(&inbox),
         codes: Arc::clone(&codes),
+        operator_codes,
+        operator_pairing: remote,
+        public_origin,
         config: Arc::new(config),
         port: addr.port(),
         pairing: pairing_tx,
@@ -239,11 +281,22 @@ pub async fn start(store: Arc<Store>, mut config: Config) -> std::io::Result<Ser
     };
     let app = router(state, mcp_shutdown.child_token());
     let stop = shutdown.clone();
-    let task = tokio::spawn(async move {
-        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-            .with_graceful_shutdown(async move { stop.cancelled().await })
-            .await
-    });
+    let task = if let Some(config) = tls {
+        let listener = RustlsListener::new(listener, config);
+        // No `ConnectInfo`: axum's `Connected` for `SocketAddr` cannot be implemented for a listener this crate
+        // defines. A missing peer fails closed (guard.rs), which is what a Remote Host already requires.
+        tokio::spawn(async move {
+            axum::serve(listener, app.into_make_service())
+                .with_graceful_shutdown(async move { stop.cancelled().await })
+                .await
+        })
+    } else {
+        tokio::spawn(async move {
+            axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+                .with_graceful_shutdown(async move { stop.cancelled().await })
+                .await
+        })
+    };
     tracing::info!(%addr, ?control_addr, network = network.is_some(), remote, "inkup host listening");
     Ok(Server {
         addr,
@@ -303,6 +356,11 @@ fn control_routes(app: Router<AppState>) -> Router<AppState> {
         .route("/api/host/tokens", axum::routing::post(control::create_token))
         .route("/api/host/tokens/{id}", axum::routing::delete(control::revoke_token))
         .route("/api/host/network", axum::routing::post(control::network))
+        .route(
+            "/api/host/pairing/codes",
+            axum::routing::get(control::list_pairing_codes).post(control::create_pairing_code),
+        )
+        .route("/api/host/pairing/codes/{id}", axum::routing::delete(control::revoke_pairing_code))
         .route("/api/host/pairing/{id}", axum::routing::post(control::answer_pairing))
         .route("/api/host/items/{id}", get(control::item))
         .route("/api/host/items/{id}/tracker-links", axum::routing::post(control::record_tracker_link))
@@ -315,6 +373,82 @@ fn finish(app: Router<AppState>, state: AppState, mcp: Option<mcp::Service>) -> 
         None => app,
     };
     app.layer(axum::middleware::from_fn_with_state(state.clone(), guard::guard)).with_state(state)
+}
+
+/// Reads the PEM pair into a rustls config. Failure names the path and does not touch a socket.
+fn load_tls(material: &TlsMaterial) -> std::io::Result<Arc<rustls::ServerConfig>> {
+    // The process may already have installed one (the update client's reqwest). A second install is an error
+    // we ignore; with none installed, `ServerConfig::builder` has no provider.
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    let certs = read_certs(&material.cert)?;
+    let key = read_key(&material.key)?;
+    let config =
+        rustls::ServerConfig::builder().with_no_client_auth().with_single_cert(certs, key).map_err(|error| {
+            std::io::Error::new(
+                ErrorKind::InvalidInput,
+                format!("{} and {}: {error}", material.cert.display(), material.key.display()),
+            )
+        })?;
+    Ok(Arc::new(config))
+}
+
+fn read_certs(path: &Path) -> std::io::Result<Vec<CertificateDer<'static>>> {
+    let bytes = std::fs::read(path).map_err(|error| tls_error(path, error))?;
+    let mut reader = std::io::BufReader::new(bytes.as_slice());
+    let certs =
+        rustls_pemfile::certs(&mut reader).collect::<Result<Vec<_>, _>>().map_err(|error| tls_error(path, error))?;
+    if certs.is_empty() {
+        return Err(tls_error(path, "no certificate in the PEM"));
+    }
+    Ok(certs)
+}
+
+fn read_key(path: &Path) -> std::io::Result<PrivateKeyDer<'static>> {
+    let bytes = std::fs::read(path).map_err(|error| tls_error(path, error))?;
+    let mut reader = std::io::BufReader::new(bytes.as_slice());
+    rustls_pemfile::private_key(&mut reader)
+        .map_err(|error| tls_error(path, error))?
+        .ok_or_else(|| tls_error(path, "no private key in the PEM"))
+}
+
+fn tls_error(path: &Path, error: impl Display) -> std::io::Error {
+    std::io::Error::new(ErrorKind::InvalidInput, format!("{}: {error}", path.display()))
+}
+
+/// The public listener once a Remote Host terminates TLS itself. The control listener stays plain HTTP.
+struct RustlsListener {
+    tcp: TcpListener,
+    acceptor: tokio_rustls::TlsAcceptor,
+}
+
+impl RustlsListener {
+    fn new(tcp: TcpListener, config: Arc<rustls::ServerConfig>) -> Self {
+        Self { tcp, acceptor: tokio_rustls::TlsAcceptor::from(config) }
+    }
+}
+
+impl axum::serve::Listener for RustlsListener {
+    type Io = tokio_rustls::server::TlsStream<tokio::net::TcpStream>;
+    type Addr = SocketAddr;
+
+    async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+        loop {
+            match self.tcp.accept().await {
+                Ok((sock, addr)) => match self.acceptor.accept(sock).await {
+                    Ok(stream) => return (stream, addr),
+                    Err(error) => tracing::debug!(%error, "tls handshake failed"),
+                },
+                Err(error) => {
+                    tracing::debug!(%error, "accept failed");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
+            }
+        }
+    }
+
+    fn local_addr(&self) -> std::io::Result<SocketAddr> {
+        self.tcp.local_addr()
+    }
 }
 
 #[cfg(test)]
@@ -331,6 +465,9 @@ mod tests {
         let state = AppState {
             store: Arc::new(Store::open(dir.path()).unwrap()),
             codes: Arc::new(pairing::PairingCodes::new(config.pairing_code_ttl)),
+            operator_codes: Arc::new(pairing::OperatorCodes::new()),
+            operator_pairing: false,
+            public_origin: None,
             config: Arc::new(config),
             port,
             pairing: mpsc::channel(1).0,

@@ -1,16 +1,18 @@
-//! Pairing approval (ADR 0005, ADR 0006). An unpaired Client's hello becomes a `PairingRequest` on the server's
-//! channel; whoever holds the receiver (the TUI, or a terminal prompt in headless `serve`) shows it.
+//! Pairing approval (ADR 0005, ADR 0006, ADR 0030). An unpaired Client's hello becomes a `PairingRequest` on the
+//! server's channel; whoever holds the receiver (the TUI, or a terminal prompt in headless `serve`) shows it.
 //!
 //! - From this machine (loopback): the user answers yes or no.
 //! - From another machine (network mode): the Host issues a 6-digit code that the request carries, with a
 //!   `inkup://pair` link for a QR code. The user types the code into the Client, which connects again with
 //!   it. A code lasts two minutes and survives four wrong guesses; the user can refuse it early. A machine that asks
 //!   again gets a new code in place of its last one.
+//! - On a Remote Host the operator issues the code (`inkup pairing`). A hello never does. Each code has its own
+//!   guess budget and expiry, and it lives only in this process.
 
 use std::net::IpAddr;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::oneshot;
 
@@ -185,6 +187,201 @@ impl PairingCodes {
     }
 }
 
+/// Wrong guesses one operator-issued code survives. The fifth burns it.
+pub const OPERATOR_GUESS_BUDGET: u32 = 5;
+/// Operator-issued codes waiting at once. More than this is refused until one expires or is revoked.
+pub const OPERATOR_CODE_CAP: usize = 10;
+/// Decimal digits in an operator-issued code. The hello's `pairing_code` is `^[0-9]{6}$`, so this is the
+/// whole space: 1_000_000 values. Five guesses, not reset by another hello, cannot search it (ADR 0030).
+pub const OPERATOR_CODE_DIGITS: usize = 6;
+/// What `inkup pairing create` uses when no lifetime is given.
+pub const OPERATOR_TTL_DEFAULT: Duration = Duration::from_secs(15 * 60);
+/// The longest lifetime `inkup pairing create` accepts.
+pub const OPERATOR_TTL_MAX: Duration = Duration::from_secs(24 * 60 * 60);
+/// The shortest lifetime the control API accepts.
+pub const OPERATOR_TTL_MIN: Duration = Duration::from_secs(1);
+
+/// Why an operator code was not issued.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum IssueError {
+    /// [`OPERATOR_CODE_CAP`] codes are already waiting.
+    Cap,
+    /// The process could not draw random bytes.
+    Random,
+}
+
+/// A code just issued. `code` is shown once; list and revoke only have `id`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct IssuedCode {
+    pub id: String,
+    /// Six digits. Shown once, at creation. Not the id `pairing list` prints.
+    pub code: String,
+    pub label: String,
+    pub created_at: i64,
+    pub expires_at: i64,
+    pub guesses_left: u32,
+}
+
+/// One outstanding operator-issued code, without its secret.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct OperatorCodeView {
+    pub id: String,
+    pub label: String,
+    pub created_at: i64,
+    pub expires_at: i64,
+    pub guesses_left: u32,
+}
+
+struct OperatorCode {
+    id: String,
+    /// The six-digit code. Not returned by list.
+    secret: String,
+    label: String,
+    issued: Instant,
+    ttl: Duration,
+    created_at: i64,
+    expires_at: i64,
+    wrong: u32,
+}
+
+/// Operator-issued pairing codes for a Remote Host. Memory only: dropping this burns them.
+pub(crate) struct OperatorCodes {
+    waiting: Mutex<Vec<OperatorCode>>,
+}
+
+impl OperatorCodes {
+    pub(crate) fn new() -> Self {
+        Self { waiting: Mutex::new(Vec::new()) }
+    }
+
+    /// A new code, unless the cap is reached. The control API rejects a lifetime outside
+    /// [`OPERATOR_TTL_MIN`]..=[`OPERATOR_TTL_MAX`] before it calls this; a zero lifetime expires at once.
+    pub(crate) fn issue(&self, label: &str, ttl: Duration) -> Result<IssuedCode, IssueError> {
+        let mut waiting = self.lock();
+        self.prune(&mut waiting);
+        if waiting.len() >= OPERATOR_CODE_CAP {
+            return Err(IssueError::Cap);
+        }
+        let code = loop {
+            let code = random_code().ok_or(IssueError::Random)?;
+            if !waiting.iter().any(|held| secret_eq(held.secret.as_bytes(), code.as_bytes())) {
+                break code;
+            }
+        };
+        let id = loop {
+            let id = hex(&random_bytes(4).ok_or(IssueError::Random)?);
+            if !waiting.iter().any(|code| code.id == id) {
+                break id;
+            }
+        };
+        let label = clean_label(label);
+        let created_at = now_ms();
+        let expires_at = created_at.saturating_add(i64::try_from(ttl.as_millis()).unwrap_or(i64::MAX));
+        waiting.push(OperatorCode {
+            id: id.clone(),
+            secret: code.clone(),
+            label: label.clone(),
+            issued: Instant::now(),
+            ttl,
+            created_at,
+            expires_at,
+            wrong: 0,
+        });
+        Ok(IssuedCode { id, code, label, created_at, expires_at, guesses_left: OPERATOR_GUESS_BUDGET })
+    }
+
+    /// Outstanding codes, secrets omitted. Expired ones are dropped first.
+    pub(crate) fn list(&self) -> Vec<OperatorCodeView> {
+        let mut waiting = self.lock();
+        self.prune(&mut waiting);
+        waiting
+            .iter()
+            .map(|code| OperatorCodeView {
+                id: code.id.clone(),
+                label: code.label.clone(),
+                created_at: code.created_at,
+                expires_at: code.expires_at,
+                guesses_left: OPERATOR_GUESS_BUDGET.saturating_sub(code.wrong),
+            })
+            .collect()
+    }
+
+    /// Burns one code. False when no outstanding code has that id.
+    pub(crate) fn revoke(&self, id: &str) -> bool {
+        let mut waiting = self.lock();
+        self.prune(&mut waiting);
+        let before = waiting.len();
+        waiting.retain(|code| code.id != id);
+        waiting.len() != before
+    }
+
+    /// A Client's guess. A right one uses that code up. A wrong one counts against the oldest outstanding code
+    /// only, so it cannot spend every code's budget or reset one. Nothing here creates or extends a code.
+    /// Every failure looks the same to the caller: this returns false.
+    pub(crate) fn redeem(&self, submitted: &str) -> bool {
+        let mut waiting = self.lock();
+        self.prune(&mut waiting);
+        let mut found = None;
+        for (at, code) in waiting.iter().enumerate() {
+            if secret_eq(submitted.as_bytes(), code.secret.as_bytes()) {
+                found = Some(at);
+            }
+        }
+        if let Some(at) = found {
+            waiting.remove(at);
+            return true;
+        }
+        if let Some(oldest) = waiting.first_mut() {
+            oldest.wrong += 1;
+            if oldest.wrong >= OPERATOR_GUESS_BUDGET {
+                waiting.remove(0);
+            }
+        }
+        false
+    }
+
+    fn prune(&self, waiting: &mut Vec<OperatorCode>) {
+        waiting.retain(|code| code.issued.elapsed() < code.ttl);
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, Vec<OperatorCode>> {
+        self.waiting.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
+/// Equal in time that does not stop at the first differing byte. A length mismatch still walks the overlap.
+fn secret_eq(a: &[u8], b: &[u8]) -> bool {
+    let mut diff = u8::from(a.len() != b.len());
+    for (left, right) in a.iter().zip(b) {
+        diff |= left ^ right;
+    }
+    diff == 0
+}
+
+fn clean_label(raw: &str) -> String {
+    raw.chars().filter(|c| !c.is_control()).take(80).collect::<String>().trim().to_owned()
+}
+
+fn random_bytes(n: usize) -> Option<Vec<u8>> {
+    let mut bytes = vec![0u8; n];
+    getrandom::fill(&mut bytes).ok()?;
+    Some(bytes)
+}
+
+fn hex(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push(HEX[(byte >> 4) as usize] as char);
+        out.push(HEX[(byte & 0xf) as usize] as char);
+    }
+    out
+}
+
+fn now_ms() -> i64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
+}
+
 /// Six digits, every code equally likely.
 fn random_code() -> Option<String> {
     loop {
@@ -268,5 +465,71 @@ mod tests {
         assert_eq!(codes.redeem(&first), Redeemed::Wrong { tries_left: MAX_WRONG_CODES - 1 });
         let (newest, _) = held.last().unwrap();
         assert_eq!(codes.redeem(newest), Redeemed::Paired);
+    }
+
+    #[test]
+    fn an_operator_code_is_single_use_and_a_wrong_guess_stays_on_that_code() {
+        let codes = OperatorCodes::new();
+        let ttl = OPERATOR_TTL_DEFAULT;
+        let first = codes.issue("reviewer", ttl).unwrap();
+        let second = codes.issue("other", ttl).unwrap();
+        assert_eq!(first.code.len(), OPERATOR_CODE_DIGITS);
+        assert!(first.code.chars().all(|c| c.is_ascii_digit()));
+        assert_ne!(first.code, second.code);
+        let wrong = if first.code == "000000" { "111111" } else { "000000" };
+        assert!(!codes.redeem(wrong));
+        let listed = codes.list();
+        assert_eq!(listed.iter().find(|code| code.id == first.id).unwrap().guesses_left, OPERATOR_GUESS_BUDGET - 1);
+        assert_eq!(listed.iter().find(|code| code.id == second.id).unwrap().guesses_left, OPERATOR_GUESS_BUDGET);
+        assert!(listed.iter().all(|code| code.id != first.code && code.label != first.code));
+        assert!(codes.redeem(&first.code));
+        assert!(!codes.redeem(&first.code), "a code works once");
+        assert!(codes.redeem(&second.code));
+    }
+
+    #[test]
+    fn five_wrong_guesses_burn_only_that_operator_code() {
+        let codes = OperatorCodes::new();
+        let issued = codes.issue("reviewer", OPERATOR_TTL_DEFAULT).unwrap();
+        let other = codes.issue("other", OPERATOR_TTL_DEFAULT).unwrap();
+        let wrong = if issued.code == "000000" || other.code == "000000" { "111111" } else { "000000" };
+        for _ in 0..OPERATOR_GUESS_BUDGET {
+            assert!(!codes.redeem(wrong));
+        }
+        assert!(!codes.redeem(&issued.code), "the budget burned it");
+        assert!(codes.list().iter().all(|code| code.id != issued.id));
+        assert!(codes.redeem(&other.code));
+        assert!(!codes.redeem("not-a-code"));
+    }
+
+    #[test]
+    fn an_expired_or_revoked_operator_code_is_gone_and_the_cap_holds() {
+        let codes = OperatorCodes::new();
+        let issued = codes.issue("reviewer", Duration::ZERO).unwrap();
+        assert!(!codes.redeem(&issued.code));
+        assert!(codes.list().is_empty());
+
+        let issued = codes.issue("reviewer", OPERATOR_TTL_DEFAULT).unwrap();
+        assert!(codes.revoke(&issued.id));
+        assert!(!codes.revoke(&issued.id));
+        assert!(!codes.redeem(&issued.code));
+
+        let held: Vec<_> =
+            (0..OPERATOR_CODE_CAP).map(|n| codes.issue(&format!("c{n}"), OPERATOR_TTL_DEFAULT).unwrap()).collect();
+        assert_eq!(held.len(), OPERATOR_CODE_CAP);
+        assert_eq!(codes.issue("one more", OPERATOR_TTL_DEFAULT).unwrap_err(), IssueError::Cap);
+        assert!(codes.revoke(&held[0].id));
+        assert!(codes.issue("one more", OPERATOR_TTL_DEFAULT).is_ok());
+    }
+
+    #[test]
+    fn a_label_drops_control_characters_and_list_never_carries_the_secret() {
+        let codes = OperatorCodes::new();
+        let issued = codes.issue("lab\u{1b}[2J top", OPERATOR_TTL_DEFAULT).unwrap();
+        assert_eq!(issued.label, "lab[2J top");
+        let view = codes.list().pop().unwrap();
+        assert_ne!(view.id, issued.code);
+        assert!(!view.label.contains(&issued.code));
+        assert_eq!(view.guesses_left, OPERATOR_GUESS_BUDGET);
     }
 }

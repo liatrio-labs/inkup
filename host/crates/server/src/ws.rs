@@ -351,12 +351,11 @@ impl Connection {
         let kind = hello.client_kind.to_string();
         let name = hello.client_name.to_string();
         if self.state.config.remote.is_some() {
-            // Never `PairingCodes::issue`. A code exists only when the operator minted one (#113).
+            // Never `PairingCodes::issue`, and never `OperatorCodes::issue`. A code exists only when the
+            // operator minted one. Wrong, expired, used and burned codes share one error.
             match &hello.pairing_code {
-                Some(code) => match self.state.codes.redeem(code.as_str()) {
-                    Redeemed::NoneWaiting => return Err(Refusal::operator(&re)),
-                    redeemed => self.code_result(&re, redeemed)?,
-                },
+                Some(code) if self.state.operator_codes.redeem(code.as_str()) => {}
+                Some(_) => return Err(Refusal::operator(&re)),
                 None => {
                     tracing::info!("pairing refused: a Remote Host issues no code for a hello");
                     return Err(Refusal::operator(&re));

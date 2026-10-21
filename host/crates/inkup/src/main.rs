@@ -6,6 +6,8 @@
 //! - `status`: whether a host is running, which one holds the data dir, and what its store holds.
 //! - `mcp install`: point Claude Code, Cursor or Codex at the host's `/mcp` (mcp_install.rs).
 //! - `token create|list|revoke`: agent tokens, for agents on other machines in network mode (ADR 0006).
+//! - `pairing create|list|revoke`: operator-issued pairing codes for a Remote Host (pairing_cli.rs, ADR 0030).
+//!   Codes live in the running Host's memory; a restart burns them.
 //! - `update`: install a newer inkup release, or say how (update.rs, ADR 0027). The TUI and `serve` check for one
 //!   in the background at most once a day.
 //!
@@ -16,6 +18,7 @@
 //! binds every interface; the default is 127.0.0.1 only.
 
 mod mcp_install;
+mod pairing_cli;
 mod update;
 
 use std::io::{IsTerminal, Write};
@@ -29,7 +32,7 @@ use clap::{Args, Parser, Subcommand};
 use inkup_protocol::Health;
 use inkup_server::{
     Config, Control, DEFAULT_BIND, DEFAULT_PORT, NETWORK_WARNING, NetworkConfig, PublicUrl, RemoteHost, Server,
-    VERSION, lan_addresses,
+    TlsMaterial, VERSION, lan_addresses,
 };
 use inkup_store::instance::{HostInfo, HostKind, HostLock, LockError};
 use inkup_store::{DB_FILE, HostConfig, Store};
@@ -77,6 +80,22 @@ enum Command {
         /// Address to listen on. A Remote Host only; the default is 0.0.0.0.
         #[arg(long)]
         bind: Option<IpAddr>,
+        /// PEM certificate a Remote Host serves HTTPS with. Read when the process starts; restart to pick up
+        /// a new file. There is no hot reload. Pass with --tls-key, or neither.
+        #[arg(long)]
+        tls_cert: Option<PathBuf>,
+        /// PEM private key for --tls-cert. Read when the process starts; restart to pick up a new file.
+        /// There is no hot reload.
+        #[arg(long)]
+        tls_key: Option<PathBuf>,
+    },
+    /// Operator-issued pairing codes for a Remote Host.
+    ///
+    /// Codes live in memory only. Restarting the Host burns them all.
+    /// Loopback and Network mode keep today's pairing.
+    Pairing {
+        #[command(subcommand)]
+        command: pairing_cli::PairingCommand,
     },
     /// Agent tokens: what an agent on another machine sends to /mcp in network mode.
     Token {
@@ -169,6 +188,8 @@ async fn main() -> Result<()> {
                     remote,
                     public_url,
                     bind,
+                    tls_cert,
+                    tls_key,
                 } => {
                     serve(
                         common,
@@ -180,10 +201,13 @@ async fn main() -> Result<()> {
                             remote,
                             public_url,
                             bind,
+                            tls_cert,
+                            tls_key,
                         },
                     )
                     .await
                 }
+                Command::Pairing { command } => pairing_cli::run(command).await,
                 Command::Status { common } => status(common).await,
                 Command::Token { command } => token(command),
                 Command::Mcp { command: McpCommand::Install(args) } => mcp_install::install(args),
@@ -304,11 +328,52 @@ fn config(common: &Common, dir: &Path, network_flag: bool, control: Control) -> 
 }
 
 /// Starts the server and writes `host.json` for it.
-async fn start(store: Arc<Store>, config: Config, lock: &HostLock) -> Result<Server> {
+async fn start(store: Arc<Store>, config: Config, lock: &HostLock, dir: &Path) -> Result<Server> {
     let failed = listen_failure(&config);
-    let server = inkup_server::start(store, config).await.with_context(|| failed)?;
+    // A certificate problem names its path and is not a failure to bind.
+    let server = match inkup_server::start(store, config).await {
+        Ok(server) => server,
+        Err(error) if error.kind() == std::io::ErrorKind::InvalidInput => bail!("{error}"),
+        Err(error) => return Err(error).context(failed),
+    };
     lock.publish(server.addr.port(), VERSION).context("write host.json")?;
+    if let Some(control) = server.control_addr {
+        // The public port is what Clients are not given. `inkup pairing` needs the loopback control port.
+        note_control_port(dir, control.port())?;
+    }
     Ok(server)
+}
+
+/// Adds `control_port` to `host.json`. `HostInfo` ignores the field; it is how `inkup pairing` finds the
+/// loopback control API, which a Remote Host does not serve on its public bind.
+fn note_control_port(dir: &Path, port: u16) -> Result<()> {
+    let path = dir.join(inkup_store::instance::HOST_FILE);
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).context("read host.json")?).context("host.json")?;
+    value["control_port"] = serde_json::json!(port);
+    let tmp = dir.join(format!("{}.control.tmp", inkup_store::instance::HOST_FILE));
+    let _ = std::fs::remove_file(&tmp);
+    {
+        use std::io::Write;
+        let mut options = std::fs::OpenOptions::new();
+        options.create_new(true).write(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&tmp)?;
+        file.write_all(&serde_json::to_vec_pretty(&value)?)?;
+        file.write_all(b"\n")?;
+        file.sync_all()?;
+    }
+    std::fs::rename(&tmp, &path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(())
 }
 
 /// What a failed bind says. A Remote Host names `--bind`, because that flag chose the address.
@@ -350,7 +415,7 @@ async fn host_tui(
     let mut port = common.port;
     loop {
         let config = Config { port, ..config(common, dir, network_flag, control(lock, update))? };
-        let mut server = start(Arc::clone(&store), config, lock).await?;
+        let mut server = start(Arc::clone(&store), config, lock, dir).await?;
         port = server.addr.port();
         let running = inkup_tui::Running {
             address: format!("127.0.0.1:{port}"),
@@ -399,6 +464,7 @@ fn remote_config(
     settings: &HostConfig,
     public_url: Option<&str>,
     bind: Option<IpAddr>,
+    tls: Option<TlsMaterial>,
     control: Control,
 ) -> Result<Config> {
     let raw = public_url.or(settings.public_url.as_deref()).ok_or_else(|| {
@@ -413,6 +479,7 @@ fn remote_config(
         hub_name: remote_hub_name(settings.hub_name.as_deref())?,
         remote: Some(RemoteHost { public_url, bind: bind.unwrap_or(DEFAULT_BIND) }),
         every_peer_is_remote: true,
+        tls,
         control: Some(control),
         ..Config::default()
     })
@@ -426,16 +493,56 @@ struct Serve {
     remote: bool,
     public_url: Option<String>,
     bind: Option<IpAddr>,
+    tls_cert: Option<PathBuf>,
+    tls_key: Option<PathBuf>,
+}
+
+/// Both paths, or neither. A flag wins over the same key in config.toml; one from each side still counts as both.
+fn tls_material(cert: Option<PathBuf>, key: Option<PathBuf>, settings: &HostConfig) -> Result<Option<TlsMaterial>> {
+    let cert = cert.or_else(|| settings.tls_cert.clone().map(PathBuf::from));
+    let key = key.or_else(|| settings.tls_key.clone().map(PathBuf::from));
+    match (cert, key) {
+        (None, None) => Ok(None),
+        (Some(cert), Some(key)) => Ok(Some(TlsMaterial { cert, key })),
+        (Some(cert), None) => {
+            bail!(
+                "--tls-cert {} needs --tls-key as well (or tls_key in config.toml); pass both or neither",
+                cert.display()
+            )
+        }
+        (None, Some(key)) => {
+            bail!(
+                "--tls-key {} needs --tls-cert as well (or tls_cert in config.toml); pass both or neither",
+                key.display()
+            )
+        }
+    }
 }
 
 async fn serve(common: Common, flags: Serve) -> Result<()> {
-    let Serve { auto_approve_pairing, network, print_pairing_codes, mdns_name, remote, public_url, bind } = flags;
+    let Serve {
+        auto_approve_pairing,
+        network,
+        print_pairing_codes,
+        mdns_name,
+        remote,
+        public_url,
+        bind,
+        tls_cert,
+        tls_key,
+    } = flags;
     let dir = common.data_dir()?;
     let settings = HostConfig::load(&dir).with_context(|| format!("read the config in {}", dir.display()))?;
     let remote_on = remote_requested(remote, &settings, network, bind.is_some())?;
     if public_url.is_some() && !remote_on {
         bail!("--public-url is for a Remote Host; pass --remote or set remote = true in config.toml");
     }
+    let tls_requested =
+        tls_cert.is_some() || tls_key.is_some() || settings.tls_cert.is_some() || settings.tls_key.is_some();
+    if tls_requested && !remote_on {
+        bail!("--tls-cert and --tls-key are only for a Remote Host; Network mode stays unencrypted");
+    }
+    let tls = tls_material(tls_cert, tls_key, &settings)?;
     if remote_on && auto_approve_pairing && !print_pairing_codes {
         bail!(
             "--auto-approve-pairing is refused on a Remote Host: a hello does not issue a pairing code. \
@@ -446,7 +553,7 @@ async fn serve(common: Common, flags: Serve) -> Result<()> {
     let store = Store::open(&dir).with_context(|| format!("open the store in {}", dir.display()))?;
     let mut update = update::spawn_check(&dir);
     let mut config = if remote_on {
-        remote_config(&common, &settings, public_url.as_deref(), bind, control(&lock, &update))?
+        remote_config(&common, &settings, public_url.as_deref(), bind, tls, control(&lock, &update))?
     } else {
         config(&common, &dir, network, control(&lock, &update))?
     };
@@ -460,21 +567,28 @@ async fn serve(common: Common, flags: Serve) -> Result<()> {
              (Tests pair by code with --print-pairing-codes.)"
         );
     }
+    let tls_cert_path = config.tls.as_ref().map(|tls| tls.cert.clone());
     let banner = config.remote.clone();
-    let mut server = start(Arc::new(store), config, &lock).await?;
+    let mut server = start(Arc::new(store), config, &lock, &dir).await?;
     if auto_approve_pairing {
         tracing::warn!("--auto-approve-pairing: every pairing request from this machine is approved without asking");
     }
     let port = server.addr.port();
     // The first stdout line is the address, for scripts and test harnesses that start the host on port 0.
     match &banner {
-        Some(remote) => println!("inkup listening on {}", listen_url(remote.bind, port)),
+        Some(remote) => {
+            let scheme = if tls_cert_path.is_some() { "https" } else { "http" };
+            println!("inkup listening on {}", listen_url(scheme, remote.bind, port));
+        }
         None => println!("inkup listening on http://127.0.0.1:{port}"),
     }
     std::io::stdout().flush()?;
     eprintln!("data dir: {}", dir.display());
     if let Some(remote) = &banner {
-        eprintln!("Remote Host: put this behind HTTPS (a reverse proxy or your gateway)");
+        match &tls_cert_path {
+            Some(path) => eprintln!("HTTPS (certificate from {})", path.display()),
+            None => eprintln!("Remote Host: put this behind HTTPS (a reverse proxy or your gateway)"),
+        }
         eprintln!("public URL: {}", remote.public_url.origin());
         eprintln!("MCP for agents: {}", remote.public_url.mcp());
         eprintln!("agents need a token: inkup token create --name <agent>");
@@ -520,10 +634,10 @@ async fn serve(common: Common, flags: Serve) -> Result<()> {
     Ok(())
 }
 
-fn listen_url(ip: IpAddr, port: u16) -> String {
+fn listen_url(scheme: &str, ip: IpAddr, port: u16) -> String {
     match ip {
-        IpAddr::V4(ip) => format!("http://{ip}:{port}"),
-        IpAddr::V6(ip) => format!("http://[{ip}]:{port}"),
+        IpAddr::V4(ip) => format!("{scheme}://{ip}:{port}"),
+        IpAddr::V6(ip) => format!("{scheme}://[{ip}]:{port}"),
     }
 }
 
