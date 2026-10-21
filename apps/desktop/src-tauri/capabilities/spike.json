@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "spike",
+  "description": "The panel spike's windows (spec 03, Unit 1), one per display: a canvas and a label, with no calls into the app. Removed with the spike.",
+  "windows": ["spike-*"],
+  "permissions": []
+}
