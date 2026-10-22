@@ -453,9 +453,15 @@ describe('ci workflows', () => {
     expect(design).toContain('actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1');
     expect(design).toContain('pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413');
     expect(design).toContain('persist-credentials: false');
-    expect(design).toContain('impeccable@4.7.0');
+    expect(design).toContain('pnpm exec impeccable');
+    expect(design).toContain('test "$detected" = "4.7.0"');
+    expect(design).not.toContain('npx');
     expect(design).not.toContain('impeccable@latest');
-    expect(design).toContain('detect --json');
+    expect(design).toContain('detect --json --');
+    expect(design).toContain('--diff-filter=ACMR');
+    expect(design).toContain('DO_NOT_TRACK: "1"');
+    expect(design).toContain('ui:build');
+    expect(design).toContain('Twenty minutes');
     expect(design).toContain('mapfile');
     expect(design).not.toContain('xargs');
     expect(design).toContain('IMPECCABLE_MODE: advisory');

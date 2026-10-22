@@ -672,14 +672,22 @@ jobs:
 
   # Advisory Impeccable detect on UI changes. Findings are reported. The job fails only when a scan cannot
   # run (detect exit 1). IMPECCABLE_MODE=blocking also fails on primary findings or design-system-* drift; it is
-  # off, and switching it on is the maintainer's call. The rendered scan is the site homepage: the extension has
-  # no HTTP preview without the add-on loaded, and the desktop webview has no CDP.
+  # off, and switching it on is the maintainer's call. Blocking mode would fail every UI pull request on findings
+  # already on the homepage (border-accent-on-rounded and skipped-heading at both viewports).
+  # Twenty minutes covers installing Playwright's Chromium and building the site and the desktop UI. The reference
+  # job's eight minutes does not include those builds.
+  # Rendered scan: the site and the desktop Vite UI, each served to Playwright's Chromium. The extension's pages
+  # call chrome.* and do not render as a static site; attaching --cdp needs the e2e browser with the add-on loaded.
   design:
     name: design
     needs: changes
     if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-24.04-arm
+    # Twenty minutes: Playwright Chromium, the site build, and the desktop UI build.
     timeout-minutes: 20
+    env:
+      DO_NOT_TRACK: "1"
+      IMPECCABLE_MODE: advisory
     permissions:
       contents: read
     steps:
@@ -702,37 +710,40 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
-      - name: Build the site
-        run: pnpm --filter @inkup/site build
+      - name: Build the site and the desktop UI
+        run: |
+          pnpm --filter @inkup/site build
+          pnpm --filter @inkup/desktop ui:build
       - name: Impeccable 4.7.0
         run: |
           set -euo pipefail
-          detected=$(npx --yes impeccable@4.7.0 --version)
+          detected=$(pnpm exec impeccable --version)
           echo "impeccable version: $detected"
           test "$detected" = "4.7.0"
       - name: Detect
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-          IMPECCABLE_MODE: advisory
         run: |
           set -euo pipefail
           {
             echo "## Design check"
             echo "Impeccable 4.7.0 detect. IMPECCABLE_MODE=${IMPECCABLE_MODE} (blocking fails on primary findings or design-system-* drift)."
-            echo "Rendered scan: the site homepage at 1440x900 and 390x844. The extension has no HTTP preview without the add-on loaded, and the desktop webview has no CDP."
+            echo "Rendered scan: the site and the desktop Vite UI at 1440x900 and 390x844, in Playwright's Chromium."
+            echo "The extension's pages call chrome.* and are not a static site. --cdp would need the e2e browser with the add-on loaded."
+            echo "Blocking mode would fail on findings already on the homepage (border-accent-on-rounded and skipped-heading)."
           } >> "$GITHUB_STEP_SUMMARY"
           files=
           have_base=0
           if [ -n "${BASE:-}" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ] \
-            && files=$(git diff --name-only "$BASE...$HEAD"); then
+            && files=$(git diff --name-only --diff-filter=ACMR "$BASE...$HEAD"); then
             have_base=1
           else
             echo "No base to diff against; scanning every UI file."
             files=$(git ls-files)
           fi
           if [ "$have_base" -eq 1 ]; then
-            git diff -U0 "$BASE...$HEAD" | node scripts/ci-design.ts disables
+            git diff -U0 --diff-filter=ACMR "$BASE...$HEAD" | node scripts/ci-design.ts disables
           fi
           mapfile -t ui_files < <(printf '%s\n' "$files" | node scripts/ci-changes.ts --ui-files)
           if [ "${#ui_files[@]}" -eq 0 ]; then
@@ -740,47 +751,61 @@ jobs:
           else
             source_json="$RUNNER_TEMP/impeccable-source.json"
             set +e
-            npx --yes impeccable@4.7.0 detect --json "${ui_files[@]}" > "$source_json"
+            pnpm exec impeccable detect --json -- "${ui_files[@]}" > "$source_json"
             scan_exit=$?
             set -e
             node scripts/ci-design.ts summarize source "$source_json" "$scan_exit"
           fi
           test -f apps/site/dist/index.html
+          test -f apps/desktop/dist/index.html
           browser=$(node --input-type=module -e "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())")
           test -x "$browser"
           echo "IMPECCABLE_BROWSER=$browser"
           export IMPECCABLE_BROWSER="$browser"
           python3 -m http.server 4173 --bind 127.0.0.1 --directory apps/site/dist > "$RUNNER_TEMP/site-preview.log" 2>&1 &
-          server_pid=$!
+          site_pid=$!
+          python3 -m http.server 4174 --bind 127.0.0.1 --directory apps/desktop/dist > "$RUNNER_TEMP/desktop-preview.log" 2>&1 &
+          desktop_pid=$!
           cleanup() {
-            if [ -n "${server_pid:-}" ]; then
-              kill "$server_pid" 2>/dev/null || true
+            if [ -n "${site_pid:-}" ]; then
+              kill "$site_pid" 2>/dev/null || true
+            fi
+            if [ -n "${desktop_pid:-}" ]; then
+              kill "$desktop_pid" 2>/dev/null || true
             fi
           }
           trap cleanup EXIT
-          ready=0
-          tries=0
-          while [ "$tries" -lt 20 ]; do
-            tries=$((tries + 1))
-            if curl -sf -o /dev/null "http://127.0.0.1:4173/"; then
-              ready=1
-              break
-            fi
-            sleep 0.25
-          done
-          test "$ready" = 1
+          wait_ready() {
+            url=$1
+            ready=0
+            tries=0
+            while [ "$tries" -lt 40 ]; do
+              tries=$((tries + 1))
+              if curl -sf -o /dev/null "$url"; then
+                ready=1
+                break
+              fi
+              sleep 0.25
+            done
+            test "$ready" = 1
+          }
+          wait_ready "http://127.0.0.1:4173/"
+          wait_ready "http://127.0.0.1:4174/"
           scan_url() {
             label=$1
             viewport=$2
+            url=$3
             outfile="$RUNNER_TEMP/impeccable-${label}.json"
             set +e
-            npx --yes impeccable@4.7.0 detect --json --viewport "$viewport" "http://127.0.0.1:4173/" > "$outfile"
+            pnpm exec impeccable detect --json --viewport "$viewport" -- "$url" > "$outfile"
             scan_exit=$?
             set -e
             node scripts/ci-design.ts summarize "$label" "$outfile" "$scan_exit"
           }
-          scan_url rendered-1440 1440x900
-          scan_url rendered-390 390x844
+          scan_url rendered-site-1440 1440x900 "http://127.0.0.1:4173/"
+          scan_url rendered-site-390 390x844 "http://127.0.0.1:4173/"
+          scan_url rendered-desktop-1440 1440x900 "http://127.0.0.1:4174/"
+          scan_url rendered-desktop-390 390x844 "http://127.0.0.1:4174/"
 
   # The one required check. Skipped jobs pass; a failed or cancelled one fails it.
   ci-ok:

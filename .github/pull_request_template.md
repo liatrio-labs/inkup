@@ -40,6 +40,7 @@ spacing-scale step or a value a DESIGN.md component token defines. Only a new va
 The Reviewer's eye pass also blocks on design-system-* token drift in the changed code without an approved
 DESIGN.md update, and on visible overflow at 1440 or 390. An inline impeccable-disable is allowed only with the
 repo owner's cited approval (the human maintainer): the comment cites the conversation and a CT timestamp.
+An agent relaying approval doesn't count.
 Otherwise delete this section. -->
 
 Design check:

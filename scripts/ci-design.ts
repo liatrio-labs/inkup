@@ -4,6 +4,7 @@
 // design-system-* drift. The workflow sets advisory; the maintainer switches it.
 import { appendFileSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { isUi } from './ci-changes.ts';
 
 export type DesignFinding = {
   antipattern?: string;
@@ -49,8 +50,9 @@ export function scanShouldFail(scanExit: number, findings: readonly DesignFindin
 export type DisableHit = { file: string; line: number; text: string };
 
 /**
- * Added diff lines that are an inline `impeccable-disable` comment. A mention of the token in prose, a
- * backtick, or a string is not a directive. The comment opener has to sit immediately before the marker.
+ * Added lines that contain `impeccable-disable` in a file `isUi()` accepts, the same set detect scans.
+ * Docs and tests stay quiet. Any added line counts, including prose before the marker, a later line of a
+ * block comment, and a line whose CSS string holds an apostrophe.
  */
 export function addedDisables(diff: string): DisableHit[] {
   const hits: DisableHit[] = [];
@@ -68,35 +70,56 @@ export function addedDisables(diff: string): DisableHit[] {
     }
     if (raw.startsWith('diff ') || raw.startsWith('index ') || raw.startsWith('---') || raw.startsWith('\\')) continue;
     if (raw.startsWith('-')) continue;
-    const text = raw.startsWith('+') ? raw.slice(1) : raw.startsWith(' ') ? raw.slice(1) : raw;
-    if (raw.startsWith('+') && isDisableDirective(text)) hits.push({ file, line: nextLine, text: text.trim() });
+    const text = raw.startsWith('+') ? raw.slice(1) : raw;
+    if (raw.startsWith('+') && isUi(file) && text.includes('impeccable-disable')) {
+      hits.push({ file, line: nextLine, text: text.trim() });
+    }
     nextLine += 1;
   }
   return hits;
-}
-
-/** True when `text` is a comment directive, not the word inside a string or backticks. */
-function isDisableDirective(text: string): boolean {
-  const code = text
-    .replace(/`[^`]*`/g, ' ')
-    .replace(/'(?:\\.|[^'])*'/g, ' ')
-    .replace(/"(?:\\.|[^"])*"/g, ' ');
-  return /(?:\/\/|\/\*+|<!--|#|\{\s*\/\*+)\s*impeccable-disable(?:-line|-next-line)?\b/.test(code);
 }
 
 function oneLine(text: string): string {
   return text.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A').replace(/::/g, ' ').trim();
 }
 
-function annotation(finding: DesignFinding, kind: string): string {
-  const file = (finding.file ?? '').replace(/[,:]/g, '');
-  const line = finding.line && finding.line > 0 ? finding.line : 1;
-  const id = finding.antipattern ?? 'finding';
-  const snippet = finding.snippet ? ` ${finding.snippet}` : '';
-  return `::warning file=${file},line=${line}::${oneLine(`${kind}: ${id}${snippet}`)}`;
+const URL_FILE = /^https?:\/\//i;
+
+/** Drop a checkout prefix so an annotation attaches to the pull request diff. */
+export function relativeFindingPath(file: string, workspace = ''): string {
+  if (!file || URL_FILE.test(file)) return file;
+  const root = workspace.endsWith('/') ? workspace.slice(0, -1) : workspace;
+  if (root && (file === root || file.startsWith(`${root}/`))) return file.slice(root.length + 1);
+  return file;
 }
 
-export function summaryMarkdown(label: string, groups: FindingGroups, mode: string, scanExit: number): string {
+/**
+ * A workflow warning. Source findings use a repo-relative `file=`. URL findings omit `file=` and keep the
+ * URL, colons included, in the message.
+ */
+export function annotationLine(
+  finding: DesignFinding,
+  kind: string,
+  workspace = process.env.GITHUB_WORKSPACE ?? '',
+): string {
+  const id = finding.antipattern ?? 'finding';
+  const snippet = finding.snippet ? ` ${finding.snippet}` : '';
+  const message = oneLine(`${kind}: ${id}${snippet}`);
+  const file = finding.file ?? '';
+  if (URL_FILE.test(file)) return `::warning::${message} (${oneLine(file)})`;
+  const path = relativeFindingPath(file, workspace).replace(/,/g, '');
+  const line = finding.line && finding.line > 0 ? finding.line : 1;
+  if (!path) return `::warning::${message}`;
+  return `::warning file=${path},line=${line}::${message}`;
+}
+
+export function summaryMarkdown(
+  label: string,
+  groups: FindingGroups,
+  mode: string,
+  scanExit: number,
+  workspace = process.env.GITHUB_WORKSPACE ?? '',
+): string {
   const lines = [
     `### ${label}`,
     '',
@@ -108,7 +131,7 @@ export function summaryMarkdown(label: string, groups: FindingGroups, mode: stri
     if (items.length === 0) return;
     lines.push(`#### ${title}`, '');
     for (const finding of items.slice(0, 40)) {
-      const where = `${finding.file ?? '(no file)'}:${finding.line ?? 0}`;
+      const where = `${relativeFindingPath(finding.file ?? '(no file)', workspace)}:${finding.line ?? 0}`;
       lines.push(`- \`${where}\` ${finding.antipattern ?? 'finding'}`);
     }
     if (items.length > 40) lines.push('', `${items.length - 40} more are in the log.`);
@@ -165,8 +188,9 @@ if (isDirectRun()) {
     const summaryPath = process.env.GITHUB_STEP_SUMMARY;
     if (summaryPath) appendFileSync(summaryPath, markdown);
     process.stdout.write(markdown);
-    for (const finding of groups.primary.slice(0, 50)) process.stdout.write(`${annotation(finding, 'primary')}\n`);
-    for (const finding of groups.drift.slice(0, 50)) process.stdout.write(`${annotation(finding, 'design-system')}\n`);
+    for (const finding of groups.primary.slice(0, 50)) process.stdout.write(`${annotationLine(finding, 'primary')}\n`);
+    for (const finding of groups.drift.slice(0, 50))
+      process.stdout.write(`${annotationLine(finding, 'design-system')}\n`);
     process.exit(scanShouldFail(scanExit, findings, mode) ? 1 : 0);
   }
   process.stderr.write('usage: node scripts/ci-design.ts <disables|summarize>\n');
