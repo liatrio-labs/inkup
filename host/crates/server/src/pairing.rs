@@ -262,18 +262,13 @@ impl OperatorCodes {
         if waiting.len() >= OPERATOR_CODE_CAP {
             return Err(IssueError::Cap);
         }
-        let code = loop {
-            let code = random_code().ok_or(IssueError::Random)?;
-            if !waiting.iter().any(|held| secret_eq(held.secret.as_bytes(), code.as_bytes())) {
-                break code;
-            }
-        };
-        let id = loop {
-            let id = hex(&random_bytes(4).ok_or(IssueError::Random)?);
-            if !waiting.iter().any(|code| code.id == id) {
-                break id;
-            }
-        };
+        // Stop after a few draws. A comparison that calls every code a match would otherwise spin here, and a
+        // real collision in 1_000_000 values does not need more than this.
+        let code = draw_unique(8, random_code, |code| {
+            waiting.iter().any(|held| secret_eq(held.secret.as_bytes(), code.as_bytes()))
+        })?;
+        let id =
+            draw_unique(8, || random_bytes(4).map(|bytes| hex(&bytes)), |id| waiting.iter().any(|code| code.id == id))?;
         let label = clean_label(label);
         let created_at = now_ms();
         let expires_at = created_at.saturating_add(i64::try_from(ttl.as_millis()).unwrap_or(i64::MAX));
@@ -360,6 +355,21 @@ fn secret_eq(a: &[u8], b: &[u8]) -> bool {
 
 fn clean_label(raw: &str) -> String {
     raw.chars().filter(|c| !c.is_control()).take(80).collect::<String>().trim().to_owned()
+}
+
+/// A fresh value that `taken` rejects, or [`IssueError::Random`] when drawing fails or every draw is taken.
+fn draw_unique(
+    tries: u32,
+    mut fresh: impl FnMut() -> Option<String>,
+    taken: impl Fn(&str) -> bool,
+) -> Result<String, IssueError> {
+    for _ in 0..tries {
+        let value = fresh().ok_or(IssueError::Random)?;
+        if !taken(&value) {
+            return Ok(value);
+        }
+    }
+    Err(IssueError::Random)
 }
 
 fn random_bytes(n: usize) -> Option<Vec<u8>> {
@@ -520,6 +530,12 @@ mod tests {
         assert_eq!(codes.issue("one more", OPERATOR_TTL_DEFAULT).unwrap_err(), IssueError::Cap);
         assert!(codes.revoke(&held[0].id));
         assert!(codes.issue("one more", OPERATOR_TTL_DEFAULT).is_ok());
+    }
+
+    #[test]
+    fn drawing_a_code_stops_when_every_value_is_taken() {
+        let error = draw_unique(3, || Some("000000".into()), |_| true).unwrap_err();
+        assert_eq!(error, IssueError::Random);
     }
 
     #[test]

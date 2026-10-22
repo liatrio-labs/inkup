@@ -84,14 +84,17 @@ enum Command {
         /// a new file. There is no hot reload. Pass with --tls-key, or neither.
         #[arg(long)]
         tls_cert: Option<PathBuf>,
-        /// PEM private key for --tls-cert. Read when the process starts; restart to pick up a new file.
-        /// There is no hot reload.
+        /// PEM private key for --tls-cert. Only the user running the Host should be able to read it. In the
+        /// container image that user is uid 65532; a read-only mount is fine when that user can read the file.
+        /// Read when the process starts; restart to pick up a new file. There is no hot reload.
         #[arg(long)]
         tls_key: Option<PathBuf>,
     },
     /// Operator-issued pairing codes for a Remote Host.
     ///
     /// Codes live in memory only. Restarting the Host burns them all.
+    /// A wrong guess is charged to the oldest outstanding code, so anyone who can reach the Host can burn
+    /// codes; issue another. There is no per-address limit.
     /// Loopback and Network mode keep today's pairing.
     Pairing {
         #[command(subcommand)]
@@ -708,12 +711,22 @@ fn token(command: TokenCommand) -> Result<()> {
     Ok(())
 }
 
+/// The loopback control listener's port, when a Remote Host wrote one. `/health` is served there as plain
+/// HTTP, including when the public port speaks HTTPS.
+fn control_port(dir: &Path) -> Option<u16> {
+    let value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(dir.join(inkup_store::instance::HOST_FILE)).ok()?).ok()?;
+    value.get("control_port").and_then(serde_json::Value::as_u64).and_then(|port| u16::try_from(port).ok())
+}
+
 async fn status(common: Common) -> Result<()> {
     let dir = common.data_dir()?;
-    // The data dir's host, if one wrote host.json: its port is where to look.
+    // The data dir's host, if one wrote host.json: its port is where to look. A Remote Host's public port may
+    // speak HTTPS, so the probe uses the loopback control listener when `host.json` names one.
     let holder = inkup_store::instance::holder(&dir)?;
     let port = holder.as_ref().map_or(common.port, |holder| holder.port);
-    let url = format!("http://127.0.0.1:{port}/health");
+    let probe = control_port(&dir).unwrap_or(port);
+    let url = format!("http://127.0.0.1:{probe}/health");
     let health = match reqwest::get(&url).await {
         Ok(response) if response.status().is_success() => Some(response.json::<Health>().await?),
         _ => None,

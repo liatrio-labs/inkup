@@ -28,7 +28,8 @@ services:
     # stays on loopback. ADR 0030 does not advertise that listen address.
     # Publishing 47823 on every interface would send bearer tokens in cleartext.
     # A proxy on the compose network reaches the Host as host:47823. With both
-    # TLS variables set, the Host serves HTTPS on that port from the certificate.
+    # TLS variables set, the Host serves HTTPS on that port from the certificate,
+    # and this example still publishes it only on 127.0.0.1.
     ports:
       - "127.0.0.1:47823:47823"
     restart: unless-stopped

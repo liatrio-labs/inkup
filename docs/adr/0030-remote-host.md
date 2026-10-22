@@ -116,7 +116,9 @@ a new hello from that address drops the code and resets its wrong-guess count. `
 `host/crates/server/src/ws.rs` passes the peer's address. Behind a reverse proxy every caller shares that address,
 so a hello from the public URL would let anyone wipe the reviewer's code and spend about 500,000 guesses on average
 across the 6-digit space, five at a time. A headless Host also has nobody at the TUI to refuse a code. Network mode
-keeps that flow, because there each peer address is one machine (ADR 0006).
+keeps that flow, because there each peer address is one machine (ADR 0006). A wrong guess on a Remote Host is
+charged to the oldest outstanding code: anyone who can open `/ws` can burn those codes, there is no per-address
+limit because the Host cannot see peer addresses when it terminates TLS, and the operator issues another code.
 
 **Evidence stays on a volume the user owns.** The store is `inkup.db` and `blobs/<id>` in the data dir
 (`host/crates/store/src/lib.rs`). In the container that directory is a volume the user owns. `get_screenshot`
@@ -222,6 +224,8 @@ an omitted port omitted. A paired Remote Host is labelled encrypted. `inkup mcp 
   (the part: MCP on loopback with no token, once the Host is a Remote Host), and the index row matches.
 - 2026-10-20: a tokenless hello on a Remote Host is refused with `pairing_denied`. A dedicated code is deferred to
   #115 to avoid an ADR 0007 protocol bump.
+- 2026-10-22: a miss is charged to the oldest outstanding code. Anyone who can open `/ws` can burn codes; the
+  operator reissues them. A per-address limit is not available when the Host terminates TLS.
 
 ## Sources
 

@@ -151,7 +151,7 @@ async fn create(data_dir: Option<PathBuf>, name: Option<String>, ttl: Option<Dur
     let expires = made["expires_at"].as_i64().unwrap_or(0);
     println!("code: {code}");
     println!("id: {id}");
-    println!("expires: {}", format_utc(expires));
+    println!("expires (UTC): {}", format_utc(expires));
     println!("{link}");
     for line in inkup_tui::qr_lines(link) {
         println!("{line}");
@@ -175,7 +175,7 @@ async fn list(data_dir: Option<PathBuf>) -> Result<()> {
         let created = format_utc(code.get("created_at").and_then(Value::as_i64).unwrap_or(0));
         let expires = format_utc(code.get("expires_at").and_then(Value::as_i64).unwrap_or(0));
         let left = code.get("guesses_left").and_then(Value::as_u64).unwrap_or(0);
-        println!("{id}  {label}  created {created}  expires {expires}  guesses left {left}");
+        println!("{id}  {label}  created {created} UTC  expires {expires} UTC  guesses left {left}");
     }
     Ok(())
 }

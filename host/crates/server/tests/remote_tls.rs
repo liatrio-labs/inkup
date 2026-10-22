@@ -73,6 +73,30 @@ fn initialize(host: &str, extra: &str) -> String {
 }
 
 #[tokio::test]
+async fn an_idle_tcp_socket_does_not_stall_https_health() {
+    let finished = tokio::time::timeout(std::time::Duration::from_secs(8), async {
+        let dir = tempfile::tempdir().unwrap();
+        let (cert, key, pem) = write_cert(dir.path(), "host");
+        let host = Host::start_with(remote(
+            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+            Some(TlsMaterial { cert, key }),
+        ))
+        .await;
+        let addr = host.addr();
+        let port = addr.port();
+        let idle = tokio::net::TcpStream::connect(addr).await.unwrap();
+        let request = format!("GET /health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
+        let health = tokio::time::timeout(std::time::Duration::from_secs(2), https(addr, &pem, &request))
+            .await
+            .expect("health waited on the idle handshake");
+        assert_eq!(health.0, 200, "{}", health.1);
+        drop(idle);
+    })
+    .await;
+    finished.expect("an idle handshake stalled the listener");
+}
+
+#[tokio::test]
 async fn a_rustls_client_that_trusts_the_certificate_initializes_mcp() {
     let dir = tempfile::tempdir().unwrap();
     let (cert, key, pem) = write_cert(dir.path(), "host");

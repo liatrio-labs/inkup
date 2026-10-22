@@ -573,3 +573,30 @@ fn a_certificate_serves_https_and_the_banner_names_it() {
     BufReader::new(host.0.stdout.take().unwrap()).read_line(&mut line).unwrap();
     assert!(line.starts_with("inkup listening on https://127.0.0.1:"), "{line}");
 }
+
+#[test]
+fn status_reaches_a_tls_host_through_the_control_listener() {
+    let dir = tempfile::tempdir().unwrap();
+    let (cert, key) = pem_pair(dir.path(), "status");
+    let mut host = serve(
+        dir.path(),
+        &[
+            "--remote",
+            "--public-url",
+            "https://review.example",
+            "--bind",
+            "127.0.0.1",
+            "--tls-cert",
+            cert.to_str().unwrap(),
+            "--tls-key",
+            key.to_str().unwrap(),
+        ],
+    );
+    let mut line = String::new();
+    BufReader::new(host.0.stdout.take().unwrap()).read_line(&mut line).unwrap();
+    assert!(line.starts_with("inkup listening on https://127.0.0.1:"), "{line}");
+    let (ok, stdout, stderr) = run(&["status"], dir.path());
+    assert!(ok, "{stderr}{stdout}");
+    assert!(stdout.contains("running:"), "{stdout}");
+    assert!(!stdout.contains("not running"), "{stdout}");
+}

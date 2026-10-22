@@ -269,7 +269,9 @@ pub async fn start(store: Arc<Store>, mut config: Config) -> std::io::Result<Ser
             let control_addr = listener.local_addr()?;
             let control_state = control_state(&state, control_addr.port());
             let stop = shutdown.clone();
-            let app = finish(control_routes(Router::new()), control_state, None);
+            // `/health` here is plain HTTP on loopback, so `inkup status` and the image health check can
+            // reach a Host whose public port speaks HTTPS.
+            let app = finish(control_routes(Router::new()).route("/health", get(http::health)), control_state, None);
             let task = tokio::spawn(async move {
                 axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
                     .with_graceful_shutdown(async move { stop.cancelled().await })
@@ -282,7 +284,7 @@ pub async fn start(store: Arc<Store>, mut config: Config) -> std::io::Result<Ser
     let app = router(state, mcp_shutdown.child_token());
     let stop = shutdown.clone();
     let task = if let Some(config) = tls {
-        let listener = RustlsListener::new(listener, config);
+        let listener = RustlsListener::new(listener, config)?;
         // No `ConnectInfo`: axum's `Connected` for `SocketAddr` cannot be implemented for a listener this crate
         // defines. A missing peer fails closed (guard.rs), which is what a Remote Host already requires.
         tokio::spawn(async move {
@@ -415,15 +417,56 @@ fn tls_error(path: &Path, error: impl Display) -> std::io::Error {
     std::io::Error::new(ErrorKind::InvalidInput, format!("{}: {error}", path.display()))
 }
 
+/// How long one socket may sit in the handshake. A client that never sends a ClientHello must not hold the
+/// listener: axum calls `accept` one at a time.
+const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// The public listener once a Remote Host terminates TLS itself. The control listener stays plain HTTP.
+///
+/// Handshakes run beside the accept loop. Finished streams arrive on a channel, so an idle TCP socket cannot
+/// stall every other HTTPS request.
 struct RustlsListener {
-    tcp: TcpListener,
-    acceptor: tokio_rustls::TlsAcceptor,
+    local_addr: SocketAddr,
+    ready: mpsc::Receiver<(tokio_rustls::server::TlsStream<tokio::net::TcpStream>, SocketAddr)>,
+    accept_loop: tokio::task::JoinHandle<()>,
 }
 
 impl RustlsListener {
-    fn new(tcp: TcpListener, config: Arc<rustls::ServerConfig>) -> Self {
-        Self { tcp, acceptor: tokio_rustls::TlsAcceptor::from(config) }
+    fn new(tcp: TcpListener, config: Arc<rustls::ServerConfig>) -> std::io::Result<Self> {
+        let local_addr = tcp.local_addr()?;
+        let acceptor = tokio_rustls::TlsAcceptor::from(config);
+        let (tx, ready) = mpsc::channel(32);
+        let accept_loop = tokio::spawn(async move {
+            loop {
+                let (sock, addr) = match tcp.accept().await {
+                    Ok(pair) => pair,
+                    Err(error) => {
+                        tracing::debug!(%error, "accept failed");
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        continue;
+                    }
+                };
+                let acceptor = acceptor.clone();
+                let tx = tx.clone();
+                tokio::spawn(async move {
+                    match tokio::time::timeout(TLS_HANDSHAKE_TIMEOUT, acceptor.accept(sock)).await {
+                        Ok(Ok(stream)) => {
+                            // The listener is gone: this handshake has nowhere to go.
+                            let _ = tx.send((stream, addr)).await;
+                        }
+                        Ok(Err(error)) => tracing::debug!(%error, "tls handshake failed"),
+                        Err(_) => tracing::debug!(%addr, "tls handshake timed out"),
+                    }
+                });
+            }
+        });
+        Ok(Self { local_addr, ready, accept_loop })
+    }
+}
+
+impl Drop for RustlsListener {
+    fn drop(&mut self) {
+        self.accept_loop.abort();
     }
 }
 
@@ -432,22 +475,15 @@ impl axum::serve::Listener for RustlsListener {
     type Addr = SocketAddr;
 
     async fn accept(&mut self) -> (Self::Io, Self::Addr) {
-        loop {
-            match self.tcp.accept().await {
-                Ok((sock, addr)) => match self.acceptor.accept(sock).await {
-                    Ok(stream) => return (stream, addr),
-                    Err(error) => tracing::debug!(%error, "tls handshake failed"),
-                },
-                Err(error) => {
-                    tracing::debug!(%error, "accept failed");
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                }
-            }
+        match self.ready.recv().await {
+            Some(pair) => pair,
+            // The accept loop has stopped. Stay pending so shutdown can win the select.
+            None => std::future::pending().await,
         }
     }
 
     fn local_addr(&self) -> std::io::Result<SocketAddr> {
-        self.tcp.local_addr()
+        Ok(self.local_addr)
     }
 }
 
