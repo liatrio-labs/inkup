@@ -130,8 +130,8 @@ jobs:
       - name: gitleaks (full history)
         run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact --no-banner
 
-  # packages/core on its own: pure TS, no browser. Fast, and the one the host work builds on.
-  # A pull request runs vitest --changed origin/main; main and the nightly run the package suites.
+  # packages/core, packages/protocol and packages/ui: pure TS, no browser. Fast, and the host work builds on
+  # core. A pull request runs these three in full. Their tests read the tree from disk, and ui also reads DESIGN.md.
   core:
     name: core
     needs: changes
@@ -158,17 +158,18 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -eo pipefail
-          # core and protocol scan their trees from disk (core-boundary) and finish in a couple of seconds.
+          # core, protocol and ui scan their trees from disk and finish in a few seconds.
           args_text=$(printf '\n' | node scripts/ci-full-suite.ts vitest "$EVENT_NAME" core)
           mapfile -t args <<< "$args_text"
           {
-            echo "### vitest (core, protocol)"
+            echo "### vitest (core, protocol, ui)"
             echo '```'
             printf '%s\n' "${args[@]}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           pnpm -C packages/core exec vitest "${args[@]}"
           pnpm -C packages/protocol exec vitest "${args[@]}"
+          pnpm -C packages/ui exec vitest "${args[@]}"
 
   # The Chrome build of extensions/web: typecheck and unit tests for the whole workspace, schema sync, the zip.
   # A pull request runs vitest --changed only when every non-doc file is a package TypeScript module.

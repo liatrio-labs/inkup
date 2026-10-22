@@ -1,8 +1,9 @@
 // Push to main and the nightly schedule run every area, and the full Vitest suite. A pull request keeps the path
 // routing in scripts/ci-changes.ts. Vitest uses `--changed` only when every non-doc file is a TypeScript module
 // under a package's source or test tree. Anything else (a workflow, a script, a fixture read from disk) runs the
-// suite. packages/core and packages/protocol always run in full: their boundary tests scan src/ instead of
-// importing it, and the suites are small.
+// suite. DESIGN.md is not a doc here: packages/ui/tests/theme.test.ts reads it from disk. packages/core,
+// packages/protocol and packages/ui always run in full: their boundary tests scan src/ instead of importing it,
+// and the suites are small.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { render, type Sides } from './ci-changes.ts';
@@ -21,12 +22,13 @@ export function areasForEvent(event: string): { mode: 'full'; sides: Sides } | {
 
 export type VitestScope = 'all' | 'core';
 
-const DOCS = /(?:^|\/)[^/]+\.md$|^docs\/|^LICENSE$/;
+// DESIGN.md is the theme source theme.test.ts reads. Other markdown, docs/ and LICENSE do not select tests.
+const DOCS = /(?:^|\/)(?!DESIGN\.md$)[^/]+\.md$|^docs\/|^LICENSE$/;
 // apps/desktop keeps its tests beside the UI, under ui/src, not a tests/ directory.
 const PACKAGE_MODULE = /^(?:packages|extensions|apps)\/[^/]+\/(?:src|tests|test|ui\/src)\/.+\.tsx?$/;
 
 /**
- * Arguments after `vitest`. `core` is packages/core and packages/protocol, always the full suite.
+ * Arguments after `vitest`. `core` is packages/core, packages/protocol and packages/ui, always the full suite.
  * `all` is the workspace or the desktop UI: `--changed` only for an all-module diff.
  */
 export function vitestArgs(event: string, files: readonly string[] = [], scope: VitestScope = 'all'): string[] {

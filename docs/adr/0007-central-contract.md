@@ -68,7 +68,9 @@ on it, and a newer one acts on it.
 | `apps/site/**`, `.github/workflows/site.yml` | the marketing site: `site` alone (ADR 0026) |
 | `extensions/`, `packages/`, `scripts/`, `tests/`, `fixtures/`, root files | the extension side: `core`, `extension-chrome`, `extension-firefox`, and the Chrome e2e. `packages/`, `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` also run the desktop app, whose UI imports `@inkup/protocol`; the last three run the site too |
 | `.release-please-manifest.json` | the site, which shows the released versions |
-| `*.md`, `docs/**`, `LICENSE`, `release-please-config.json` | lint only |
+| `DESIGN.md` | the extension side (`theme.test.ts` reads it). Playwright runs no specs |
+| `release-please-config.json` | the extension side (`release-worthy.test.ts` reads it). Playwright runs no specs |
+| `*.md` other than `DESIGN.md`, `docs/**`, `LICENSE` | lint only |
 | The site's capture inputs: `fixtures/site/demo-store.html`, its font, `site-demo` speech, `site-captures.yml` | lint only; `site-captures.yml` records them on the pull request (ADR 0026) |
 | `.github/workflows/ci.yml`, `.github/workflows/inkup-v-release.yml`, any other path | everything, including the x86_64 macOS cross build |
 
@@ -77,8 +79,10 @@ of both sides together, so it runs when either changes. `ci-ok`, the one require
 well as every other job; a skipped job passes it.
 
 On a pull request that table still decides which jobs start. Vitest uses `--changed origin/main` only when every
-non-doc file is a TypeScript module under a package's `src/` or test tree. `packages/core` and `packages/protocol`
-always run their full suites, because tests there read the tree from disk. Any other diff runs the full Vitest suite.
+non-doc file is a TypeScript module under a package's `src/` or test tree. `DESIGN.md` is not a doc for that gate:
+`packages/ui/tests/theme.test.ts` reads it from disk. `packages/core`, `packages/protocol` and `packages/ui` always
+run their full suites, because tests there read the tree from disk (`core-boundary`, `product-boundary`) and the ui
+theme test reads `DESIGN.md`. Any other diff runs the full Vitest suite.
 Playwright runs the specs a rule names. A docs path runs none of them. Every other path runs the whole Playwright
 suite, including a script or stub the specs import and a workflow or root config. The host runs `cargo test -p` on a
 changed non-shared crate and the crates that depend on it, from `cargo metadata`. Any other non-doc path, a shared
@@ -127,3 +131,6 @@ use the table: every area runs, and each job runs its full suite.
 - 2026-10-22: inside a started job, only docs and a named rule narrow Playwright and cargo. Vitest uses `--changed`
   only for a diff that is entirely TypeScript modules under a package source or test tree. core and protocol always
   run in full. The host's crate graph comes from cargo metadata.
+- 2026-10-22: `packages/ui` runs in full with core and protocol, because `product-boundary` scans `src/`. `DESIGN.md` is
+  not a Vitest doc, because `theme.test.ts` reads it. `DESIGN.md` and `release-please-config.json` start the
+  extension jobs, because those tests read the files. Playwright still selects no specs for either file.

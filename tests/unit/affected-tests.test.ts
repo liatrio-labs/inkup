@@ -36,6 +36,9 @@ describe('affected e2e', () => {
     expect(selectE2e(docs, 'chrome', chrome)).toEqual({ mode: 'none', specs: [] });
     // The TUI rule is the named exception. A workflow, the selector itself, and root config are not.
     expect(selectE2e(['host/crates/tui/src/lib.rs'], 'chrome', chrome)).toEqual({ mode: 'none', specs: [] });
+    expect(selectE2e(['DESIGN.md'], 'chrome', chrome)).toEqual({ mode: 'none', specs: [] });
+    expect(selectE2e(['release-please-config.json'], 'chrome', chrome)).toEqual({ mode: 'none', specs: [] });
+    expect(selectE2e(['release-please-config.json'], 'firefox', firefox)).toEqual({ mode: 'none', specs: [] });
     for (const file of [
       '.github/workflows/ci.yml',
       'scripts/affected-e2e.ts',
@@ -339,6 +342,20 @@ describe('full suite and vitest', () => {
       encoding: 'utf8',
     });
     expect(areas).toBe('full\nextension=true\nhost=true\ncontract=true\ndesktop=true\nsite=true\nx64_macos=true\n');
+  });
+
+  it('runs packages/ui in full from the core job, because product-boundary scans src/', () => {
+    expect(vitestArgs('pull_request', ['packages/ui/src/highlight/index.ts'], 'core')).toEqual(['run']);
+    const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+    const coreJob = ci.slice(ci.indexOf('\n  core:'), ci.indexOf('\n  # The Chrome'));
+    expect(coreJob).toContain('pnpm -C packages/ui exec vitest');
+    expect(coreJob).not.toContain('--changed');
+    expect(readFileSync(join(root, 'packages/ui/tests/product-boundary.test.ts'), 'utf8')).toContain('readdirSync');
+  });
+
+  it('runs the full suite when DESIGN.md changes beside a UI module', () => {
+    expect(vitestArgs('pull_request', ['DESIGN.md', 'packages/ui/src/highlight/index.ts'])).toEqual(['run']);
+    expect(readFileSync(join(root, 'packages/ui/tests/theme.test.ts'), 'utf8')).toContain('DESIGN.md');
   });
 });
 

@@ -5,8 +5,10 @@
 // host/, packages/ and the workspace's install files run it too. The marketing site (apps/site, ADR 0026) runs for
 // itself and its deploy workflow, the workspace's install files and release-please's manifest, whose versions it
 // shows, and nothing else runs for it. What only the site's captures read (the demo page, its font, its scripted
-// speech, and site-captures.yml, which records them on the pull request itself), docs and the rest of release-please's
-// files run lint alone, and a path no rule knows runs everything. The x86_64 macOS cross build runs for
+// speech, and site-captures.yml, which records them on the pull request itself), docs and release-please's manifest
+// run lint alone (the manifest also runs the site). DESIGN.md and release-please-config.json run the extension
+// side: packages/ui/tests/theme.test.ts and tests/unit/release-worthy.test.ts read them. A path no rule knows runs
+// everything. The x86_64 macOS cross build runs for
 // host/, for dist-workspace.toml, and for any path that already runs everything (the release workflow
 // included). Prints `extension=`, `host=`, `contract=`, `desktop=`, `site=` and `x64_macos=` lines for
 // $GITHUB_OUTPUT.
@@ -22,8 +24,10 @@ export type Sides = {
 };
 
 const DOCS = /\.md$|^LICENSE$|^docs\//;
-// release-please's own files: the versions it recorded and its config. They build nothing.
-const RELEASE = /^(\.release-please-manifest|release-please-config)\.json$/;
+// release-please's manifest records versions. The site shows them. The config is not here: Vitest reads it.
+const RELEASE = /^\.release-please-manifest\.json$/;
+// Files a Vitest suite reads from disk that are not modules. Routing them starts that suite's job.
+const VITEST_DISK = /^(?:DESIGN\.md|release-please-config\.json)$/;
 // What only the site's captures read (tests/e2e/site-captures.spec.ts, which is in tests/ and runs as e2e code).
 const CAPTURES =
   /^fixtures\/(site\/demo-store\.html|site\/vendor\/fonts\/.*|transcripts\/site-demo\.json|audio\/site-demo\..*)$|^\.github\/workflows\/site-captures\.yml$/;
@@ -46,6 +50,10 @@ export function classify(files: string[]): Sides {
   };
   for (const file of files) {
     if (SITE_TOO.test(file)) sides.site = true;
+    if (VITEST_DISK.test(file)) {
+      sides.extension = true;
+      continue;
+    }
     if (!file || DOCS.test(file) || RELEASE.test(file) || CAPTURES.test(file)) continue;
     if (X64_MACOS.test(file)) sides.x64_macos = true;
     if (file.startsWith('contract/'))

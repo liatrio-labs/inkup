@@ -124,6 +124,8 @@ export function selectE2e(files: string[], suite: Suite, available: ReadonlySet<
   const dir = SUITE_DIR[suite];
   for (const file of files) {
     if (!file || file.endsWith('.md') || file.startsWith('docs/') || file === 'LICENSE') continue;
+    // No spec reads this. tests/unit/release-worthy.test.ts does, on the extension job.
+    if (file === 'release-please-config.json') continue;
     if (FULL_SUITE.some((pattern) => pattern.test(file))) {
       all = true;
       continue;
