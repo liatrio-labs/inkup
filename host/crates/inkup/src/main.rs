@@ -1,4 +1,5 @@
-//! `inkup`: the host (ADR 0004).
+//! `inkup`: the host (ADR 0004). A one-line touch here is the CI proof that a host-crate diff runs the host
+//! Playwright specs and `cargo test -p inkup`, not the whole suites.
 //!
 //! - no subcommand: the server with the TUI, where pairing requests are answered. Logs go to `inkup.log` in
 //!   the data dir, since the screen is the TUI's.
