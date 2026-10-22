@@ -58,6 +58,7 @@ describe('affected e2e', () => {
       desktop: false,
       site: false,
       x64_macos: false,
+      ui: false,
     });
   });
 
@@ -341,7 +342,9 @@ describe('full suite and vitest', () => {
       cwd: root,
       encoding: 'utf8',
     });
-    expect(areas).toBe('full\nextension=true\nhost=true\ncontract=true\ndesktop=true\nsite=true\nx64_macos=true\n');
+    expect(areas).toBe(
+      'full\nextension=true\nhost=true\ncontract=true\ndesktop=true\nsite=true\nx64_macos=true\nui=true\n',
+    );
   });
 
   it('runs packages/ui in full from the core job, because product-boundary scans src/', () => {
@@ -401,7 +404,11 @@ describe('ci workflows', () => {
     expect(title).not.toContain('paths-ignore:');
     expect(ci).toContain('if: always()');
     expect(ci).toContain(
-      'needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop, site, x64-macos]',
+      'needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop, site, x64-macos, design]',
+    );
+    expect(ci).toContain('ui: $' + '{{ steps.diff.outputs.ui }}');
+    expect(ci).toContain(
+      "printf 'extension=true\\nhost=true\\ncontract=false\\ndesktop=true\\nsite=true\\nx64_macos=true\\nui=true\\n'",
     );
     expect(ci).toContain('.result == "success" or .result == "skipped"');
   });
@@ -426,6 +433,40 @@ describe('ci workflows', () => {
     expect(title).not.toContain('actions/cache@');
     expect(title).not.toContain('ci-ok');
     expect(nodeVersion(title)).toBe(nodeVersion(ci));
+  });
+
+  it('runs an advisory design job on UI changes and skips it otherwise', () => {
+    const start = ci.indexOf('\n  design:\n');
+    const end = ci.indexOf('\n  # The one required check', start);
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    const design = ci.slice(start, end);
+    expect(design).toContain('needs: changes');
+    expect(design).toContain("if: needs.changes.outputs.ui == 'true'");
+    expect(design).toContain('runs-on: ubuntu-24.04-arm');
+    expect(design).toContain('timeout-minutes:');
+    expect(design).toContain('contents: read');
+    expect(design).toContain('uname -m');
+    expect(design).toContain('test "$machine" = aarch64');
+    expect(design.indexOf('test "$machine" = aarch64')).toBeLessThan(design.indexOf('actions/checkout@'));
+    expect(design).toContain('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1');
+    expect(design).toContain('actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1');
+    expect(design).toContain('pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413');
+    expect(design).toContain('persist-credentials: false');
+    expect(design).toContain('impeccable@4.7.0');
+    expect(design).not.toContain('impeccable@latest');
+    expect(design).toContain('detect --json');
+    expect(design).toContain('mapfile');
+    expect(design).not.toContain('xargs');
+    expect(design).toContain('IMPECCABLE_MODE: advisory');
+    expect(design).toContain('blocking');
+    expect(design).toContain('--viewport');
+    expect(design).toContain('1440x900');
+    expect(design).toContain('390x844');
+    expect(design).toContain('IMPECCABLE_BROWSER');
+    expect(design).toContain('scripts/ci-design.ts summarize');
+    expect(design).toContain('scripts/ci-design.ts disables');
+    expect(design).toContain('scripts/ci-changes.ts --ui-files');
   });
 });
 

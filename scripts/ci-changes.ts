@@ -10,9 +10,12 @@
 // side: packages/ui/tests/theme.test.ts and tests/unit/release-worthy.test.ts read them. A path no rule knows runs
 // everything. The x86_64 macOS cross build runs for
 // host/, for dist-workspace.toml, and for any path that already runs everything (the release workflow
-// included). Prints `extension=`, `host=`, `contract=`, `desktop=`, `site=` and `x64_macos=` lines for
-// $GITHUB_OUTPUT.
+// included). A UI path also sets `ui`, which gates the advisory design job: source under the UI extensions,
+// DESIGN.md, PRODUCT.md, .impeccable/** and the theme config (packages/ui/components.json). Tests, stories and
+// fixtures are not a surface. Prints `extension=`, `host=`, `contract=`, `desktop=`, `site=`, `x64_macos=` and
+// `ui=` lines for $GITHUB_OUTPUT.
 import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 export type Sides = {
   extension: boolean;
@@ -21,6 +24,7 @@ export type Sides = {
   desktop: boolean;
   site: boolean;
   x64_macos: boolean;
+  ui: boolean;
 };
 
 const DOCS = /\.md$|^LICENSE$|^docs\//;
@@ -38,6 +42,18 @@ const DESKTOP_TOO = /^packages\/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\
 const SITE_TOO = /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.release-please-manifest\.json)$/;
 // The x86_64 macOS binary is cross-compiled. host/ is the crate; dist-workspace.toml picks the runner.
 const X64_MACOS = /^host\/|^dist-workspace\.toml$/;
+// What the design job scans. Tests, stories and fixtures are excluded before the extensions match.
+const UI_SOURCE = /\.(?:tsx|jsx|vue|svelte|astro|html|htm|css|scss|sass|less)$/;
+const UI_SKIP = /(?:^|\/)[^/]*\.(?:test|spec|stories)\.[^/]+$|(?:^|\/)fixtures(?:\/|$)/;
+const UI_CONTEXT = /^(?:DESIGN|PRODUCT)\.md$|(?:^|\/)\.impeccable\//;
+// shadcn's theme config (ADR 0029). theme.css is already a CSS source.
+const THEME_CONFIG = /^packages\/ui\/components\.json$/;
+
+/** A path the advisory design job treats as UI. */
+export function isUi(file: string): boolean {
+  if (!file || UI_SKIP.test(file)) return false;
+  return UI_SOURCE.test(file) || UI_CONTEXT.test(file) || THEME_CONFIG.test(file);
+}
 
 export function classify(files: string[]): Sides {
   const sides: Sides = {
@@ -47,8 +63,10 @@ export function classify(files: string[]): Sides {
     desktop: false,
     site: false,
     x64_macos: false,
+    ui: false,
   };
   for (const file of files) {
+    if (isUi(file)) sides.ui = true;
     if (SITE_TOO.test(file)) sides.site = true;
     if (VITEST_DISK.test(file)) {
       sides.extension = true;
@@ -64,7 +82,7 @@ export function classify(files: string[]): Sides {
     else if (EXTENSION.test(file)) {
       sides.extension = true;
       if (DESKTOP_TOO.test(file)) sides.desktop = true;
-    } else Object.assign(sides, { extension: true, host: true, desktop: true, site: true, x64_macos: true });
+    } else Object.assign(sides, { extension: true, host: true, desktop: true, site: true, x64_macos: true, ui: true });
   }
   return sides;
 }
@@ -74,6 +92,17 @@ export const render = (sides: Sides) =>
     .map(([key, value]) => `${key}=${value}\n`)
     .join('');
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  process.stdout.write(render(classify(readFileSync(0, 'utf8').split('\n'))));
+function isDirectRun(): boolean {
+  const entry = process.argv[1];
+  return entry !== undefined && import.meta.url === pathToFileURL(entry).href;
+}
+
+if (isDirectRun()) {
+  const files = readFileSync(0, 'utf8').split('\n');
+  if (process.argv.includes('--ui-files')) {
+    const matched = files.filter(isUi);
+    process.stdout.write(matched.length > 0 ? `${matched.join('\n')}\n` : '');
+  } else {
+    process.stdout.write(render(classify(files)));
+  }
 }

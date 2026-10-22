@@ -116,6 +116,18 @@ connections?" prompt, so set it only when you change network mode and can answer
   measured state (DOM values, focus, axe) where a screenshot can't prove the change. When attach is not
   available, link a CI artifact (for example the site-captures workflow artifact) or embed a committed image
   with `blob/<sha>/<path>?raw=true`. Never use raw.githubusercontent, release-asset or data: URIs.
+- The builder's design check, on a pull request that changes what a user sees, is `impeccable@4.7.0 detect` on the
+  changed source and on the rendered page at 1440 and 390. The pull request body carries this Design check line:
+
+  ```text
+  Impeccable 4.7.0: audit NN/20 (P0..P3) · detect source N/M drift · rendered 1440/390 N/M · ignores and disables: none|list
+  ```
+
+- The InkUp Reviewer's eye pass blocks on spacing off the DESIGN.md scale, on `design-system-*` token drift in the
+  changed code without an approved DESIGN.md update, and on visible overflow at 1440 or 390. Spacing is on-scale when
+  it is a spacing-scale step or a value a DESIGN.md component token defines. Only a new value in neither blocks.
+- An inline `impeccable-disable` is allowed only with the repo owner's cited approval. The repo owner is the human
+  maintainer. The comment cites that conversation and a CT timestamp.
 - The InkUp Reviewer's single verdict covers code review, QA (tests at the right layer, and each acceptance
   criterion checked against real proof at this head) and security review, independently of the author, at the
   exact head SHA. Product acceptance by the maintainer applies to any PR that changes what a user sees or a
@@ -131,8 +143,9 @@ connections?" prompt, so set it only when you change network mode and can answer
   The Follow-ups section lists each issue with its reason, or "none". Resolve review conversations. Unresolved
   changes requested, security or acceptance blockers prevent merge.
 - CI must pass: `ci-ok` aggregates the jobs selected by the change, including lint, core, Chrome/Firefox builds
-  and e2e, host and desktop platform matrices, contract compatibility and site checks as applicable. A job skipped
-  by CI's path routing passes the aggregate (ADR 0007). This describes the workflow, not verified live protection.
+  and e2e, host and desktop platform matrices, contract compatibility, site checks and an advisory design scan when
+  a UI path changes. A job skipped by CI's path routing passes the aggregate (ADR 0007). This describes the workflow,
+  not verified live protection.
 - The InkUp Reviewer is the separate review agent that posts the verdict. The lead is the agent that owns the
   batch and queues merges. The repo owner is the human maintainer only. The lead runs `gh pr merge` from the
   maintainer's authenticated `gh` account. That account is only for queuing merges. The lead, like every

@@ -28,8 +28,9 @@ jobs:
   # the breaking-change guard, host/ the host, the rest of the workspace the extension, docs lint alone. The desktop
   # app runs for apps/desktop and for what it is built from (host/, packages/, the lockfile); the site (apps/site, ADR
   # 0026) for apps/site, the lockfile and release-please's manifest, and nothing else for it. The x86_64 macOS cross
-  # build runs for host/, dist-workspace.toml, and any path that runs everything. A push to main and the nightly
-  # run every area. A push with no usable base runs everything except the contract guard. A release pull request
+  # build runs for host/, dist-workspace.toml, and any path that runs everything. `ui` gates the advisory design
+  # job. A push to main and the nightly run every area, including design. A push with no usable base runs
+  # everything except the contract guard. A release pull request
   # (release-please--*) runs nothing: it only bumps versions and
   # changelogs of code that was tested on its own pull request (ADR 0027), so every job skips and ci-ok passes.
   changes:
@@ -44,6 +45,7 @@ jobs:
       desktop: ${{ steps.diff.outputs.desktop }}
       site: ${{ steps.diff.outputs.site }}
       x64_macos: ${{ steps.diff.outputs.x64_macos }}
+      ui: ${{ steps.diff.outputs.ui }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,7 +71,7 @@ jobs:
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! files=$(git diff --name-only "$BASE...$HEAD"); then
             echo "No base to diff against; running everything."
-            printf 'extension=true\nhost=true\ncontract=false\ndesktop=true\nsite=true\nx64_macos=true\n' | tee -a "$GITHUB_OUTPUT"
+            printf 'extension=true\nhost=true\ncontract=false\ndesktop=true\nsite=true\nx64_macos=true\nui=true\n' | tee -a "$GITHUB_OUTPUT"
             exit 0
           fi
           printf '%s\n' "$files"
@@ -668,11 +670,123 @@ jobs:
             exit 1
           fi
 
+  # Advisory Impeccable detect on UI changes. Findings are reported. The job fails only when a scan cannot
+  # run (detect exit 1). IMPECCABLE_MODE=blocking also fails on primary findings or design-system-* drift; it is
+  # off, and switching it on is the maintainer's call. The rendered scan is the site homepage: the extension has
+  # no HTTP preview without the add-on loaded, and the desktop webview has no CDP.
+  design:
+    name: design
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Native arm64 runner
+        run: |
+          machine=$(uname -m)
+          echo "uname -m: $machine"
+          test "$machine" = aarch64
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Build the site
+        run: pnpm --filter @inkup/site build
+      - name: Impeccable 4.7.0
+        run: |
+          set -euo pipefail
+          detected=$(npx --yes impeccable@4.7.0 --version)
+          echo "impeccable version: $detected"
+          test "$detected" = "4.7.0"
+      - name: Detect
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          IMPECCABLE_MODE: advisory
+        run: |
+          set -euo pipefail
+          {
+            echo "## Design check"
+            echo "Impeccable 4.7.0 detect. IMPECCABLE_MODE=${IMPECCABLE_MODE} (blocking fails on primary findings or design-system-* drift)."
+            echo "Rendered scan: the site homepage at 1440x900 and 390x844. The extension has no HTTP preview without the add-on loaded, and the desktop webview has no CDP."
+          } >> "$GITHUB_STEP_SUMMARY"
+          files=
+          have_base=0
+          if [ -n "${BASE:-}" ] && [ "$BASE" != "0000000000000000000000000000000000000000" ] \
+            && files=$(git diff --name-only "$BASE...$HEAD"); then
+            have_base=1
+          else
+            echo "No base to diff against; scanning every UI file."
+            files=$(git ls-files)
+          fi
+          if [ "$have_base" -eq 1 ]; then
+            git diff -U0 "$BASE...$HEAD" | node scripts/ci-design.ts disables
+          fi
+          mapfile -t ui_files < <(printf '%s\n' "$files" | node scripts/ci-changes.ts --ui-files)
+          if [ "${#ui_files[@]}" -eq 0 ]; then
+            echo "No UI files to scan." >> "$GITHUB_STEP_SUMMARY"
+          else
+            source_json="$RUNNER_TEMP/impeccable-source.json"
+            set +e
+            npx --yes impeccable@4.7.0 detect --json "${ui_files[@]}" > "$source_json"
+            scan_exit=$?
+            set -e
+            node scripts/ci-design.ts summarize source "$source_json" "$scan_exit"
+          fi
+          test -f apps/site/dist/index.html
+          browser=$(node --input-type=module -e "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())")
+          test -x "$browser"
+          echo "IMPECCABLE_BROWSER=$browser"
+          export IMPECCABLE_BROWSER="$browser"
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory apps/site/dist > "$RUNNER_TEMP/site-preview.log" 2>&1 &
+          server_pid=$!
+          cleanup() {
+            if [ -n "${server_pid:-}" ]; then
+              kill "$server_pid" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+          ready=0
+          tries=0
+          while [ "$tries" -lt 20 ]; do
+            tries=$((tries + 1))
+            if curl -sf -o /dev/null "http://127.0.0.1:4173/"; then
+              ready=1
+              break
+            fi
+            sleep 0.25
+          done
+          test "$ready" = 1
+          scan_url() {
+            label=$1
+            viewport=$2
+            outfile="$RUNNER_TEMP/impeccable-${label}.json"
+            set +e
+            npx --yes impeccable@4.7.0 detect --json --viewport "$viewport" "http://127.0.0.1:4173/" > "$outfile"
+            scan_exit=$?
+            set -e
+            node scripts/ci-design.ts summarize "$label" "$outfile" "$scan_exit"
+          }
+          scan_url rendered-1440 1440x900
+          scan_url rendered-390 390x844
+
   # The one required check. Skipped jobs pass; a failed or cancelled one fails it.
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop, site, x64-macos]
+    needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop, site, x64-macos, design]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     steps:

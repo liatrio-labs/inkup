@@ -68,15 +68,18 @@ on it, and a newer one acts on it.
 | `apps/site/**`, `.github/workflows/site.yml` | the marketing site: `site` alone (ADR 0026) |
 | `extensions/`, `packages/`, `scripts/`, `tests/`, `fixtures/`, root files | the extension side: `core`, `extension-chrome`, `extension-firefox`, and the Chrome e2e. `packages/`, `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` also run the desktop app, whose UI imports `@inkup/protocol`; the last three run the site too |
 | `.release-please-manifest.json` | the site, which shows the released versions |
-| `DESIGN.md` | the extension side (`theme.test.ts` reads it). Playwright runs no specs |
+| `DESIGN.md` | the extension side (`theme.test.ts` reads it), and the advisory `design` job. Playwright runs no specs |
+| `PRODUCT.md` | lint, and the advisory `design` job |
 | `release-please-config.json` | the extension side (`release-worthy.test.ts` reads it). Playwright runs no specs |
-| `*.md` other than `DESIGN.md`, `docs/**`, `LICENSE` | lint only |
+| `*.md` other than `DESIGN.md` and `PRODUCT.md`, `docs/**`, `LICENSE` | lint only |
 | The site's capture inputs: `fixtures/site/demo-store.html`, its font, `site-demo` speech, `site-captures.yml` | lint only; `site-captures.yml` records them on the pull request (ADR 0026) |
-| `.github/workflows/ci.yml`, `.github/workflows/inkup-v-release.yml`, any other path | everything, including the x86_64 macOS cross build |
+| `.github/workflows/ci.yml`, `.github/workflows/inkup-v-release.yml`, any other path | everything, including the x86_64 macOS cross build and the advisory `design` job |
+| UI source (`*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, `*.astro`, `*.html`, `*.htm`, `*.css`, `*.scss`, `*.sass`, `*.less`), `DESIGN.md`, `PRODUCT.md`, `.impeccable/**`, `packages/ui/components.json` | the advisory `design` job, as well as whatever else the row above says. `*.test.*`, `*.spec.*`, `*.stories.*` and `fixtures/` are not UI |
 
 The Chrome e2e builds the real Host and drives the extension against it (`tests/e2e/host.spec.ts`). It is the one test
-of both sides together, so it runs when either changes. `ci-ok`, the one required check, needs `contract-compat` as
-well as every other job; a skipped job passes it.
+of both sides together, so it runs when either changes. `ci-ok`, the one required check, needs `contract-compat`,
+the advisory `design` job and every other job; a skipped job passes it. `design` runs `impeccable@4.7.0 detect` and
+reports findings. It fails only when a scan cannot run.
 
 On a pull request that table still decides which jobs start. Vitest uses `--changed origin/main` only when every
 non-doc file is a TypeScript module under a package's `src/` or test tree. `DESIGN.md` is not a doc for that gate:
@@ -134,3 +137,6 @@ use the table: every area runs, and each job runs its full suite.
 - 2026-10-22: `packages/ui` runs in full with core and protocol, because `product-boundary` scans `src/`. `DESIGN.md` is
   not a Vitest doc, because `theme.test.ts` reads it. `DESIGN.md` and `release-please-config.json` start the
   extension jobs, because those tests read the files. Playwright still selects no specs for either file.
+- 2026-10-22: UI paths set `ui` and run an advisory `design` job (`impeccable@4.7.0 detect`). A skipped design job
+  still passes `ci-ok`. Spacing on a component token counts as on-scale; that rule is prose in DESIGN.md, and no
+  token value moved.
