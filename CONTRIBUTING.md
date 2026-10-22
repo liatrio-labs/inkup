@@ -105,26 +105,50 @@ connections?" prompt, so set it only when you change network mode and can answer
 - Keep one outcome per PR, targeting under 400 changed lines excluding generated files, locks and fixtures.
   Explain larger diffs and why they cannot be split in the template's exception field.
 - Fill in the [PR template](.github/pull_request_template.md): outcome, public issue (or public-safe rationale),
-  acceptance criteria, exact head SHA, proof commands/output and exit codes, risk/rollback and security triggers.
-  State checks you could not run and why. For documentation-only work, run affected Markdown and file hygiene
-  checks; product checks remain required when hooks or CI run them. Never disable or silently skip required checks.
+  acceptance criteria, exact head SHA, proof commands/output and exit codes, risk/rollback, security triggers,
+  follow-ups, visual evidence and owner-only items under Needs you, when there are any. State checks you could
+  not run and why. For documentation-only work, run affected Markdown and file hygiene checks; product checks
+  remain required when hooks or CI run them. Never disable or silently skip required checks.
 - Behaviour changes need real evidence: load extension changes in at least one browser; exercise host changes
   through a real MCP client round trip. Record the relevant manual checks and platform limits.
-- Independent code review and QA run in parallel. Neither reviewer authored the change. QA checks out the exact
-  head, runs affected checks itself and compares each acceptance criterion with actual results. Product acceptance
-  belongs to a maintainer. Security review is required for any boundary trigger in the template; otherwise
-  explain the skip. Code review confirms that decision.
+- Any PR that changes what a user sees embeds before and after screenshots at 1440px and 390px, and a GIF or
+  video for interactions, using `gh pr create/edit --attach`. Include dark mode where the app has one, and
+  measured state (DOM values, focus, axe) where a screenshot can't prove the change. When attach is not
+  available, link a CI artifact (for example the site-captures workflow artifact) or embed a committed image
+  with `blob/<sha>/<path>?raw=true`. Never use raw.githubusercontent, release-asset or data: URIs.
+- The InkUp Reviewer's single verdict covers code review, QA (tests at the right layer, and each acceptance
+  criterion checked against real proof at this head) and security review, independently of the author, at the
+  exact head SHA. Product acceptance by the maintainer applies to any PR that changes what a user sees or a
+  user-visible behaviour rule. A pure documentation change with no boundary change records a skip reason in
+  that verdict.
 - Review comments identify the reviewer role, head SHA, verdict, findings and evidence. A new push invalidates
-  previous verdicts: obtain current code review and QA approval, and Security approval when triggered.
-- Fix valid findings or track them in public-safe issues with file/PR references; give reasons for dismissals.
-  Resolve review conversations. Unresolved changes requested, security or acceptance blockers prevent merge.
+  previous verdicts: obtain the current InkUp Reviewer PASS, and the maintainer's product acceptance when the
+  PR changes what a user sees or a user-visible behaviour rule, with evidence.
+- Fix in the PR by default, dismiss with a reason, or file a follow-up. Each PR gets at most 2 follow-up
+  issues. Urgent or critical findings (security, data loss, prod breakage) don't count toward that and are filed
+  right away with a `priority` label. File one issue per bug class, never an issue for docs drift, and give every
+  follow-up a one-line reason it couldn't go in the PR, in a public-safe issue that names the file and the PR.
+  The Follow-ups section lists each issue with its reason, or "none". Resolve review conversations. Unresolved
+  changes requested, security or acceptance blockers prevent merge.
 - CI must pass: `ci-ok` aggregates the jobs selected by the change, including lint, core, Chrome/Firefox builds
   and e2e, host and desktop platform matrices, contract compatibility and site checks as applicable. A job skipped
   by CI's path routing passes the aggregate (ADR 0007). This describes the workflow, not verified live protection.
-- A maintainer from `@liatrio-labs/liatrio-labs-maintainers` owns review and merge. Authors and reviewers do not
-  merge or enable auto-merge. Independent review comments supplement native GitHub protection: they cannot
-  satisfy a required native approval, bypass protections or authorize self-approval. Maintainers verify the active
-  gates before merging; CODEOWNERS alone does not prove owner eligibility or server enforcement.
+- The InkUp Reviewer is the separate review agent that posts the verdict. The lead is the agent that owns the
+  batch and queues merges. The repo owner is the human maintainer only. The lead runs `gh pr merge` from the
+  maintainer's authenticated `gh` account. That account is only for queuing merges. The lead, like every
+  agent, never changes rulesets, repo settings or secrets with it.
+  After the InkUp Reviewer's PASS at the current head (plus the maintainer's product acceptance when the PR
+  changes what a user sees or a user-visible behaviour rule), with findings reconciled and required checks
+  green, the lead runs
+  `gh pr merge <n> --squash --auto --match-head-commit <sha>` from the maintainer's authenticated `gh` account.
+  Never before the PASS. Never use `--admin`, never bypass or edit a ruleset to land a PR, and never merge
+  with a failing or missing required check. Workers don't merge PRs, change repository settings or rulesets,
+  or skip or disable tests. Only the repo owner, the human maintainer, changes rulesets or repo settings,
+  handles secrets, or makes outward-facing or hard-to-reverse changes. A PR proposes these under Needs you
+  and never applies them.
+  Release PRs from release-please auto-merge on their own (ADR 0027). Independent review comments supplement
+  native GitHub protection: they cannot satisfy a required native approval, bypass protections or authorize
+  self-approval. CODEOWNERS alone does not prove owner eligibility or server enforcement.
 - This repository and its commits, PRs, issues and comments are public. Never include internal hosts or addresses,
   tokens, customer or colleague names, private evidence or internal task links. Share sensitive security findings
   privately through [SECURITY.md](SECURITY.md).

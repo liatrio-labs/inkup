@@ -11,19 +11,41 @@ Guidance for coding agents (Claude Code, Codex and others) working in this repos
 - Keep one outcome per PR, targeting under 400 changed lines excluding generated files, lockfiles and fixtures.
   Explain any size exception in the PR body; return oversized work to a maintainer for slicing.
 - Follow the PR template. Record acceptance criteria, exact head SHA, proof commands/output and exit codes,
-  risks/rollback and security triggers. Read the affected manifests and CI before selecting checks.
-- Code Reviewer and product QA review in parallel, independently of the author, at the exact head SHA.
-  QA checks out that SHA and records its own commands and expected versus actual acceptance evidence.
-  A maintainer owns product acceptance. Security reviews any triggered boundary change listed in the template;
-  pure documentation with no boundary change records a skip reason. Code Reviewer confirms the trigger decision.
-- Every push invalidates prior head-bound verdicts. Obtain current Code Reviewer and QA approval comments, plus
-  Security approval when triggered, with evidence. Automation supplements these independent reviews.
-- Fix every valid finding or track it with file/PR references in a public-safe repository issue.
-  Explain dismissed findings; resolve review threads. Unresolved changes requested, security or acceptance blockers
-  prevent merge.
-- A maintainer from `@liatrio-labs/liatrio-labs-maintainers` owns merge, after current verdicts, green required
-  checks and resolved conversations. Authors and reviewers never merge or enable auto-merge. Review comments cannot
-  bypass native GitHub protection or authorize self-approval; live enforcement and CODEOWNERS eligibility require
+  risks/rollback, security triggers, follow-ups, visual evidence and owner-only items under Needs you, when
+  there are any. Read the affected manifests and CI before selecting checks.
+- Any PR that changes what a user sees embeds before and after screenshots at 1440px and 390px, and a GIF or
+  video for interactions, using `gh pr create/edit --attach`. Include dark mode where the app has one, and
+  measured state (DOM values, focus, axe) where a screenshot can't prove the change. When attach is not
+  available, link a CI artifact (for example the site-captures workflow artifact) or embed a committed image
+  with `blob/<sha>/<path>?raw=true`. Never use raw.githubusercontent, release-asset or data: URIs.
+- The InkUp Reviewer's single verdict covers code review, QA (tests at the right layer, and each acceptance
+  criterion checked against real proof at this head) and security review, independently of the author, at the
+  exact head SHA. Product acceptance by the maintainer applies to any PR that changes what a user sees or a
+  user-visible behaviour rule. A pure documentation change with no boundary change records a skip reason in
+  that verdict.
+- Every push invalidates prior head-bound verdicts. Obtain the current InkUp Reviewer PASS, and the maintainer's
+  product acceptance when the PR changes what a user sees or a user-visible behaviour rule, with evidence.
+  Automation supplements this review.
+- Fix in the PR by default, dismiss with a reason, or file a follow-up. Each PR gets at most 2 follow-up
+  issues. Urgent or critical findings (security, data loss, prod breakage) don't count toward that and are filed
+  right away with a `priority` label. File one issue per bug class, never an issue for docs drift, and give every
+  follow-up a one-line reason it couldn't go in the PR, in a public-safe issue that names the file and the PR.
+  The Follow-ups section lists each issue with its reason, or "none". Resolve review threads. Unresolved changes
+  requested, security or acceptance blockers prevent merge.
+- The InkUp Reviewer is the separate review agent that posts the verdict. The lead is the agent that owns the
+  batch and queues merges. The repo owner is the human maintainer only. The lead runs `gh pr merge` from the
+  maintainer's authenticated `gh` account. That account is only for queuing merges. The lead, like every
+  agent, never changes rulesets, repo settings or secrets with it.
+- After the InkUp Reviewer's PASS at the current head (plus the maintainer's product acceptance when the PR
+  changes what a user sees or a user-visible behaviour rule), with findings reconciled and required checks
+  green, the lead runs
+  `gh pr merge <n> --squash --auto --match-head-commit <sha>` from the maintainer's authenticated `gh` account.
+  Never before the PASS. Never use `--admin`, never bypass or edit a ruleset to land a PR, and never merge
+  with a failing or missing required check. Only the repo owner, the human maintainer, changes rulesets or
+  repo settings, handles secrets, or makes outward-facing or hard-to-reverse changes. A PR proposes these
+  under Needs you and never applies
+  them. Release PRs from release-please auto-merge on their own (ADR 0027). Review comments cannot bypass
+  native GitHub protection or authorize self-approval; live enforcement and CODEOWNERS eligibility require
   admin evidence.
 - Commits, PRs and GitHub comments are public. Never include internal hosts/addresses, tokens, customer or colleague
   names, private evidence or internal task links.
