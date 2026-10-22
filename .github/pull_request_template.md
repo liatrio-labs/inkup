@@ -42,9 +42,9 @@ none
 
 ## Needs you
 
-<!-- Only when an owner-only item applies. Only the owner changes rulesets or repo settings, handles secrets,
-or makes outward-facing or hard-to-reverse changes. List each one here, proposed and not applied in this PR.
-Delete this section when nothing needs the owner; never write "none". -->
+<!-- Only when an owner-only item applies. Only the repo owner, the human maintainer, changes rulesets or repo
+settings, handles secrets, or makes outward-facing or hard-to-reverse changes. List each one here, proposed
+and not applied in this PR. Delete this section when nothing needs the owner; never write "none". -->
 
 ## Risk and rollback
 
@@ -75,20 +75,25 @@ Security skip reason: <!-- Required when no trigger is marked. The InkUp Reviewe
 
 ## Review gates
 
-- [ ] InkUp Reviewer PASS at this head, covering code review, QA (tests at the right layer) and security review
-- [ ] Maintainer product acceptance when it applies
+- [ ] InkUp Reviewer PASS at this head, covering code review, QA (tests at the right layer, and each acceptance
+      criterion checked against real proof at this head) and security review
+- [ ] Maintainer product acceptance when the PR changes what a user sees or a user-visible behaviour rule
 - [ ] Findings fixed in the PR, dismissed with a reason, or filed as follow-ups (at most 2; urgent or critical exempt)
 - [ ] Review threads resolved
 - [ ] Required CI green; no unresolved changes requested, security or acceptance blockers
 
 <!-- Every push invalidates previous verdicts. The InkUp Reviewer is the separate review agent that posts the
-verdict. That single verdict covers code review, QA (tests at the right layer) and security review. Product
-acceptance stays with the maintainer when it applies. The lead is the agent that owns the batch and queues
-merges. After the InkUp Reviewer's PASS at this head (plus the maintainer's product acceptance when it
-applies), with findings reconciled and required checks green, the lead runs
+verdict. That single verdict covers code review, QA (tests at the right layer, and each acceptance criterion
+checked against real proof at this head) and security review. Product acceptance by the maintainer applies to
+any PR that changes what a user sees or a user-visible behaviour rule. The lead is the agent that owns the
+batch and queues merges. The repo owner is the human maintainer only. The lead runs `gh pr merge` from the
+maintainer's authenticated `gh` account. That account is only for queuing merges. The lead, like every agent,
+never changes rulesets, repo settings or secrets with it. After the InkUp Reviewer's PASS at this head (plus
+the maintainer's product acceptance when the PR changes what a user sees or a user-visible behaviour rule),
+with findings reconciled and required checks green, the lead runs
 `gh pr merge <n> --squash --auto --match-head-commit <sha>` from the maintainer's authenticated `gh` account.
-Never before the PASS. Never use `--admin`, never bypass or edit a ruleset to land a PR, and
-never merge with a failing or missing required check. Workers don't merge PRs, change repository settings or
-rulesets, or skip or disable tests. A PR proposes owner-only items under Needs you and never applies them.
-Release PRs from release-please auto-merge on their own (ADR 0027). Review comments cannot bypass native
-GitHub protection or authorize self-approval. -->
+Never before the PASS. Never use `--admin`, never bypass or edit a ruleset to land a PR, and never merge with
+a failing or missing required check. Workers don't merge PRs, change repository settings or rulesets, or skip
+or disable tests. A PR proposes owner-only items under Needs you and never applies them. Release PRs from
+release-please auto-merge on their own (ADR 0027). Review comments cannot bypass native GitHub protection or
+authorize self-approval. -->
