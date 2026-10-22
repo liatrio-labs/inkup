@@ -37,17 +37,35 @@ describe('groupFindings', () => {
 });
 
 describe('addedDisables', () => {
-  it('warns on added impeccable-disable lines and ignores removals', () => {
+  it('warns on added disable comments and ignores removals, prose and strings', () => {
     const diff = [
+      'diff --git a/a.css b/a.css',
       '+++ b/a.css',
+      '@@ -10,0 +11,4 @@',
       '+.a { color: red } /* impeccable-disable-line overused-font */',
       '-.b { } /* impeccable-disable */',
       '+ok',
       '+/* impeccable-disable design-system-color */',
+      '+// impeccable-disable overused-font: owner approved, conversation 2026-10-22 2:20 PM CT',
+      'diff --git a/AGENTS.md b/AGENTS.md',
+      '+++ b/AGENTS.md',
+      '@@ -1,0 +2,2 @@',
+      '+An inline `impeccable-disable` needs the repo owner.',
+      '+<!-- An inline impeccable-disable is allowed only with approval. -->',
+      'diff --git a/tests/unit/ci-design.test.ts b/tests/unit/ci-design.test.ts',
+      '+++ b/tests/unit/ci-design.test.ts',
+      '@@ -1,0 +1,2 @@',
+      "+  '+.a { color: red } /* impeccable-disable-line overused-font */',",
+      "+  if (line.includes('impeccable-disable')) added.push(line);",
     ].join('\n');
     expect(addedDisables(diff)).toEqual([
-      '.a { color: red } /* impeccable-disable-line overused-font */',
-      '/* impeccable-disable design-system-color */',
+      { file: 'a.css', line: 11, text: '.a { color: red } /* impeccable-disable-line overused-font */' },
+      { file: 'a.css', line: 13, text: '/* impeccable-disable design-system-color */' },
+      {
+        file: 'a.css',
+        line: 14,
+        text: '// impeccable-disable overused-font: owner approved, conversation 2026-10-22 2:20 PM CT',
+      },
     ]);
   });
 });

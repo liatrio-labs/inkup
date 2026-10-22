@@ -46,14 +46,42 @@ export function scanShouldFail(scanExit: number, findings: readonly DesignFindin
   return scanExit === 2 || groups.primary.length > 0 || groups.drift.length > 0;
 }
 
-/** Added diff lines that introduce an inline impeccable-disable comment. */
-export function addedDisables(diff: string): string[] {
-  const added: string[] = [];
-  for (const line of diff.split('\n')) {
-    if (!line.startsWith('+') || line.startsWith('+++')) continue;
-    if (line.includes('impeccable-disable')) added.push(line.slice(1).trim());
+export type DisableHit = { file: string; line: number; text: string };
+
+/**
+ * Added diff lines that are an inline `impeccable-disable` comment. A mention of the token in prose, a
+ * backtick, or a string is not a directive. The comment opener has to sit immediately before the marker.
+ */
+export function addedDisables(diff: string): DisableHit[] {
+  const hits: DisableHit[] = [];
+  let file = '';
+  let nextLine = 1;
+  for (const raw of diff.split('\n')) {
+    if (raw.startsWith('+++ ')) {
+      file = raw.startsWith('+++ b/') ? raw.slice('+++ b/'.length) : raw.slice(4);
+      continue;
+    }
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(raw);
+    if (hunk?.[1]) {
+      nextLine = Number(hunk[1]);
+      continue;
+    }
+    if (raw.startsWith('diff ') || raw.startsWith('index ') || raw.startsWith('---') || raw.startsWith('\\')) continue;
+    if (raw.startsWith('-')) continue;
+    const text = raw.startsWith('+') ? raw.slice(1) : raw.startsWith(' ') ? raw.slice(1) : raw;
+    if (raw.startsWith('+') && isDisableDirective(text)) hits.push({ file, line: nextLine, text: text.trim() });
+    nextLine += 1;
   }
-  return added;
+  return hits;
+}
+
+/** True when `text` is a comment directive, not the word inside a string or backticks. */
+function isDisableDirective(text: string): boolean {
+  const code = text
+    .replace(/`[^`]*`/g, ' ')
+    .replace(/'(?:\\.|[^'])*'/g, ' ')
+    .replace(/"(?:\\.|[^"])*"/g, ' ');
+  return /(?:\/\/|\/\*+|<!--|#|\{\s*\/\*+)\s*impeccable-disable(?:-line|-next-line)?\b/.test(code);
 }
 
 function oneLine(text: string): string {
@@ -108,8 +136,10 @@ function asFindings(value: unknown): DesignFinding[] {
 if (isDirectRun()) {
   const command = process.argv[2];
   if (command === 'disables') {
-    for (const line of addedDisables(readFileSync(0, 'utf8'))) {
-      process.stdout.write(`::warning::new impeccable-disable: ${oneLine(line)}\n`);
+    for (const hit of addedDisables(readFileSync(0, 'utf8'))) {
+      const file = hit.file.replace(/[,:]/g, '');
+      const line = hit.line > 0 ? hit.line : 1;
+      process.stdout.write(`::warning file=${file},line=${line}::new impeccable-disable: ${oneLine(hit.text)}\n`);
     }
     process.exit(0);
   }
