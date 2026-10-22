@@ -105,26 +105,36 @@ connections?" prompt, so set it only when you change network mode and can answer
 - Keep one outcome per PR, targeting under 400 changed lines excluding generated files, locks and fixtures.
   Explain larger diffs and why they cannot be split in the template's exception field.
 - Fill in the [PR template](.github/pull_request_template.md): outcome, public issue (or public-safe rationale),
-  acceptance criteria, exact head SHA, proof commands/output and exit codes, risk/rollback and security triggers.
-  State checks you could not run and why. For documentation-only work, run affected Markdown and file hygiene
-  checks; product checks remain required when hooks or CI run them. Never disable or silently skip required checks.
+  acceptance criteria, exact head SHA, proof commands/output and exit codes, risk/rollback, security triggers,
+  follow-ups, visual evidence and owner-only items (Needs you). State checks you could not run and why. For
+  documentation-only work, run affected Markdown and file hygiene checks; product checks remain required when
+  hooks or CI run them. Never disable or silently skip required checks.
 - Behaviour changes need real evidence: load extension changes in at least one browser; exercise host changes
   through a real MCP client round trip. Record the relevant manual checks and platform limits.
+- Any PR that changes what a user sees embeds before and after screenshots at 1440px and 390px, and a GIF or
+  video for interactions, using `gh pr create/edit --attach`. Never use raw.githubusercontent, release-asset
+  or data: URIs.
 - Independent code review and QA run in parallel. Neither reviewer authored the change. QA checks out the exact
   head, runs affected checks itself and compares each acceptance criterion with actual results. Product acceptance
   belongs to a maintainer. Security review is required for any boundary trigger in the template; otherwise
   explain the skip. Code review confirms that decision.
 - Review comments identify the reviewer role, head SHA, verdict, findings and evidence. A new push invalidates
   previous verdicts: obtain current code review and QA approval, and Security approval when triggered.
-- Fix valid findings or track them in public-safe issues with file/PR references; give reasons for dismissals.
-  Resolve review conversations. Unresolved changes requested, security or acceptance blockers prevent merge.
+- Fix in the PR by default, dismiss with a reason, or file a follow-up. Each PR gets at most 2 follow-up
+  issues. Urgent or critical findings (security, data loss, prod breakage) don't count toward that and are filed
+  right away with a `priority` label. File one issue per bug class, never an issue for docs drift, and give every
+  follow-up a one-line reason it couldn't go in the PR, in a public-safe issue that names the file and the PR.
+  The Follow-ups section lists each issue with its reason, or "none". Resolve review conversations. Unresolved
+  changes requested, security or acceptance blockers prevent merge.
 - CI must pass: `ci-ok` aggregates the jobs selected by the change, including lint, core, Chrome/Firefox builds
   and e2e, host and desktop platform matrices, contract compatibility and site checks as applicable. A job skipped
   by CI's path routing passes the aggregate (ADR 0007). This describes the workflow, not verified live protection.
-- A maintainer from `@liatrio-labs/liatrio-labs-maintainers` owns review and merge. Authors and reviewers do not
-  merge or enable auto-merge. Independent review comments supplement native GitHub protection: they cannot
-  satisfy a required native approval, bypass protections or authorize self-approval. Maintainers verify the active
-  gates before merging; CODEOWNERS alone does not prove owner eligibility or server enforcement.
+- Once the Reviewer's PASS at the current head is in, findings are reconciled and `ci-ok` is green, the lead runs
+  `gh pr merge <n> --squash --auto --match-head-commit <sha>` as the repo owner. Never before the PASS. Workers
+  don't merge PRs, change repository settings or rulesets, or skip or disable tests. Owner-only items stay listed:
+  rulesets and settings, secrets, and outward-facing or hard-to-reverse changes. Independent review comments
+  supplement native GitHub protection: they cannot satisfy a required native approval, bypass protections or
+  authorize self-approval. CODEOWNERS alone does not prove owner eligibility or server enforcement.
 - This repository and its commits, PRs, issues and comments are public. Never include internal hosts or addresses,
   tokens, customer or colleague names, private evidence or internal task links. Share sensitive security findings
   privately through [SECURITY.md](SECURITY.md).

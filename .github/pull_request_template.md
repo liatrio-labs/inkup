@@ -21,6 +21,29 @@ Head SHA: <!-- Full SHA; update after every push. -->
 List checks not run, their reason and platform limits. Never disable required hooks or CI.
 Keep private evidence, internal hosts/addresses, tokens and customer/colleague names out of public text. -->
 
+## Visual evidence
+
+<!-- When this PR changes what a user sees, embed before and after screenshots at 1440px and 390px, and a GIF
+or video for interactions. Attach them with `gh pr create/edit --attach`. Never use raw.githubusercontent,
+release-asset or data: URIs. Otherwise: none. -->
+
+none
+
+## Follow-ups
+
+<!-- Each follow-up issue with the one-line reason it couldn't go in this PR, or "none". At most 2 per PR.
+Urgent or critical findings (security, data loss, prod breakage) don't count toward that and are filed right
+away with a `priority` label. One issue per bug class. Never an issue for docs drift. -->
+
+none
+
+## Needs you
+
+<!-- Owner-only items, proposed here and not applied in the PR: rulesets and settings, secrets, and
+outward-facing or hard-to-reverse changes. Or "none". -->
+
+none
+
 ## Risk and rollback
 
 Risk / affected boundary:
@@ -51,9 +74,12 @@ Security skip reason: <!-- Required if no trigger; documentation of a boundary d
 
 - [ ] Independent code review and QA approval with evidence at this head; product acceptance when applicable
 - [ ] Security approval at this head when triggered
-- [ ] Valid findings fixed or tracked; dismissals explained; review threads resolved
+- [ ] Findings fixed in the PR, dismissed with a reason, or filed as follow-ups (at most 2; urgent or critical exempt)
+- [ ] Review threads resolved
 - [ ] Required CI green; no unresolved changes requested, security or acceptance blockers
 
-<!-- Every push invalidates previous verdicts. Authors/reviewers never merge or enable auto-merge.
-Review comments cannot bypass native GitHub protection or authorize self-approval.
-Maintainers verify active gates before merge. -->
+<!-- Every push invalidates previous verdicts. Once the Reviewer's PASS at this head is in, findings are
+reconciled and `ci-ok` is green, the lead runs `gh pr merge <n> --squash --auto --match-head-commit <sha>`
+as the repo owner. Never before the PASS. Workers don't merge PRs, change repository settings or rulesets,
+or skip or disable tests. Owner-only items stay under Needs you. Review comments cannot bypass native GitHub
+protection or authorize self-approval. -->
