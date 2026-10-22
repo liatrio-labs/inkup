@@ -24,8 +24,11 @@ Keep private evidence, internal hosts/addresses, tokens and customer/colleague n
 ## Visual evidence
 
 <!-- When this PR changes what a user sees, embed before and after screenshots at 1440px and 390px, and a GIF
-or video for interactions. Attach them with `gh pr create/edit --attach`. Never use raw.githubusercontent,
-release-asset or data: URIs. Otherwise: none. -->
+or video for interactions. Attach them with `gh pr create/edit --attach`. Include dark mode where the app has
+one, and measured state (DOM values, focus, axe) where a screenshot can't prove the change. When attach is
+not available, link a CI artifact (for example the site-captures workflow artifact) or embed a committed
+image with `blob/<sha>/<path>?raw=true`. Never use raw.githubusercontent, release-asset or data: URIs.
+Otherwise: none. -->
 
 none
 
@@ -39,10 +42,9 @@ none
 
 ## Needs you
 
-<!-- Owner-only items, proposed here and not applied in the PR: rulesets and settings, secrets, and
-outward-facing or hard-to-reverse changes. Or "none". -->
-
-none
+<!-- Only when an owner-only item applies. Only the owner changes rulesets or repo settings, handles secrets,
+or makes outward-facing or hard-to-reverse changes. List each one here, proposed and not applied in this PR.
+Delete this section when nothing needs the owner; never write "none". -->
 
 ## Risk and rollback
 
@@ -78,8 +80,12 @@ Security skip reason: <!-- Required if no trigger; documentation of a boundary d
 - [ ] Review threads resolved
 - [ ] Required CI green; no unresolved changes requested, security or acceptance blockers
 
-<!-- Every push invalidates previous verdicts. Once the Reviewer's PASS at this head is in, findings are
-reconciled and `ci-ok` is green, the lead runs `gh pr merge <n> --squash --auto --match-head-commit <sha>`
-as the repo owner. Never before the PASS. Workers don't merge PRs, change repository settings or rulesets,
-or skip or disable tests. Owner-only items stay under Needs you. Review comments cannot bypass native GitHub
-protection or authorize self-approval. -->
+<!-- Every push invalidates previous verdicts. The InkUp Reviewer is the separate review agent that posts the
+verdict. The lead is the agent that owns the batch and queues merges. Once the InkUp Reviewer's PASS at this
+head is in, findings are reconciled and required checks are green, the lead runs
+`gh pr merge <n> --squash --auto --match-head-commit <sha>` as the repo owner (the maintainer's authenticated
+`gh` account). Never before the PASS. Never use `--admin`, never bypass or edit a ruleset to land a PR, and
+never merge with a failing or missing required check. Workers don't merge PRs, change repository settings or
+rulesets, or skip or disable tests. A PR proposes owner-only items under Needs you and never applies them.
+Release PRs from release-please auto-merge on their own (ADR 0027). Review comments cannot bypass native
+GitHub protection or authorize self-approval. -->
