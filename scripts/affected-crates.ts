@@ -19,12 +19,11 @@ const FALLBACK_FILES = new Set([
 
 function depsIn(toml: string, known: ReadonlySet<string>): string[] {
   const deps = new Set<string>();
-  for (const match of toml.matchAll(/^([A-Za-z0-9_-]+)\.workspace = true/gm)) {
-    if (known.has(match[1])) deps.add(match[1]);
-  }
-  for (const match of toml.matchAll(/^([A-Za-z0-9_-]+) = \{[^}\n]*path = "[^"]+"/gm)) {
-    if (known.has(match[1])) deps.add(match[1]);
-  }
+  const add = (name: string | undefined) => {
+    if (name && known.has(name)) deps.add(name);
+  };
+  for (const match of toml.matchAll(/^([A-Za-z0-9_-]+)\.workspace = true/gm)) add(match[1]);
+  for (const match of toml.matchAll(/^([A-Za-z0-9_-]+) = \{[^}\n]*path = "[^"]+"/gm)) add(match[1]);
   return [...deps].sort();
 }
 
