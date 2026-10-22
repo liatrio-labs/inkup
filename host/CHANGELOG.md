@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.17.0...inkup-v0.18.0) (2026-10-22)
+
+
+### Features
+
+* **host:** pair a Remote Host by operator code and serve HTTPS ([#168](https://github.com/liatrio-labs/inkup/issues/168)) ([3f0ff5d](https://github.com/liatrio-labs/inkup/commit/3f0ff5df496b95ee92622d5a8e9436589fb58523))
+
 ## [0.17.0](https://github.com/liatrio-labs/inkup/compare/inkup-v0.16.0...inkup-v0.17.0) (2026-10-21)
 
 
