@@ -58,8 +58,9 @@ Small-diff exception: <!-- None, or why this outcome cannot be split. -->
 
 ## Security triggers
 
-Mark every boundary changed by this diff. One trigger requires independent Security review at this head.
-Code review confirms the trigger decision; ambiguous boundary changes go to Security.
+Mark every boundary changed by this diff. The InkUp Reviewer's verdict covers security review of every trigger
+marked here. A pure documentation change with no boundary change records a skip reason; documentation of a
+boundary does not itself change it.
 
 - [ ] Auth, identity, authorization, sessions or token validation
 - [ ] Secrets, credentials, environment binding, storage, logging or redaction
@@ -70,21 +71,23 @@ Code review confirms the trigger decision; ambiguous boundary changes go to Secu
 - [ ] Extension permissions/capabilities, content scripts, capture/media access or native messaging
 - [ ] MCP listeners/transports, tool/resource endpoints, pairing, origins, file/system access or command execution
 
-Security skip reason: <!-- Required if no trigger; documentation of a boundary does not itself change it. -->
+Security skip reason: <!-- Required when no trigger is marked. The InkUp Reviewer's verdict covers security review. -->
 
 ## Review gates
 
-- [ ] Independent code review and QA approval with evidence at this head; product acceptance when applicable
-- [ ] Security approval at this head when triggered
+- [ ] InkUp Reviewer PASS at this head, covering code review, QA (tests at the right layer) and security review
+- [ ] Maintainer product acceptance when it applies
 - [ ] Findings fixed in the PR, dismissed with a reason, or filed as follow-ups (at most 2; urgent or critical exempt)
 - [ ] Review threads resolved
 - [ ] Required CI green; no unresolved changes requested, security or acceptance blockers
 
 <!-- Every push invalidates previous verdicts. The InkUp Reviewer is the separate review agent that posts the
-verdict. The lead is the agent that owns the batch and queues merges. Once the InkUp Reviewer's PASS at this
-head is in, findings are reconciled and required checks are green, the lead runs
-`gh pr merge <n> --squash --auto --match-head-commit <sha>` as the repo owner (the maintainer's authenticated
-`gh` account). Never before the PASS. Never use `--admin`, never bypass or edit a ruleset to land a PR, and
+verdict. That single verdict covers code review, QA (tests at the right layer) and security review. Product
+acceptance stays with the maintainer when it applies. The lead is the agent that owns the batch and queues
+merges. After the InkUp Reviewer's PASS at this head (plus the maintainer's product acceptance when it
+applies), with findings reconciled and required checks green, the lead runs
+`gh pr merge <n> --squash --auto --match-head-commit <sha>` from the maintainer's authenticated `gh` account.
+Never before the PASS. Never use `--admin`, never bypass or edit a ruleset to land a PR, and
 never merge with a failing or missing required check. Workers don't merge PRs, change repository settings or
 rulesets, or skip or disable tests. A PR proposes owner-only items under Needs you and never applies them.
 Release PRs from release-please auto-merge on their own (ADR 0027). Review comments cannot bypass native
