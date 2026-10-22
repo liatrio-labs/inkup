@@ -77,11 +77,12 @@ of both sides together, so it runs when either changes. `ci-ok`, the one require
 well as every other job; a skipped job passes it.
 
 On a pull request that table still decides which jobs start. Inside a started job, Vitest runs with
-`--changed origin/main`, Playwright runs the specs `scripts/affected-e2e.ts` maps from the diff, and the host runs
-`cargo test -p` on the changed crates and their reverse dependencies. A shared fixture, the harness, the Playwright
-config, a `package.json` or the lockfile runs every Playwright spec. `Cargo.lock`, the toolchain or a shared crate runs
-`cargo test --workspace`. A push to `main` and the nightly schedule do not use the table: every area runs, and each
-job runs its full suite.
+`--changed origin/main`, and reruns the project when the diff touches `fixtures/`, `contract/`, `tests/support/` or a
+package test-fixture directory. Playwright runs the specs a rule names. A docs path runs none of them. Every other
+path runs the whole suite, including a script or stub the specs import and a workflow or root config. The host runs
+`cargo test -p` on a changed non-shared crate and the crates that depend on it, from `cargo metadata`. Any other
+non-doc path, a shared crate, the lockfile or the toolchain runs `cargo test --workspace`. A push to `main` and the
+nightly schedule do not use the table: every area runs, and each job runs its full suite.
 
 ## Considered options
 
@@ -122,3 +123,5 @@ job runs its full suite.
   pinned toolchain, and nothing in CI built it.
 - 2026-10-22: pull requests still start jobs from the table, and run only the tests the diff can affect. A push to
   main and the nightly schedule run every area in full.
+- 2026-10-22: inside a started job, only docs and a named rule narrow. An unknown path runs the whole suite. Vitest
+  reruns when a fixture, contract file or support stub changes, and the host's crate graph comes from cargo metadata.

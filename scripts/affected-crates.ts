@@ -1,14 +1,20 @@
-// Which host crates `cargo test -p` runs on a pull request. A crate and its reverse dependencies (who depends
-// on it, including dev-dependencies, transitively) are tested. Cargo.lock, the host toolchain, the workspace
-// manifest, anything under contract/, or a shared crate falls back to `cargo test --workspace`. A shared crate
-// is one that two or more workspace crates depend on: a change there reaches the rest of the host.
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+// Which host crates `cargo test -p` runs on a pull request. A non-shared crate and its reverse dependencies
+// (who depends on it, dev and build dependencies included, transitively) are tested. The graph comes from
+// `cargo metadata`, not from reading Cargo.toml: a line regex misses `name = { workspace = true }`. If metadata
+// fails, the plan is the whole workspace. Only docs narrow to nothing. Any other path that is not inside one
+// non-shared crate (a workflow, a script, the lockfile, the toolchain, a shared crate) runs `--workspace`.
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export type Crate = { name: string; dir: string; deps: string[] };
 
 export type CargoPlan = { mode: 'workspace' | 'packages' | 'none'; packages: string[] };
+
+type MetadataDependency = { name?: string };
+type MetadataPackage = { name?: string; manifest_path?: string; dependencies?: MetadataDependency[] };
+export type CargoMetadata = { packages?: MetadataPackage[] };
 
 const FALLBACK_FILES = new Set([
   'host/Cargo.lock',
@@ -17,31 +23,54 @@ const FALLBACK_FILES = new Set([
   'host/rust-toolchain',
 ]);
 
-function depsIn(toml: string, known: ReadonlySet<string>): string[] {
-  const deps = new Set<string>();
-  const add = (name: string | undefined) => {
-    if (name && known.has(name)) deps.add(name);
-  };
-  for (const match of toml.matchAll(/^([A-Za-z0-9_-]+)\.workspace = true/gm)) add(match[1]);
-  for (const match of toml.matchAll(/^([A-Za-z0-9_-]+) = \{[^}\n]*path = "[^"]+"/gm)) add(match[1]);
-  return [...deps].sort();
+function toPosix(path: string): string {
+  return path.split('\\').join('/');
 }
 
-/** Crates under host/crates, with path dependencies on each other. */
-export function readHostGraph(root: string): Crate[] {
+function isDoc(file: string): boolean {
+  return file.endsWith('.md') || file.startsWith('docs/') || file === 'LICENSE';
+}
+
+/** Workspace members under host/crates, with dependencies that are other members. */
+export function graphFromMetadata(root: string, metadata: CargoMetadata): Crate[] {
   const cratesDir = join(root, 'host/crates');
-  const found: { name: string; dir: string; toml: string }[] = [];
-  for (const entry of readdirSync(cratesDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const toml = readFileSync(join(cratesDir, entry.name, 'Cargo.toml'), 'utf8');
-    const name = toml.match(/^name = "([^"]+)"/m)?.[1];
-    if (!name) throw new Error(`host/crates/${entry.name}/Cargo.toml has no package name`);
-    found.push({ name, dir: `host/crates/${entry.name}`, toml });
-  }
-  const known = new Set(found.map((crate) => crate.name));
-  return found
-    .map((crate) => ({ name: crate.name, dir: crate.dir, deps: depsIn(crate.toml, known) }))
+  const members = (metadata.packages ?? []).flatMap((pkg) => {
+    const manifest = pkg.manifest_path;
+    const name = pkg.name;
+    if (!manifest || !name) return [];
+    const rel = relative(cratesDir, manifest);
+    if (rel.startsWith('..') || isAbsolute(rel)) return [];
+    const deps = [
+      ...new Set(
+        (pkg.dependencies ?? [])
+          .map((dep) => dep.name)
+          .filter((dep): dep is string => typeof dep === 'string' && dep !== name),
+      ),
+    ].sort();
+    return [{ name, dir: toPosix(relative(root, dirname(manifest))), deps }];
+  });
+  const names = new Set(members.map((crate) => crate.name));
+  return members
+    .map((crate) => ({ ...crate, deps: crate.deps.filter((dep) => names.has(dep)) }))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** `null` when cargo metadata fails. The caller then tests the whole workspace. */
+export function readHostGraph(root: string, locked = true): Crate[] | null {
+  // cwd is the host workspace so rustup reads host/rust-toolchain.toml. The manifest path is absolute so a
+  // caller whose cwd is the repo root still works.
+  const args = ['metadata', '--format-version', '1', '--no-deps', '--manifest-path', join(root, 'host/Cargo.toml')];
+  if (locked) args.push('--locked');
+  try {
+    const out = execFileSync('cargo', args, {
+      cwd: join(root, 'host'),
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return graphFromMetadata(root, JSON.parse(out) as CargoMetadata);
+  } catch {
+    return null;
+  }
 }
 
 /** Crates two or more workspace members depend on. */
@@ -78,7 +107,7 @@ export function selectCrates(files: string[], crates: readonly Crate[]): CargoPl
   let fallback = false;
   const selected = new Set<string>();
   for (const file of files) {
-    if (!file || file.endsWith('.md') || file.startsWith('docs/') || file === 'LICENSE') continue;
+    if (!file || isDoc(file)) continue;
     if (FALLBACK_FILES.has(file) || file.startsWith('host/.cargo/') || file.startsWith('contract/')) {
       fallback = true;
       continue;
@@ -89,11 +118,18 @@ export function selectCrates(files: string[], crates: readonly Crate[]): CargoPl
       else selected.add(crate.name);
       continue;
     }
-    if (file.startsWith('host/')) fallback = true;
+    // Not a doc and not one leaf crate: a workflow, a script, another config, or an unknown host file.
+    fallback = true;
   }
   if (fallback) return { mode: 'workspace', packages: [] };
   if (selected.size === 0) return { mode: 'none', packages: [] };
   return { mode: 'packages', packages: withReverse(selected, crates) };
+}
+
+/** `crates === null` means metadata failed, which tests the whole workspace. */
+export function cratesPlan(files: string[], crates: readonly Crate[] | null): CargoPlan {
+  if (!crates) return { mode: 'workspace', packages: [] };
+  return selectCrates(files, crates);
 }
 
 export function formatCargoPlan(plan: CargoPlan): string {
@@ -110,5 +146,5 @@ function isDirectRun(): boolean {
 
 if (isDirectRun()) {
   const files = readFileSync(0, 'utf8').split('\n');
-  process.stdout.write(formatCargoPlan(selectCrates(files, readHostGraph(ROOT))));
+  process.stdout.write(formatCargoPlan(cratesPlan(files, readHostGraph(ROOT))));
 }

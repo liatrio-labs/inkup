@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  NODE_VERSION: "26"
+
 concurrency:
   group: pr-title-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -21,23 +24,18 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Native arm64 runner
+        run: |
+          machine=$(uname -m)
+          echo "uname -m: $machine"
+          test "$machine" = aarch64
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "26"
-      # Nothing is installed. The cache only records the runner architecture so an arm64 result is never restored
-      # onto another architecture. The key is not the pnpm store: that key belongs to ci.yml.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .cache/pr-title
-          key: pr-title-${{ runner.arch }}-${{ hashFiles('scripts/pr-title.ts') }}
+          node-version: ${{ env.NODE_VERSION }}
       - name: Conventional Commit title
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-          ARCH: ${{ runner.arch }}
-        run: |
-          mkdir -p .cache/pr-title
-          printf '%s\n' "$ARCH" > .cache/pr-title/arch
-          node scripts/pr-title.ts
+        run: node scripts/pr-title.ts

@@ -1,10 +1,9 @@
 // Which Playwright specs a pull request runs. The `changes` job still decides whether the e2e jobs start; this
-// narrows the specs inside them. A shared fixture, the harness, the Playwright config, a package.json or the
-// lockfile runs the whole suite. A path with no rule under the extension, packages or the contract does too,
-// so an unmapped change cannot skip coverage. Anywhere else (docs, CI, a leaf the map names) runs only the
-// specs that map names, or nothing.
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+// narrows the specs inside them. Only docs and a rule that names its specs may narrow. Every other path runs
+// the whole suite: a workflow, a root config, a script, a support stub, and a file the specs import. A rule
+// with an empty spec list is a named exception (the TUI is not driven by these suites) and says why.
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export type Suite = 'chrome' | 'firefox';
@@ -72,8 +71,9 @@ const RULES: { prefix: string; specs: string[] }[] = [
   { prefix: 'packages/ui/src/toolbar/viewport-control', specs: ['viewport.spec.ts'] },
   { prefix: 'packages/ui/src/toolbar/', specs: ['toolbar-session.spec.ts', 'toolbar.spec.ts'] },
   { prefix: 'packages/ui/src/product/tone', specs: ['adaptive-contrast.spec.ts', 'dark-mode.spec.ts'] },
+  // The TUI is not what these browser suites drive. update-check is: host.spec.ts spawns the host binary, and
+  // that binary runs the check, so it falls through to the host/ rule below.
   { prefix: 'host/crates/tui/', specs: [] },
-  { prefix: 'host/crates/update-check/', specs: [] },
   { prefix: 'host/', specs: ['host.spec.ts', 'host-sync.spec.ts', 'network-host.spec.ts'] },
 ];
 
@@ -91,13 +91,16 @@ const FULL_SUITE = [
   /^pnpm-workspace\.yaml$/,
 ];
 
-// Code the map does not name still runs every spec. CI config and docs do not.
-const PRODUCT = /^(extensions|packages|contract)\//;
 const SPEC_FILE = /^tests\/e2e(?:-firefox)?\/[^/]+\.spec\.ts$/;
 const SPEC_PATH = /^tests\/e2e(?:-firefox)?\/[A-Za-z0-9._-]+\.spec\.ts$/;
 
 export function mappedSpecBasenames(): string[] {
   return [...new Set(RULES.flatMap((rule) => rule.specs))].sort();
+}
+
+/** A path a rule names on purpose, including a rule whose spec list is empty. */
+export function namedByRule(file: string): boolean {
+  return ruleFor(file) !== null;
 }
 
 function ruleFor(file: string): { specs: string[] } | null {
@@ -141,7 +144,8 @@ export function selectE2e(files: string[], suite: Suite, available: ReadonlySet<
       }
       continue;
     }
-    if (PRODUCT.test(file)) all = true;
+    // Docs and named rules are the only paths that may narrow. Everything else runs the suite.
+    all = true;
   }
   if (all) return { mode: 'all', specs: [] };
   if (specs.size === 0) return { mode: 'none', specs: [] };
@@ -162,8 +166,74 @@ export function availableSpecs(root: string, suite: Suite): Set<string> {
   );
 }
 
+const RELATIVE_IMPORT = /(?:from\s+|import\s*\(\s*)['"](\.[^'"]+)['"]/g;
+const E2E_ROOTS = ['tests/e2e', 'tests/e2e-firefox', 'tests/e2e-whisper'];
+
+function toPosix(path: string): string {
+  return path.split('\\').join('/');
+}
+
+function walkTs(dir: string, root: string, out: string[]) {
+  if (!existsSync(dir)) return;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const abs = join(dir, entry.name);
+    if (entry.isDirectory()) walkTs(abs, root, out);
+    else if (/\.(ts|tsx)$/.test(entry.name)) out.push(toPosix(relative(root, abs)));
+  }
+}
+
+function resolveImport(root: string, fromFile: string, spec: string): string | null {
+  const base = resolve(root, dirname(fromFile), spec);
+  const candidates = [base, `${base}.ts`, `${base}.tsx`, `${base}.js`, `${base}.mjs`, join(base, 'index.ts')];
+  for (const candidate of candidates) {
+    if (!existsSync(candidate) || !statSync(candidate).isFile()) continue;
+    const rel = toPosix(relative(root, candidate));
+    if (rel.startsWith('..') || rel.split('/').includes('node_modules')) return null;
+    return rel;
+  }
+  return null;
+}
+
+/** Files reached by a relative import from the e2e suites or playwright.config.ts, specs included. */
+export function e2eImportedFiles(root: string): Set<string> {
+  const queue: string[] = ['playwright.config.ts'];
+  for (const dir of E2E_ROOTS) walkTs(join(root, dir), root, queue);
+  const seen = new Set<string>();
+  const reached = new Set<string>();
+  while (queue.length > 0) {
+    const file = queue.pop();
+    if (!file || seen.has(file)) continue;
+    seen.add(file);
+    let text: string;
+    try {
+      text = readFileSync(join(root, file), 'utf8');
+    } catch {
+      continue;
+    }
+    for (const match of text.matchAll(RELATIVE_IMPORT)) {
+      const spec = match[1];
+      if (!spec) continue;
+      const resolved = resolveImport(root, file, spec);
+      if (!resolved) continue;
+      reached.add(resolved);
+      queue.push(resolved);
+    }
+  }
+  return reached;
+}
+
+/** A `none` plan is a skip. It is refused when a changed file is in the e2e import graph. */
+export function guardE2ePlan(files: string[], plan: E2ePlan, graph: ReadonlySet<string>): void {
+  if (plan.mode !== 'none') return;
+  const hit = files.filter((file) => graph.has(file));
+  if (hit.length === 0) return;
+  throw new Error(`refusing to run zero specs; these files are in the e2e import graph: ${hit.join(', ')}`);
+}
+
 export function planE2e(files: string[], suite: Suite, root: string): E2ePlan {
-  return selectE2e(files, suite, availableSpecs(root, suite));
+  const plan = selectE2e(files, suite, availableSpecs(root, suite));
+  guardE2ePlan(files, plan, e2eImportedFiles(root));
+  return plan;
 }
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -180,5 +250,10 @@ if (isDirectRun()) {
     process.exit(2);
   }
   const files = readFileSync(0, 'utf8').split('\n');
-  process.stdout.write(formatE2ePlan(planE2e(files, suite, ROOT)));
+  try {
+    process.stdout.write(formatE2ePlan(planE2e(files, suite, ROOT)));
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exit(1);
+  }
 }

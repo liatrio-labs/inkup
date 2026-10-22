@@ -1,15 +1,26 @@
 // Selection for pull-request CI: which specs, crates and Vitest arguments a diff runs, and the full suite on main
 // and the nightly. The workflow calls these scripts; a wrong plan fails here before it skips a suite.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readHostGraph, selectCrates, sharedCrates } from '../../scripts/affected-crates.ts';
-import { formatE2ePlan, mappedSpecBasenames, planE2e, selectE2e } from '../../scripts/affected-e2e.ts';
+import { cratesPlan, readHostGraph, selectCrates, sharedCrates } from '../../scripts/affected-crates.ts';
+import {
+  availableSpecs,
+  e2eImportedFiles,
+  formatE2ePlan,
+  guardE2ePlan,
+  mappedSpecBasenames,
+  namedByRule,
+  planE2e,
+  selectE2e,
+} from '../../scripts/affected-e2e.ts';
 import { classify } from '../../scripts/ci-changes.ts';
 import { areasForEvent, fullSuiteSides, vitestArgs } from '../../scripts/ci-full-suite.ts';
 import { checkTitle } from '../../scripts/pr-title.ts';
+import { FORCE_RERUN_TRIGGERS } from '../../scripts/vitest-rerun.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const chrome = new Set([
@@ -20,14 +31,23 @@ const chrome = new Set([
 const firefox = new Set(['tests/e2e-firefox/text-comment.spec.ts', 'tests/e2e-firefox/toolbar.spec.ts']);
 
 describe('affected e2e', () => {
-  it('runs nothing for docs, CI and a leaf the browser does not drive', () => {
+  it('narrows only docs and a rule that names no specs; everything else runs the suite', () => {
     const docs = ['docs/adr/0007-central-contract.md', 'README.md', 'LICENSE'];
     expect(selectE2e(docs, 'chrome', chrome)).toEqual({ mode: 'none', specs: [] });
-    expect(selectE2e(['.github/workflows/ci.yml', 'scripts/affected-e2e.ts'], 'chrome', chrome)).toEqual({
-      mode: 'none',
-      specs: [],
-    });
+    // The TUI rule is the named exception. A workflow, the selector itself, and root config are not.
     expect(selectE2e(['host/crates/tui/src/lib.rs'], 'chrome', chrome)).toEqual({ mode: 'none', specs: [] });
+    for (const file of [
+      '.github/workflows/ci.yml',
+      'scripts/affected-e2e.ts',
+      'scripts/fixture-server.ts',
+      'scripts/gen-long-session.ts',
+      'tests/support/anthropic-stub.ts',
+      'tsconfig.json',
+      'biome.json',
+    ]) {
+      expect(selectE2e([file], 'chrome', chrome).mode, file).toBe('all');
+      expect(selectE2e([file], 'firefox', firefox).mode, file).toBe('all');
+    }
     expect(classify(docs)).toEqual({
       extension: false,
       host: false,
@@ -128,10 +148,45 @@ describe('affected e2e', () => {
     });
     expect(out).toBe('all\n');
   });
+
+  it('covers every relative import of the suites, in both browsers, unless a rule names it', () => {
+    const graph = e2eImportedFiles(root);
+    for (const file of [
+      'scripts/fixture-server.ts',
+      'scripts/gen-long-session.ts',
+      'scripts/gen-session-fixtures.ts',
+      'tests/support/anthropic-stub.ts',
+      'tests/support/script-model.ts',
+      'tests/support/stt-stubs.ts',
+      'tests/support/page-side-bundles.ts',
+      'tests/support/github-stub.ts',
+      'tests/support/jira-stub.ts',
+      'tests/support/linear-stub.ts',
+    ]) {
+      expect(graph.has(file), file).toBe(true);
+    }
+    const chromeSpecs = planE2e([], 'chrome', root);
+    expect(chromeSpecs.mode).toBe('none');
+    for (const file of graph) {
+      if (file.endsWith('.spec.ts') || namedByRule(file)) continue;
+      expect(selectE2e([file], 'chrome', availableSpecs(root, 'chrome')).mode, file).toBe('all');
+      expect(selectE2e([file], 'firefox', availableSpecs(root, 'firefox')).mode, file).toBe('all');
+    }
+  });
+
+  it('refuses a zero-spec plan when the diff touches the e2e import graph', () => {
+    expect(() =>
+      guardE2ePlan(['scripts/fixture-server.ts'], { mode: 'none', specs: [] }, new Set(['scripts/fixture-server.ts'])),
+    ).toThrow(/import graph/);
+    expect(planE2e(['scripts/fixture-server.ts'], 'chrome', root).mode).toBe('all');
+    expect(planE2e(['scripts/gen-long-session.ts'], 'firefox', root).mode).toBe('all');
+  });
 });
 
 describe('affected crates', () => {
-  const graph = readHostGraph(root);
+  const loaded = readHostGraph(root);
+  if (!loaded) throw new Error('cargo metadata failed for host/');
+  const graph = loaded;
 
   it('reads the host graph and the crates two members depend on', () => {
     expect(graph.map((crate) => [crate.name, crate.deps])).toEqual([
@@ -188,9 +243,52 @@ describe('affected crates', () => {
     expect(selectCrates(['host/crates/tui/src/lib.rs', 'host/Cargo.lock'], graph).mode).toBe('workspace');
   });
 
-  it('tests nothing when the diff has no host code', () => {
+  it('tests nothing for docs and the workspace for every other non-crate path', () => {
     expect(selectCrates(['docs/adr/0007-central-contract.md', 'README.md', 'host/README.md'], graph).mode).toBe('none');
-    expect(selectCrates(['apps/desktop/rust-toolchain.toml', 'packages/ui/src/index.ts'], graph).mode).toBe('none');
+    for (const file of [
+      '.github/workflows/ci.yml',
+      'apps/desktop/rust-toolchain.toml',
+      'packages/ui/src/index.ts',
+      'tsconfig.json',
+      'scripts/gen-schema.ts',
+    ]) {
+      expect(selectCrates([file], graph).mode, file).toBe('workspace');
+    }
+    expect(cratesPlan(['host/crates/tui/src/lib.rs'], null).mode).toBe('workspace');
+  });
+
+  it('keeps a reverse dependency declared as an inline workspace table', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'inkup-crates-'));
+    try {
+      writeFileSync(
+        join(dir, 'Cargo.toml'),
+        `[workspace]\nresolver = "2"\nmembers = ["crates/leaf", "crates/app"]\n\n[workspace.dependencies]\nleaf = { path = "crates/leaf" }\n`,
+      );
+      mkdirSync(join(dir, 'crates/leaf/src'), { recursive: true });
+      mkdirSync(join(dir, 'crates/app/src'), { recursive: true });
+      writeFileSync(join(dir, 'crates/leaf/src/lib.rs'), '');
+      writeFileSync(join(dir, 'crates/app/src/lib.rs'), '');
+      writeFileSync(
+        join(dir, 'crates/leaf/Cargo.toml'),
+        '[package]\nname = "leaf"\nversion = "0.0.0"\nedition = "2021"\n',
+      );
+      writeFileSync(
+        join(dir, 'crates/app/Cargo.toml'),
+        '[package]\nname = "app"\nversion = "0.0.0"\nedition = "2021"\n\n[dependencies]\nleaf = { workspace = true }\n',
+      );
+      // The reader looks for host/Cargo.toml. Point it at this workspace by laying the files under host/.
+      const repo = mkdtempSync(join(tmpdir(), 'inkup-repo-'));
+      mkdirSync(join(repo, 'host/crates'), { recursive: true });
+      execFileSync('cp', ['-a', join(dir, 'Cargo.toml'), join(repo, 'host/Cargo.toml')]);
+      execFileSync('cp', ['-a', join(dir, 'crates/leaf'), join(repo, 'host/crates/leaf')]);
+      execFileSync('cp', ['-a', join(dir, 'crates/app'), join(repo, 'host/crates/app')]);
+      const inline = readHostGraph(repo, false);
+      expect(inline, 'cargo metadata').not.toBeNull();
+      expect(selectCrates(['host/crates/leaf/src/lib.rs'], inline ?? []).packages).toEqual(['app', 'leaf']);
+      rmSync(repo, { recursive: true, force: true });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('prints the plan the cargo job reads', () => {
@@ -291,7 +389,74 @@ describe('ci workflows', () => {
     expect(title).toContain('timeout-minutes: 5');
     expect(title).toContain('contents: read');
     expect(title).toContain('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1');
-    expect(title).toContain('runner.arch');
+    expect(title).toContain('test "$machine" = aarch64');
+    expect(title).toContain('node-version: $' + '{{ env.NODE_VERSION }}');
+    expect(title).not.toContain('actions/cache@');
     expect(title).not.toContain('ci-ok');
+  });
+});
+
+function withoutGitEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  for (const key of Object.keys(env)) if (key.startsWith('GIT_')) delete env[key];
+  return env;
+}
+
+describe('vitest changed reruns disk fixtures', () => {
+  it('lists the triggers on every Vitest config the jobs run', () => {
+    expect(FORCE_RERUN_TRIGGERS).toEqual(
+      expect.arrayContaining(['**/fixtures/**', '**/contract/**', '**/tests/support/**']),
+    );
+    for (const file of [
+      'vitest.config.ts',
+      'packages/core/vitest.config.ts',
+      'packages/protocol/vitest.config.ts',
+      'packages/ui/vitest.config.ts',
+      'extensions/web/vitest.config.ts',
+      'apps/desktop/vitest.config.ts',
+    ]) {
+      expect(readFileSync(join(root, file), 'utf8'), file).toContain('FORCE_RERUN_TRIGGERS');
+    }
+  });
+
+  it('runs the project when only a fixture file changed', () => {
+    // Inside the repo so `vitest` resolves. A nested git repo, removed when the test ends.
+    const dir = mkdtempSync(join(root, 'vitest-rerun-'));
+    const env = withoutGitEnv();
+    const git = (args: string[]) => execFileSync('git', args, { cwd: dir, env, stdio: 'pipe' });
+    try {
+      writeFileSync(
+        join(dir, 'vitest.config.ts'),
+        `import { defineConfig } from 'vitest/config';\nexport default defineConfig({ test: { forceRerunTriggers: ${JSON.stringify(FORCE_RERUN_TRIGGERS)}, include: ['read.test.ts'] } });\n`,
+      );
+      mkdirSync(join(dir, 'fixtures'));
+      writeFileSync(join(dir, 'fixtures/session.json'), '{"schema_version":"ok"}\n');
+      writeFileSync(
+        join(dir, 'read.test.ts'),
+        "import { readFileSync } from 'node:fs';\nimport { expect, it } from 'vitest';\nit('reads the fixture', () => {\n  expect(readFileSync(new URL('./fixtures/session.json', import.meta.url), 'utf8')).toContain('ok');\n});\n",
+      );
+      git(['init']);
+      git(['add', '.']);
+      git(['-c', 'user.email=test@example.com', '-c', 'user.name=test', 'commit', '-m', 'test: fixture']);
+      writeFileSync(join(dir, 'fixtures/session.json'), '{"schema_version":"bad"}\n');
+      let output = '';
+      let status = 0;
+      try {
+        output = execFileSync(
+          process.execPath,
+          [join(root, 'node_modules/vitest/vitest.mjs'), 'run', '--changed', 'HEAD', '--passWithNoTests'],
+          { cwd: dir, env, encoding: 'utf8', stdio: 'pipe' },
+        );
+      } catch (error) {
+        const failed = error as { status?: number; stdout?: string; stderr?: string };
+        status = failed.status ?? 1;
+        output = `${failed.stdout ?? ''}\n${failed.stderr ?? ''}`;
+      }
+      expect(output).not.toContain('No test files found');
+      expect(output).toMatch(/reads the fixture|toContain\('ok'\)/);
+      expect(status).not.toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
