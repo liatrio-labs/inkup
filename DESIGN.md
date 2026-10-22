@@ -339,8 +339,9 @@ The page is a single reading column inside an 80rem container with a fluid gutte
 that width the dock is hidden and each section shows its Change Item inline under its content (max 30rem).
 
 Sections are generous and vertical: `--space-9` above, `--space-8` below. Content blocks inside a section step down
-through `--space-8`, `--space-7` and `--space-6`. The spacing scale runs 0.25rem to 7rem in nine steps; use its steps,
-not ad-hoc values.
+through `--space-8`, `--space-7` and `--space-6`. The spacing scale runs 0.25rem to 7rem in nine steps. Spacing is
+on-scale when it is a spacing-scale step or a value a component token in this file defines. Only a new value in
+neither blocks review.
 
 Breakpoints are 40rem (phone: tighter inspector boxes, pen loop pulled inside the gutter, hero buttons stacked above
 the quote), 48rem (nav links hide, install and run rows collapse) and 72rem (the dock appears). The sticky nav is

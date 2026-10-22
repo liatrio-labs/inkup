@@ -18,6 +18,22 @@ Guidance for coding agents (Claude Code, Codex and others) working in this repos
   measured state (DOM values, focus, axe) where a screenshot can't prove the change. When attach is not
   available, link a CI artifact (for example the site-captures workflow artifact) or embed a committed image
   with `blob/<sha>/<path>?raw=true`. Never use raw.githubusercontent, release-asset or data: URIs.
+- The builder's design check, on a pull request that changes what a user sees, is polish, then audit, then
+  `impeccable@4.7.0 detect`, on the changed source and on the rendered page at 1440 and 390. Fix audit P0 and P1,
+  and primary or `design-system-*` findings on the changed code, before opening the pull request. The cost rule is
+  one batched look, one fix batch, one confirm look. The pull request body carries this Design check line:
+
+  ```text
+  Impeccable 4.7.0: audit NN/20 (P0..P3) · detect source N/M drift · rendered 1440/390 N/M · ignores and disables: none|list
+  ```
+
+- The InkUp Reviewer's eye pass blocks on audit P0/P1, a primary finding on changed lines, a missing state, an ignore
+  without a reason, spacing off the DESIGN.md scale, `design-system-*` token drift in the changed code without an
+  approved DESIGN.md update, and visible overflow at 1440 or 390. A clean detector run is not a pass. Spacing is
+  on-scale when it is a spacing-scale step or a value a DESIGN.md component token defines. Only a new value in
+  neither blocks.
+- An inline `impeccable-disable` is allowed only with the repo owner's cited approval. The repo owner is the human
+  maintainer. The comment cites that conversation and a CT timestamp. An agent relaying approval doesn't count.
 - The InkUp Reviewer's single verdict covers code review, QA (tests at the right layer, and each acceptance
   criterion checked against real proof at this head) and security review, independently of the author, at the
   exact head SHA. Product acceptance by the maintainer applies to any PR that changes what a user sees or a

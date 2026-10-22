@@ -32,6 +32,23 @@ Otherwise: none. -->
 
 none
 
+## Design check
+
+<!-- On a pull request that changes what a user sees, the builder runs impeccable@4.7.0 detect on the changed
+source and on the rendered page at 1440 and 390, then replaces the line below. Spacing is on-scale when it is a
+spacing-scale step or a value a DESIGN.md component token defines. Only a new value in neither blocks at review.
+The Reviewer's eye pass also blocks on design-system-* token drift in the changed code without an approved
+DESIGN.md update, and on visible overflow at 1440 or 390. An inline impeccable-disable is allowed only with the
+repo owner's cited approval (the human maintainer): the comment cites the conversation and a CT timestamp.
+An agent relaying approval doesn't count.
+Otherwise delete this section. -->
+
+Design check:
+
+```text
+Impeccable 4.7.0: audit NN/20 (P0..P3) · detect source N/M drift · rendered 1440/390 N/M · ignores and disables: none
+```
+
 ## Follow-ups
 
 <!-- Each follow-up issue with the one-line reason it couldn't go in this PR, or "none". At most 2 per PR.
