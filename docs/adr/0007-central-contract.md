@@ -76,13 +76,14 @@ The Chrome e2e builds the real Host and drives the extension against it (`tests/
 of both sides together, so it runs when either changes. `ci-ok`, the one required check, needs `contract-compat` as
 well as every other job; a skipped job passes it.
 
-On a pull request that table still decides which jobs start. Inside a started job, Vitest runs with
-`--changed origin/main`, and reruns the project when the diff touches `fixtures/`, `contract/`, `tests/support/` or a
-package test-fixture directory. Playwright runs the specs a rule names. A docs path runs none of them. Every other
-path runs the whole suite, including a script or stub the specs import and a workflow or root config. The host runs
-`cargo test -p` on a changed non-shared crate and the crates that depend on it, from `cargo metadata`. Any other
-non-doc path, a shared crate, the lockfile or the toolchain runs `cargo test --workspace`. A push to `main` and the
-nightly schedule do not use the table: every area runs, and each job runs its full suite.
+On a pull request that table still decides which jobs start. Vitest uses `--changed origin/main` only when every
+non-doc file is a TypeScript module under a package's `src/` or test tree. `packages/core` and `packages/protocol`
+always run their full suites, because tests there read the tree from disk. Any other diff runs the full Vitest suite.
+Playwright runs the specs a rule names. A docs path runs none of them. Every other path runs the whole Playwright
+suite, including a script or stub the specs import and a workflow or root config. The host runs `cargo test -p` on a
+changed non-shared crate and the crates that depend on it, from `cargo metadata`. Any other non-doc path, a shared
+crate, the lockfile or the toolchain runs `cargo test --workspace`. A push to `main` and the nightly schedule do not
+use the table: every area runs, and each job runs its full suite.
 
 ## Considered options
 
@@ -123,5 +124,6 @@ nightly schedule do not use the table: every area runs, and each job runs its fu
   pinned toolchain, and nothing in CI built it.
 - 2026-10-22: pull requests still start jobs from the table, and run only the tests the diff can affect. A push to
   main and the nightly schedule run every area in full.
-- 2026-10-22: inside a started job, only docs and a named rule narrow. An unknown path runs the whole suite. Vitest
-  reruns when a fixture, contract file or support stub changes, and the host's crate graph comes from cargo metadata.
+- 2026-10-22: inside a started job, only docs and a named rule narrow Playwright and cargo. Vitest uses `--changed`
+  only for a diff that is entirely TypeScript modules under a package source or test tree. core and protocol always
+  run in full. The host's crate graph comes from cargo metadata.

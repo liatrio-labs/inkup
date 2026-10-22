@@ -282,6 +282,8 @@ describe('affected crates', () => {
       execFileSync('cp', ['-a', join(dir, 'Cargo.toml'), join(repo, 'host/Cargo.toml')]);
       execFileSync('cp', ['-a', join(dir, 'crates/leaf'), join(repo, 'host/crates/leaf')]);
       execFileSync('cp', ['-a', join(dir, 'crates/app'), join(repo, 'host/crates/app')]);
+      // A machine whose only toolchain is the one host/rust-toolchain.toml names has no default to fall back on.
+      execFileSync('cp', ['-a', join(root, 'host/rust-toolchain.toml'), join(repo, 'host/rust-toolchain.toml')]);
       const inline = readHostGraph(repo, false);
       expect(inline, 'cargo metadata').not.toBeNull();
       expect(selectCrates(['host/crates/leaf/src/lib.rs'], inline ?? []).packages).toEqual(['app', 'leaf']);
@@ -310,15 +312,28 @@ describe('full suite and vitest', () => {
     expect(areasForEvent('workflow_dispatch')).toEqual({ mode: 'diff' });
   });
 
-  it('narrows vitest on a pull request and runs the suite otherwise', () => {
-    expect(vitestArgs('pull_request')).toEqual(['run', '--changed', 'origin/main', '--passWithNoTests']);
-    expect(vitestArgs('push')).toEqual(['run']);
+  it('uses --changed only for an all-module diff, and always runs core in full', () => {
+    const changed = ['run', '--changed', 'origin/main', '--passWithNoTests'];
+    expect(vitestArgs('pull_request', ['.github/workflows/ci.yml'])).toEqual(['run']);
+    expect(vitestArgs('pull_request', ['packages/core/src/annotation-shot.ts'], 'core')).toEqual(['run']);
+    expect(vitestArgs('pull_request', ['packages/core/src/annotation-shot.ts'])).toEqual(changed);
+    expect(vitestArgs('pull_request', ['extensions/web/src/content/text-comment.ts', 'README.md'])).toEqual(changed);
+    expect(vitestArgs('pull_request', ['extensions/web/src/foo.ts', '.github/workflows/ci.yml'])).toEqual(['run']);
+    expect(vitestArgs('push', ['extensions/web/src/foo.ts'])).toEqual(['run']);
     expect(vitestArgs('schedule')).toEqual(['run']);
-    const out = execFileSync(process.execPath, ['scripts/ci-full-suite.ts', 'vitest', 'pull_request'], {
+    const full = execFileSync(process.execPath, ['scripts/ci-full-suite.ts', 'vitest', 'pull_request', 'all'], {
       cwd: root,
       encoding: 'utf8',
+      input: '.github/workflows/ci.yml\n',
     });
-    expect(out).toBe('run\n--changed\norigin/main\n--passWithNoTests\n');
+    expect(full).toBe('run\n');
+    const core = execFileSync(process.execPath, ['scripts/ci-full-suite.ts', 'vitest', 'pull_request', 'core'], {
+      cwd: root,
+      encoding: 'utf8',
+      input: 'packages/core/src/annotation-shot.ts\n',
+    });
+    expect(core).toBe('run\n');
+    expect(readFileSync(join(root, 'packages/core/tests/core-boundary.test.ts'), 'utf8')).toContain('readdirSync');
     const areas = execFileSync(process.execPath, ['scripts/ci-full-suite.ts', 'areas', 'schedule'], {
       cwd: root,
       encoding: 'utf8',
@@ -393,8 +408,15 @@ describe('ci workflows', () => {
     expect(title).toContain('node-version: $' + '{{ env.NODE_VERSION }}');
     expect(title).not.toContain('actions/cache@');
     expect(title).not.toContain('ci-ok');
+    expect(nodeVersion(title)).toBe(nodeVersion(ci));
   });
 });
+
+function nodeVersion(yaml: string): string {
+  const match = yaml.match(/^env:\n(?:^[ \t].*\n)*?^[ \t]+NODE_VERSION: "([^"]+)"/m);
+  if (!match?.[1]) throw new Error('NODE_VERSION missing');
+  return match[1];
+}
 
 function withoutGitEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env };

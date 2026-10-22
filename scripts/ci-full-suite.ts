@@ -1,5 +1,9 @@
 // Push to main and the nightly schedule run every area, and the full Vitest suite. A pull request keeps the path
-// routing in scripts/ci-changes.ts and narrows Vitest with `vitest --changed origin/main`.
+// routing in scripts/ci-changes.ts. Vitest uses `--changed` only when every non-doc file is a TypeScript module
+// under a package's source or test tree. Anything else (a workflow, a script, a fixture read from disk) runs the
+// suite. packages/core and packages/protocol always run in full: their boundary tests scan src/ instead of
+// importing it, and the suites are small.
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { render, type Sides } from './ci-changes.ts';
 
@@ -15,9 +19,22 @@ export function areasForEvent(event: string): { mode: 'full'; sides: Sides } | {
   return { mode: 'diff' };
 }
 
-/** Arguments after `vitest`. Pull requests run the tests that import files changed since origin/main. */
-export function vitestArgs(event: string): string[] {
-  if (event === 'pull_request') return ['run', '--changed', 'origin/main', '--passWithNoTests'];
+export type VitestScope = 'all' | 'core';
+
+const DOCS = /(?:^|\/)[^/]+\.md$|^docs\/|^LICENSE$/;
+// apps/desktop keeps its tests beside the UI, under ui/src, not a tests/ directory.
+const PACKAGE_MODULE = /^(?:packages|extensions|apps)\/[^/]+\/(?:src|tests|test|ui\/src)\/.+\.tsx?$/;
+
+/**
+ * Arguments after `vitest`. `core` is packages/core and packages/protocol, always the full suite.
+ * `all` is the workspace or the desktop UI: `--changed` only for an all-module diff.
+ */
+export function vitestArgs(event: string, files: readonly string[] = [], scope: VitestScope = 'all'): string[] {
+  if (event !== 'pull_request' || scope === 'core') return ['run'];
+  const code = files.filter((file) => file && !DOCS.test(file));
+  if (code.length > 0 && code.every((file) => PACKAGE_MODULE.test(file))) {
+    return ['run', '--changed', 'origin/main', '--passWithNoTests'];
+  }
   return ['run'];
 }
 
@@ -27,12 +44,14 @@ function isDirectRun(): boolean {
 }
 
 if (isDirectRun()) {
-  const [command, event = ''] = process.argv.slice(2);
+  const [command, event = '', scopeArg = 'all'] = process.argv.slice(2);
   if (command === 'areas') {
     const plan = areasForEvent(event);
     process.stdout.write(plan.mode === 'full' ? `full\n${render(plan.sides)}` : 'diff\n');
   } else if (command === 'vitest') {
-    process.stdout.write(`${vitestArgs(event).join('\n')}\n`);
+    const scope = scopeArg === 'core' ? 'core' : 'all';
+    const files = readFileSync(0, 'utf8').split('\n');
+    process.stdout.write(`${vitestArgs(event, files, scope).join('\n')}\n`);
   } else {
     process.stderr.write('usage: node scripts/ci-full-suite.ts <areas|vitest> <event>\n');
     process.exit(2);

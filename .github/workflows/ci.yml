@@ -158,11 +158,9 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -eo pipefail
-          args_text=$(node scripts/ci-full-suite.ts vitest "$EVENT_NAME")
+          # core and protocol scan their trees from disk (core-boundary) and finish in a couple of seconds.
+          args_text=$(printf '\n' | node scripts/ci-full-suite.ts vitest "$EVENT_NAME" core)
           mapfile -t args <<< "$args_text"
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            git fetch --no-tags origin main
-          fi
           {
             echo "### vitest (core, protocol)"
             echo '```'
@@ -173,7 +171,7 @@ jobs:
           pnpm -C packages/protocol exec vitest "${args[@]}"
 
   # The Chrome build of extensions/web: typecheck and unit tests for the whole workspace, schema sync, the zip.
-  # A pull request runs vitest --changed origin/main instead of the whole workspace suite.
+  # A pull request runs vitest --changed only when every non-doc file is a package TypeScript module.
   extension-chrome:
     name: extension-chrome
     needs: changes
@@ -197,11 +195,17 @@ jobs:
       - name: Unit tests
         env:
           EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -eo pipefail
-          args_text=$(node scripts/ci-full-suite.ts vitest "$EVENT_NAME")
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
+            files=$(git diff --name-only "$BASE_SHA...HEAD" || true)
+          else
+            files=
+          fi
+          args_text=$(printf '%s\n' "$files" | node scripts/ci-full-suite.ts vitest "$EVENT_NAME" all)
           mapfile -t args <<< "$args_text"
-          if [ "$EVENT_NAME" = "pull_request" ]; then
+          if printf '%s\n' "${args[@]}" | grep -qx -- --changed; then
             git fetch --no-tags origin main
           fi
           {
@@ -549,11 +553,17 @@ jobs:
         name: Desktop unit tests
         env:
           EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -eo pipefail
-          args_text=$(node scripts/ci-full-suite.ts vitest "$EVENT_NAME")
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
+            files=$(git diff --name-only "$BASE_SHA...HEAD" || true)
+          else
+            files=
+          fi
+          args_text=$(printf '%s\n' "$files" | node scripts/ci-full-suite.ts vitest "$EVENT_NAME" all)
           mapfile -t args <<< "$args_text"
-          if [ "$EVENT_NAME" = "pull_request" ]; then
+          if printf '%s\n' "${args[@]}" | grep -qx -- --changed; then
             git fetch --no-tags origin main
           fi
           {
