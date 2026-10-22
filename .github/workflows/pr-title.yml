@@ -1,0 +1,41 @@
+name: PR title
+
+# Conventional Commit header in its own workflow, so branch protection can require it on its own. The title is
+# the squash commit release-please reads. No path filter: a required workflow must run on every pull request.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "26"
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Native arm64 runner
+        run: |
+          machine=$(uname -m)
+          echo "uname -m: $machine"
+          test "$machine" = aarch64
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Conventional Commit title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: node scripts/pr-title.ts

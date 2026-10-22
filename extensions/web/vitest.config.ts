@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import { WxtVitest } from 'wxt/testing/vitest-plugin';
+import { FORCE_RERUN_TRIGGERS } from '../../scripts/vitest-rerun.ts';
 
 export default defineConfig({
   // `root` pins WXT to this folder when the repo root runs this file as a Vitest project.
@@ -8,5 +9,6 @@ export default defineConfig({
     name: 'extension',
     environment: 'happy-dom',
     include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.tsx'],
+    forceRerunTriggers: FORCE_RERUN_TRIGGERS,
   },
 });

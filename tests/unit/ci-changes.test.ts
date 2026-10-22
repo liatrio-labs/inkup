@@ -59,9 +59,10 @@ describe('ci-changes', () => {
     [
       'release-please files',
       ['.release-please-manifest.json', 'release-please-config.json', 'host/CHANGELOG.md'],
-      { ...none, site: true },
+      { ...none, site: true, extension: true },
     ],
-    ['release-please config', ['release-please-config.json'], none],
+    ['release-please config', ['release-please-config.json'], { ...none, extension: true }],
+    ['DESIGN.md', ['DESIGN.md'], { ...none, extension: true }],
     ['root config', ['biome.json', 'tsconfig.json'], { ...none, extension: true }],
     ['the lockfile', ['pnpm-lock.yaml'], { ...none, extension: true, desktop: true, site: true }],
     [

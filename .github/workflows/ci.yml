@@ -4,13 +4,17 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Nightly full suite, off the hour. A pull request stays path-routed and narrows tests inside each area.
+  schedule:
+    - cron: '15 7 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # The nightly does not share main's group, so a push does not wait behind it.
+  group: ci-${{ github.ref }}${{ github.event_name == 'schedule' && '-nightly' || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -24,8 +28,9 @@ jobs:
   # the breaking-change guard, host/ the host, the rest of the workspace the extension, docs lint alone. The desktop
   # app runs for apps/desktop and for what it is built from (host/, packages/, the lockfile); the site (apps/site, ADR
   # 0026) for apps/site, the lockfile and release-please's manifest, and nothing else for it. The x86_64 macOS cross
-  # build runs for host/, dist-workspace.toml, and any path that runs everything. A push with no usable
-  # base runs everything. A release pull request (release-please--*) runs nothing: it only bumps versions and
+  # build runs for host/, dist-workspace.toml, and any path that runs everything. A push to main and the nightly
+  # run every area. A push with no usable base runs everything except the contract guard. A release pull request
+  # (release-please--*) runs nothing: it only bumps versions and
   # changelogs of code that was tested on its own pull request (ADR 0027), so every job skips and ci-ok passes.
   changes:
     name: changes
@@ -49,9 +54,18 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - id: diff
         env:
+          EVENT_NAME: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
+          set -eo pipefail
+          plan=$(node scripts/ci-full-suite.ts areas "$EVENT_NAME")
+          mode=${plan%%$'\n'*}
+          if [ "$mode" = full ]; then
+            echo "Full suite: $EVENT_NAME treats every area as changed."
+            printf '%s\n' "${plan#*"$mode"$'\n'}" | tee -a "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! files=$(git diff --name-only "$BASE...$HEAD"); then
             echo "No base to diff against; running everything."
@@ -78,9 +92,16 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       # The checkout is what would land (a pull request's merge commit), so this compares it with the base as is.
+      # A nightly has no base SHA; the previous commit is the comparison, and a green main has nothing to break.
       - env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: node scripts/contract-compat.ts "$BASE"
+        run: |
+          set -eo pipefail
+          ref="$BASE"
+          if [ -z "$ref" ] || [ "$ref" = "0000000000000000000000000000000000000000" ]; then
+            ref=HEAD~1
+          fi
+          node scripts/contract-compat.ts "$ref"
 
   # The pre-commit hooks (Biome, markdownlint, zizmor, file hygiene) over every file, and gitleaks over the whole
   # history. host.yml runs the cargo hooks; gitleaks's hook only reads staged changes, so it runs as a step here.
@@ -109,7 +130,8 @@ jobs:
       - name: gitleaks (full history)
         run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact --no-banner
 
-  # packages/core on its own: pure TS, no browser. Fast, and the one the host work builds on.
+  # packages/core, packages/protocol and packages/ui: pure TS, no browser. Fast, and the host work builds on
+  # core. A pull request runs these three in full. Their tests read the tree from disk, and ui also reads DESIGN.md.
   core:
     name: core
     needs: changes
@@ -120,6 +142,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -129,11 +152,27 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -C packages/core typecheck
-      - run: pnpm -C packages/core test
       - run: pnpm -C packages/protocol typecheck
-      - run: pnpm -C packages/protocol test
+      - name: Unit tests
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -eo pipefail
+          # core, protocol and ui scan their trees from disk and finish in a few seconds.
+          args_text=$(printf '\n' | node scripts/ci-full-suite.ts vitest "$EVENT_NAME" core)
+          mapfile -t args <<< "$args_text"
+          {
+            echo "### vitest (core, protocol, ui)"
+            echo '```'
+            printf '%s\n' "${args[@]}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          pnpm -C packages/core exec vitest "${args[@]}"
+          pnpm -C packages/protocol exec vitest "${args[@]}"
+          pnpm -C packages/ui exec vitest "${args[@]}"
 
   # The Chrome build of extensions/web: typecheck and unit tests for the whole workspace, schema sync, the zip.
+  # A pull request runs vitest --changed only when every non-doc file is a package TypeScript module.
   extension-chrome:
     name: extension-chrome
     needs: changes
@@ -144,6 +183,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -153,7 +193,29 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      - run: pnpm test
+      - name: Unit tests
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
+            files=$(git diff --name-only "$BASE_SHA...HEAD" || true)
+          else
+            files=
+          fi
+          args_text=$(printf '%s\n' "$files" | node scripts/ci-full-suite.ts vitest "$EVENT_NAME" all)
+          mapfile -t args <<< "$args_text"
+          if printf '%s\n' "${args[@]}" | grep -qx -- --changed; then
+            git fetch --no-tags origin main
+          fi
+          {
+            echo "### vitest"
+            echo '```'
+            printf '%s\n' "${args[@]}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          pnpm exec vitest "${args[@]}"
       - name: Session and protocol JSON schemas are in sync
         run: pnpm schema && git diff --exit-code -- contract
       - run: pnpm zip
@@ -168,7 +230,8 @@ jobs:
 
   # Split three ways, one runner each: a third of the specs per shard, and no runner busier than one worker. The e2e
   # drives the extension against the real host (host.spec.ts), the one test of both sides together, so it runs when
-  # either side changes.
+  # either side changes. A pull request runs the specs scripts/affected-e2e.ts names for the diff; main and the
+  # nightly run the suite. A shard with no selected spec passes.
   extension-chrome-e2e:
     name: extension-chrome-e2e (${{ matrix.shard }}/3)
     needs: changes
@@ -183,6 +246,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -190,25 +254,68 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Install Playwright Chromium
+      - id: plan
+        name: Choose Chrome specs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -eo pipefail
+          plan="$RUNNER_TEMP/e2e-plan.txt"
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            printf 'all\n' | tee "$plan"
+          elif [ -z "$BASE_SHA" ] || ! files=$(git diff --name-only "$BASE_SHA...HEAD"); then
+            echo "No base to diff against; running the full Chrome suite."
+            printf 'all\n' | tee "$plan"
+          else
+            printf '%s\n' "$files" | node scripts/affected-e2e.ts chrome | tee "$plan"
+          fi
+          mode=$(head -n 1 "$plan")
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Chrome e2e ($SHARD/3)"
+            echo '```'
+            cat "$plan"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - if: success() && steps.plan.outputs.mode != 'none'
+        run: pnpm install --frozen-lockfile
+      - if: success() && steps.plan.outputs.mode != 'none'
+        name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
       # host.spec.ts spawns the real host; `pnpm test:e2e` builds it (`pnpm host:build`).
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master, 2026-09-12
+      - if: success() && steps.plan.outputs.mode != 'none'
+        uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master, 2026-09-12
         with:
           toolchain: "1.98"
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - if: success() && steps.plan.outputs.mode != 'none'
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: host
-      # Builds the extension (and the host), then runs every spec headless
+      # Builds the extension (and the host), then runs the selected specs headless
       # against bundled Chromium with fake media. Live-API evals and the
       # Whisper download spec are opt-in and never run here.
       # One Chromium log per test (tests/e2e/fixtures.ts), kept with the report on failure: a renderer crash
       # otherwise leaves only a timeout.
-      - env:
+      - if: success() && steps.plan.outputs.mode != 'none'
+        env:
           SHARD: ${{ matrix.shard }}
           E2E_CHROME_LOG_DIR: ${{ github.workspace }}/chrome-logs
-        run: mkdir -p chrome-logs && pnpm test:e2e --shard="$SHARD/3"
+        run: |
+          set -eo pipefail
+          mkdir -p chrome-logs
+          mode=$(head -n 1 "$RUNNER_TEMP/e2e-plan.txt")
+          if [ "$mode" = all ]; then
+            pnpm test:e2e --shard="$SHARD/3"
+          else
+            mapfile -t specs < <(tail -n +2 "$RUNNER_TEMP/e2e-plan.txt" | sed '/^$/d')
+            if [ "${#specs[@]}" -eq 0 ]; then
+              echo "The spec plan named no files."
+              exit 1
+            fi
+            pnpm test:e2e --shard="$SHARD/3" --pass-with-no-tests "${specs[@]}"
+          fi
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -220,7 +327,8 @@ jobs:
           retention-days: 7
 
   # The Firefox build of extensions/web: the add-on zip, and the Firefox e2e (the add-on is installed over
-  # Firefox's remote debugging protocol; tests/e2e-firefox/fixtures.ts).
+  # Firefox's remote debugging protocol; tests/e2e-firefox/fixtures.ts). A pull request runs the specs
+  # scripts/affected-e2e.ts names; main and the nightly run the suite. No selected spec skips the build.
   extension-firefox:
     name: extension-firefox
     needs: changes
@@ -231,6 +339,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -238,31 +347,76 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Install Playwright Firefox
+      - id: plan
+        name: Choose Firefox specs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eo pipefail
+          plan="$RUNNER_TEMP/e2e-plan.txt"
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            printf 'all\n' | tee "$plan"
+          elif [ -z "$BASE_SHA" ] || ! files=$(git diff --name-only "$BASE_SHA...HEAD"); then
+            echo "No base to diff against; running the full Firefox suite."
+            printf 'all\n' | tee "$plan"
+          else
+            printf '%s\n' "$files" | node scripts/affected-e2e.ts firefox | tee "$plan"
+          fi
+          mode=$(head -n 1 "$plan")
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Firefox e2e"
+            echo '```'
+            cat "$plan"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - if: success() && steps.plan.outputs.mode != 'none'
+        run: pnpm install --frozen-lockfile
+      - if: success() && steps.plan.outputs.mode != 'none'
+        name: Install Playwright Firefox
         run: pnpm exec playwright install --with-deps firefox
       # network-host.spec.ts spawns the real host.
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master, 2026-09-12
+      - if: success() && steps.plan.outputs.mode != 'none'
+        uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master, 2026-09-12
         with:
           toolchain: "1.98"
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - if: success() && steps.plan.outputs.mode != 'none'
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: host
-      - run: pnpm host:build
+      - if: success() && steps.plan.outputs.mode != 'none'
+        run: pnpm host:build
       # Firefox on Linux needs what a desktop has: a sound server (with none, an AudioContext's resume() and close()
       # hang and every Stop waits out its backstop) and a display (headless, getDisplayMedia has no source and the
       # Session records no video). A null sink and Xvfb stand in for them.
-      - name: Start a sound server
+      - if: success() && steps.plan.outputs.mode != 'none'
+        name: Start a sound server
         run: |
           sudo apt-get install -y --no-install-recommends pulseaudio
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=null
           pactl set-default-sink null
-      - env:
+      - if: success() && steps.plan.outputs.mode != 'none'
+        env:
           HEADED: "1"
-        run: xvfb-run -a pnpm test:e2e:firefox
-      - run: pnpm zip:firefox
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        run: |
+          set -eo pipefail
+          mode=$(head -n 1 "$RUNNER_TEMP/e2e-plan.txt")
+          if [ "$mode" = all ]; then
+            xvfb-run -a pnpm test:e2e:firefox
+          else
+            mapfile -t specs < <(tail -n +2 "$RUNNER_TEMP/e2e-plan.txt" | sed '/^$/d')
+            if [ "${#specs[@]}" -eq 0 ]; then
+              echo "The spec plan named no files."
+              exit 1
+            fi
+            xvfb-run -a pnpm test:e2e:firefox --pass-with-no-tests "${specs[@]}"
+          fi
+      - if: success() && steps.plan.outputs.mode != 'none'
+        run: pnpm zip:firefox
+      - if: success() && steps.plan.outputs.mode != 'none'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: firefox-zip
           path: extensions/web/.output/*-firefox.zip
@@ -278,7 +432,9 @@ jobs:
             test-results/
           retention-days: 7
 
-  # The host: fmt, clippy and tests on all three platforms.
+  # The host: fmt, clippy and tests on all three platforms. A pull request runs cargo test -p on the changed
+  # crates and their reverse dependencies; the lockfile, toolchain or a shared crate keeps --workspace. main and
+  # the nightly always use --workspace. fmt and clippy stay on the whole workspace.
   cargo:
     name: cargo (${{ matrix.os }})
     needs: changes
@@ -296,6 +452,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master, 2026-09-12
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -305,12 +462,54 @@ jobs:
           workspaces: host
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
       # Includes the contract: the shared fixture corpus decodes, and src/generated.rs matches
       # contract/protocol.schema.json. INKUP_LAN_TESTS runs the tests that listen beyond loopback, off by default so a
-      # local run does not set off a macOS firewall prompt.
-      - run: cargo test --workspace --locked
+      # local run does not set off a macOS firewall prompt. bash on Windows too: the selector is a shell script.
+      - name: Test the changed crates
+        shell: bash
         env:
           INKUP_LAN_TESTS: "1"
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eo pipefail
+          plan="$RUNNER_TEMP/cargo-plan.txt"
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            printf 'workspace\n' | tee "$plan"
+          elif [ -z "$BASE_SHA" ] || ! files=$(git diff --name-only "$BASE_SHA...HEAD"); then
+            echo "No base to diff against; testing the whole workspace."
+            printf 'workspace\n' | tee "$plan"
+          else
+            printf '%s\n' "$files" | node ../scripts/affected-crates.ts | tee "$plan"
+          fi
+          {
+            echo "### cargo test"
+            echo '```'
+            cat "$plan"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          mode=$(head -n 1 "$plan")
+          if [ "$mode" = none ]; then
+            echo "No crate tests for this diff."
+            exit 0
+          fi
+          if [ "$mode" = workspace ]; then
+            cargo test --workspace --locked
+            exit 0
+          fi
+          pkgs=()
+          while IFS= read -r pkg; do
+            [ -n "$pkg" ] || continue
+            pkgs+=(-p "$pkg")
+          done < <(tail -n +2 "$plan")
+          if [ "${#pkgs[@]}" -eq 0 ]; then
+            echo "The crate plan named no packages."
+            exit 1
+          fi
+          cargo test "${pkgs[@]}" --locked
 
   # The desktop app (apps/desktop, ADR 0025): its own Cargo workspace, so the host's job never builds Tauri. fmt,
   # clippy and tests for the app crate, and a debug build of the app with its UI, on all three platforms; the UI's
@@ -333,6 +532,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       # What Tauri needs on Linux: WebKitGTK 4.1 for the window, and appindicator for the tray.
       - if: runner.os == 'Linux'
         name: Install WebKitGTK and appindicator
@@ -351,7 +551,29 @@ jobs:
       - if: runner.os == 'Linux'
         run: pnpm -C apps/desktop typecheck
       - if: runner.os == 'Linux'
-        run: pnpm -C apps/desktop test
+        name: Desktop unit tests
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
+            files=$(git diff --name-only "$BASE_SHA...HEAD" || true)
+          else
+            files=
+          fi
+          args_text=$(printf '%s\n' "$files" | node scripts/ci-full-suite.ts vitest "$EVENT_NAME" all)
+          mapfile -t args <<< "$args_text"
+          if printf '%s\n' "${args[@]}" | grep -qx -- --changed; then
+            git fetch --no-tags origin main
+          fi
+          {
+            echo "### vitest (desktop)"
+            echo '```'
+            printf '%s\n' "${args[@]}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          pnpm -C apps/desktop exec vitest "${args[@]}"
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master, 2026-09-12
         with:
           toolchain: ${{ env.RUST_VERSION }}
