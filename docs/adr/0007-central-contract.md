@@ -76,6 +76,13 @@ The Chrome e2e builds the real Host and drives the extension against it (`tests/
 of both sides together, so it runs when either changes. `ci-ok`, the one required check, needs `contract-compat` as
 well as every other job; a skipped job passes it.
 
+On a pull request that table still decides which jobs start. Inside a started job, Vitest runs with
+`--changed origin/main`, Playwright runs the specs `scripts/affected-e2e.ts` maps from the diff, and the host runs
+`cargo test -p` on the changed crates and their reverse dependencies. A shared fixture, the harness, the Playwright
+config, a `package.json` or the lockfile runs every Playwright spec. `Cargo.lock`, the toolchain or a shared crate runs
+`cargo test --workspace`. A push to `main` and the nightly schedule do not use the table: every area runs, and each
+job runs its full suite.
+
 ## Considered options
 
 - Keep the schemas where they were and list both paths in the CI rules: the rules had to know that `packages/protocol`
@@ -113,3 +120,5 @@ well as every other job; a skipped job passes it.
 - 2026-10-21: `host/**`, `dist-workspace.toml` and any path that already runs everything also run the x86_64 macOS
   cross build on `macos-14`. The 0.16.0 host release cross-compiled that binary without the rustup target for the
   pinned toolchain, and nothing in CI built it.
+- 2026-10-22: pull requests still start jobs from the table, and run only the tests the diff can affect. A push to
+  main and the nightly schedule run every area in full.
