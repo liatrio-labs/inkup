@@ -1,5 +1,6 @@
 reviews:
   review_status: false
   review_progress: false
+  commit_status: false
   auto_review:
     enabled: false
