@@ -147,9 +147,9 @@ connections?" prompt, so set it only when you change network mode and can answer
   The Follow-ups section lists each issue with its reason, or "none". Resolve review conversations. Unresolved
   changes requested, security or acceptance blockers prevent merge.
 - CI must pass: `ci-ok` aggregates the jobs selected by the change, including lint, core, Chrome/Firefox builds
-  and e2e, host and desktop platform matrices, contract compatibility, site checks and an advisory design scan when
-  a UI path changes. A job skipped by CI's path routing passes the aggregate (ADR 0007). This describes the workflow,
-  not verified live protection.
+  and e2e, host and desktop platform matrices, contract compatibility, site checks, actionlint when a workflow or
+  its config changes, and an advisory design scan when a UI path changes. A job skipped by CI's path routing passes
+  the aggregate (ADR 0007). This describes the workflow, not verified live protection.
 - The InkUp Reviewer is the separate review agent that posts the verdict. The lead is the agent that owns the
   batch and queues merges. The repo owner is the human maintainer only. The lead runs `gh pr merge` from the
   maintainer's authenticated `gh` account. That account is only for queuing merges. The lead, like every

@@ -12,7 +12,16 @@ export const FULL_SUITE_EVENTS = new Set(['push', 'schedule']);
 
 /** Every `changes` output on, including contract-compat (the nightly passes it HEAD~1 when it has no base). */
 export function fullSuiteSides(): Sides {
-  return { extension: true, host: true, contract: true, desktop: true, site: true, x64_macos: true, ui: true };
+  return {
+    extension: true,
+    host: true,
+    contract: true,
+    desktop: true,
+    site: true,
+    x64_macos: true,
+    ui: true,
+    workflows: true,
+  };
 }
 
 export function areasForEvent(event: string): { mode: 'full'; sides: Sides } | { mode: 'diff' } {
