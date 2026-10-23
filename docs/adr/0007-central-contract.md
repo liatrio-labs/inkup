@@ -72,14 +72,16 @@ on it, and a newer one acts on it.
 | `PRODUCT.md` | lint, and the advisory `design` job |
 | `release-please-config.json` | the extension side (`release-worthy.test.ts` reads it). Playwright runs no specs |
 | `*.md` other than `DESIGN.md` and `PRODUCT.md`, `docs/**`, `LICENSE` | lint only |
-| The site's capture inputs: `fixtures/site/demo-store.html`, its font, `site-demo` speech, `site-captures.yml` | lint only; `site-captures.yml` records them on the pull request (ADR 0026) |
-| `.github/workflows/ci.yml`, `.github/workflows/inkup-v-release.yml`, any other path | everything, including the x86_64 macOS cross build and the advisory `design` job |
+| The site's capture inputs: `fixtures/site/demo-store.html`, its font, `site-demo` speech, `site-captures.yml` | lint only, plus `actionlint` for `site-captures.yml`; that workflow records the captures on the pull request (ADR 0026) |
+| `.github/workflows/ci.yml`, `.github/workflows/inkup-v-release.yml`, any other path | everything, including the x86_64 macOS cross build and the advisory `design` job. A file under `.github/workflows/` also runs `actionlint` |
 | UI source (`*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, `*.astro`, `*.html`, `*.htm`, `*.css`, `*.scss`, `*.sass`, `*.less`), `DESIGN.md`, `PRODUCT.md`, `.impeccable/**`, `packages/ui/components.json` | the advisory `design` job, as well as whatever else the row above says. `*.test.*`, `*.spec.*`, `*.stories.*` and `fixtures/` are not UI |
+| `.github/workflows/**` | `actionlint`, in addition to any other job the rows above already start for that file |
+| `.github/actionlint.yaml`, `.github/actionlint.yml` | `actionlint` only |
 
 The Chrome e2e builds the real Host and drives the extension against it (`tests/e2e/host.spec.ts`). It is the one test
 of both sides together, so it runs when either changes. `ci-ok`, the one required check, needs `contract-compat`,
-the advisory `design` job and every other job; a skipped job passes it. `design` runs `impeccable@4.7.0 detect` and
-reports findings. It fails only when a scan cannot run.
+`actionlint`, the advisory `design` job and every other job; a skipped job passes it. `design` runs
+`impeccable@4.7.0 detect` and reports findings. It fails only when a scan cannot run.
 
 On a pull request that table still decides which jobs start. Vitest uses `--changed origin/main` only when every
 non-doc file is a TypeScript module under a package's `src/` or test tree. `DESIGN.md` is not a doc for that gate:
@@ -140,3 +142,7 @@ use the table: every area runs, and each job runs its full suite.
 - 2026-10-22: UI paths set `ui` and run an advisory `design` job (`impeccable@4.7.0 detect`). A skipped design job
   still passes `ci-ok`. Spacing on a component token counts as on-scale; that rule is prose in DESIGN.md, and no
   token value moved.
+- 2026-10-23: `.github/workflows/**` and actionlint's config (`.github/actionlint.yaml` or `.yml`) set `workflows`
+  and run `actionlint` on `ubuntu-24.04-arm`. A push to main and the nightly run it with the other areas. A skipped
+  job still passes `ci-ok`. Shellcheck notes in cargo-dist's generated `inkup-v-release.yml` stay ignored in
+  `.github/actionlint.yaml`, because that file is generated and must not be hand-edited.

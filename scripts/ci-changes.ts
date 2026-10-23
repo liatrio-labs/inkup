@@ -12,8 +12,10 @@
 // host/, for dist-workspace.toml, and for any path that already runs everything (the release workflow
 // included). A UI path also sets `ui`, which gates the advisory design job: source under the UI extensions,
 // DESIGN.md, PRODUCT.md, .impeccable/** and the theme config (packages/ui/components.json). Tests, stories and
-// fixtures are not a surface. Prints `extension=`, `host=`, `contract=`, `desktop=`, `site=`, `x64_macos=` and
-// `ui=` lines for $GITHUB_OUTPUT.
+// fixtures are not a surface. A file under `.github/workflows/` and actionlint's config
+// (`.github/actionlint.yaml` or `.yml`) set `workflows`, which gates the actionlint job; the config sets nothing
+// else. Prints `extension=`, `host=`, `contract=`, `desktop=`, `site=`, `x64_macos=`, `ui=` and `workflows=` lines
+// for $GITHUB_OUTPUT.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
@@ -25,6 +27,7 @@ export type Sides = {
   site: boolean;
   x64_macos: boolean;
   ui: boolean;
+  workflows: boolean;
 };
 
 const DOCS = /\.md$|^LICENSE$|^docs\//;
@@ -48,6 +51,9 @@ const UI_SKIP = /(?:^|\/)[^/]*\.(?:test|spec|stories)\.[^/]+$|(?:^|\/)fixtures(?
 const UI_CONTEXT = /^(?:DESIGN|PRODUCT)\.md$|(?:^|\/)\.impeccable\//;
 // shadcn's theme config (ADR 0029). theme.css is already a CSS source.
 const THEME_CONFIG = /^packages\/ui\/components\.json$/;
+// actionlint's own config. A change to it runs that job and nothing else this router starts.
+const ACTIONLINT_CONFIG = /^\.github\/actionlint\.ya?ml$/;
+const WORKFLOW_FILE = /^\.github\/workflows\//;
 
 /** A path the advisory design job treats as UI. */
 export function isUi(file: string): boolean {
@@ -64,8 +70,14 @@ export function classify(files: string[]): Sides {
     site: false,
     x64_macos: false,
     ui: false,
+    workflows: false,
   };
   for (const file of files) {
+    if (ACTIONLINT_CONFIG.test(file)) {
+      sides.workflows = true;
+      continue;
+    }
+    if (WORKFLOW_FILE.test(file)) sides.workflows = true;
     if (isUi(file)) sides.ui = true;
     if (SITE_TOO.test(file)) sides.site = true;
     if (VITEST_DISK.test(file)) {

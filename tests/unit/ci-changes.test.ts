@@ -14,8 +14,18 @@ const none = {
   site: false,
   x64_macos: false,
   ui: false,
+  workflows: false,
 };
-const all = { extension: true, host: true, contract: true, desktop: true, site: false, x64_macos: false, ui: false };
+const all = {
+  extension: true,
+  host: true,
+  contract: true,
+  desktop: true,
+  site: false,
+  x64_macos: false,
+  ui: false,
+  workflows: false,
+};
 
 describe('ci-changes', () => {
   it.each<[string, string[], typeof none]>([
@@ -37,7 +47,7 @@ describe('ci-changes', () => {
     [
       'site only',
       ['apps/site/src/pages/index.astro', 'apps/site/astro.config.ts', '.github/workflows/site.yml'],
-      { ...none, site: true, ui: true },
+      { ...none, site: true, ui: true, workflows: true },
     ],
     ['site docs', ['apps/site/README.md'], none],
     // What only the site's captures read: site-captures.yml records them on the pull request itself.
@@ -50,7 +60,7 @@ describe('ci-changes', () => {
         'fixtures/audio/site-demo.wav',
         '.github/workflows/site-captures.yml',
       ],
-      none,
+      { ...none, workflows: true },
     ],
     ['refreshed captures', ['apps/site/src/assets/captures/stroke.png'], { ...none, site: true }],
     // The capture spec is e2e code, and the other fixtures are the e2e suite's.
@@ -108,13 +118,34 @@ describe('ci-changes', () => {
     [
       'the CI workflow',
       ['.github/workflows/ci.yml'],
-      { ...none, extension: true, host: true, desktop: true, site: true, x64_macos: true, ui: true },
+      {
+        ...none,
+        extension: true,
+        host: true,
+        desktop: true,
+        site: true,
+        x64_macos: true,
+        ui: true,
+        workflows: true,
+      },
     ],
     [
       'the host release workflow',
       ['.github/workflows/inkup-v-release.yml'],
-      { ...none, extension: true, host: true, desktop: true, site: true, x64_macos: true, ui: true },
+      {
+        ...none,
+        extension: true,
+        host: true,
+        desktop: true,
+        site: true,
+        x64_macos: true,
+        ui: true,
+        workflows: true,
+      },
     ],
+    // site-captures.yml is the workflow that runs no other area. actionlint's config runs actionlint alone.
+    ['one workflow', ['.github/workflows/site-captures.yml'], { ...none, workflows: true }],
+    ['actionlint config', ['.github/actionlint.yaml', '.github/actionlint.yml'], { ...none, workflows: true }],
     [
       'an unknown path',
       ['tools/new-thing.sh'],
@@ -135,8 +166,11 @@ describe('ci-changes', () => {
         site: false,
         x64_macos: true,
         ui: false,
+        workflows: false,
       }),
-    ).toBe('extension=true\nhost=false\ncontract=false\ndesktop=true\nsite=false\nx64_macos=true\nui=false\n');
+    ).toBe(
+      'extension=true\nhost=false\ncontract=false\ndesktop=true\nsite=false\nx64_macos=true\nui=false\nworkflows=false\n',
+    );
   });
 
   it('lists changed UI files and skips tests, stories and fixtures', () => {

@@ -59,6 +59,7 @@ describe('affected e2e', () => {
       site: false,
       x64_macos: false,
       ui: false,
+      workflows: false,
     });
   });
 
@@ -343,8 +344,9 @@ describe('full suite and vitest', () => {
       encoding: 'utf8',
     });
     expect(areas).toBe(
-      'full\nextension=true\nhost=true\ncontract=true\ndesktop=true\nsite=true\nx64_macos=true\nui=true\n',
+      'full\nextension=true\nhost=true\ncontract=true\ndesktop=true\nsite=true\nx64_macos=true\nui=true\nworkflows=true\n',
     );
+    expect(fullSuiteSides().workflows).toBe(true);
   });
 
   it('runs packages/ui in full from the core job, because product-boundary scans src/', () => {
@@ -387,6 +389,29 @@ describe('conventional pull request title', () => {
   });
 });
 
+describe('workflow lint routing', () => {
+  it('turns workflows on for a workflow-only diff and leaves it off otherwise', () => {
+    const workflowOnly = classify(['.github/workflows/site-captures.yml']);
+    expect(workflowOnly.workflows).toBe(true);
+    expect(workflowOnly).toEqual({
+      extension: false,
+      host: false,
+      contract: false,
+      desktop: false,
+      site: false,
+      x64_macos: false,
+      ui: false,
+      workflows: true,
+    });
+    expect(classify(['.github/actionlint.yaml']).workflows).toBe(true);
+    expect(classify(['.github/actionlint.yml']).workflows).toBe(true);
+    expect(classify(['extensions/web/src/entrypoints/background.ts']).workflows).toBe(false);
+    expect(classify(['README.md', 'docs/adr/0007-central-contract.md']).workflows).toBe(false);
+    expect(classify(['.github/dependabot.yml']).workflows).toBe(false);
+    expect(fullSuiteSides().workflows).toBe(true);
+  });
+});
+
 describe('ci workflows', () => {
   const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
   const title = readFileSync(join(root, '.github/workflows/pr-title.yml'), 'utf8');
@@ -404,11 +429,11 @@ describe('ci workflows', () => {
     expect(title).not.toContain('paths-ignore:');
     expect(ci).toContain('if: always()');
     expect(ci).toContain(
-      'needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop, site, x64-macos, design]',
+      'needs: [changes, contract-compat, lint, core, extension-chrome, extension-chrome-e2e, extension-firefox, cargo, desktop, site, x64-macos, design, actionlint]',
     );
     expect(ci).toContain('ui: $' + '{{ steps.diff.outputs.ui }}');
     expect(ci).toContain(
-      "printf 'extension=true\\nhost=true\\ncontract=false\\ndesktop=true\\nsite=true\\nx64_macos=true\\nui=true\\n'",
+      "printf 'extension=true\\nhost=true\\ncontract=false\\ndesktop=true\\nsite=true\\nx64_macos=true\\nui=true\\nworkflows=true\\n'",
     );
     expect(ci).toContain('.result == "success" or .result == "skipped"');
   });
@@ -437,7 +462,7 @@ describe('ci workflows', () => {
 
   it('runs an advisory design job on UI changes and skips it otherwise', () => {
     const start = ci.indexOf('\n  design:\n');
-    const end = ci.indexOf('\n  # The one required check', start);
+    const end = ci.indexOf('\n  actionlint:\n', start);
     expect(start).toBeGreaterThan(0);
     expect(end).toBeGreaterThan(start);
     const design = ci.slice(start, end);
@@ -473,6 +498,26 @@ describe('ci workflows', () => {
     expect(design).toContain('scripts/ci-design.ts summarize');
     expect(design).toContain('scripts/ci-design.ts disables');
     expect(design).toContain('scripts/ci-changes.ts --ui-files');
+  });
+
+  it('runs actionlint on workflow changes, on arm64, and lets a skip pass ci-ok', () => {
+    const start = ci.indexOf('\n  actionlint:\n');
+    const end = ci.indexOf('\n  # The one required check', start);
+    expect(start).toBeGreaterThan(0);
+    expect(end).toBeGreaterThan(start);
+    const job = ci.slice(start, end);
+    expect(job).toContain('needs: changes');
+    expect(job).toContain("if: needs.changes.outputs.workflows == 'true'");
+    expect(job).toContain('runs-on: ubuntu-24.04-arm');
+    expect(job).toContain('test "$machine" = aarch64');
+    expect(job).toContain('linux_arm64');
+    expect(job).toContain('sha256sum -c -');
+    expect(job).toContain('325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6');
+    expect(job).toContain('1.7.12');
+    expect(job).toContain('command -v shellcheck');
+    expect(job).toContain('actionlint -color');
+    expect(ci).toContain('workflows: $' + '{{ steps.diff.outputs.workflows }}');
+    expect(ci).toContain('.result == "success" or .result == "skipped"');
   });
 });
 

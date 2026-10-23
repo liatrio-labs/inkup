@@ -297,7 +297,9 @@ a required check.
 Actions in the generated workflow are pinned by commit through `[dist.github-action-commits]`; update those pins
 alongside the ones in the other workflows. zizmor findings that come from dist's template (workflow-level
 `contents: write`, template expansions of the tag and dist's plan output, the plan's `container:`) are ignored for
-`inkup-v-release.yml` only, in `.github/zizmor.yml`, with the reason next to each.
+`inkup-v-release.yml` only, in `.github/zizmor.yml`, with the reason next to each. Two shellcheck codes from dist's
+template, SC2086 and SC2129, are also ignored for `inkup-v-release.yml` only, in `.github/actionlint.yaml`; re-check
+them on a dist upgrade too.
 
 ### The Homebrew formula
 
